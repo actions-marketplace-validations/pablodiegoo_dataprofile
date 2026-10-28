@@ -173,3 +173,211 @@ func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {
 	}
 }
 
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("failed to resolve repo root: %v", err)
+	}
+	return root
+}
+
+func TestGitHubActionWorkflowAndSecretHygiene(t *testing.T) {
+	root := repoRoot(t)
+
+	// 1. Verify action.yml composite GitHub Action contract
+	actionRaw, err := os.ReadFile(filepath.Join(root, "action.yml"))
+	if err != nil {
+		t.Fatalf("missing action.yml: %v", err)
+	}
+	actionStr := string(actionRaw)
+	requiredActionTokens := []string{
+		`using: "composite"`,
+		`actions/setup-go@v5`,
+		`go-version: "1.23"`,
+		`config:`,
+		`output:`,
+		`locale:`,
+		`go run ./cmd/dataprofile generate`,
+		`--config=${{ inputs.config }}`,
+		`--output=${{ inputs.output }}`,
+		`--locale=${{ inputs.locale }}`,
+		`go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}"`,
+	}
+	for _, tok := range requiredActionTokens {
+		if !strings.Contains(actionStr, tok) {
+			t.Errorf("action.yml missing required token %q", tok)
+		}
+	}
+
+	// 2. Verify .github/workflows/generate.yml CI/CD & orphan output branch workflow
+	wfRaw, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "generate.yml"))
+	if err != nil {
+		t.Fatalf("missing .github/workflows/generate.yml: %v", err)
+	}
+	wfStr := string(wfRaw)
+	requiredWorkflowTokens := []string{
+		`cron:`,
+		`workflow_dispatch:`,
+		`branches:`,
+		`- main`,
+		`contents: write`,
+		`go test -v ./...`,
+		`ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}`,
+		`GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`,
+		`KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}`,
+		`KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}`,
+		`go run ./cmd/dataprofile generate`,
+		`go run ./cmd/dataprofile validate`,
+		`git checkout --orphan`,
+		`git push -f origin output`,
+	}
+	for _, tok := range requiredWorkflowTokens {
+		if !strings.Contains(wfStr, tok) {
+			t.Errorf(".github/workflows/generate.yml missing required token %q", tok)
+		}
+	}
+
+	// 3. Verify .gitignore secret exclusion rules
+	gitignoreRaw, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	if err != nil {
+		t.Fatalf("missing .gitignore: %v", err)
+	}
+	gitignoreStr := string(gitignoreRaw)
+	for _, pattern := range []string{".env", ".env.*", "!.env.example", "kaggle.json"} {
+		if !strings.Contains(gitignoreStr, pattern) {
+			t.Errorf(".gitignore missing required secret exclusion rule %q", pattern)
+		}
+	}
+
+	// 4. Verify .env.example documents all optional secrets without leaking values
+	envExRaw, err := os.ReadFile(filepath.Join(root, ".env.example"))
+	if err != nil {
+		t.Fatalf("missing .env.example: %v", err)
+	}
+	envExStr := string(envExRaw)
+	for _, key := range []string{"ACCESS_TOKEN=", "GITHUB_TOKEN=", "KAGGLE_USERNAME=", "KAGGLE_KEY="} {
+		if !strings.Contains(envExStr, key) {
+			t.Errorf(".env.example missing documented variable %q", key)
+		}
+	}
+}
+
+func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
+	root := repoRoot(t)
+
+	// 1. Verify all 20 generated/<school>/<panel>.svg exist and pass ValidateSVG
+	for _, school := range domain.AllSchools() {
+		for _, panel := range domain.AllPanels() {
+			genPath := filepath.Join(root, "generated", string(school), string(panel)+".svg")
+			genBytes, err := os.ReadFile(genPath)
+			if err != nil {
+				t.Fatalf("missing generated SVG %s: %v", genPath, err)
+			}
+			if err := render.ValidateSVG(string(genBytes)); err != nil {
+				t.Errorf("generated SVG %s failed ValidateSVG: %v", genPath, err)
+			}
+
+			// For the 4 analytical panels (languages, stack, kaggle, impact), verify prototypes/schools/<school>/<panel>.svg matches
+			if panel != domain.PanelSummary {
+				protoPath := filepath.Join(root, "prototypes", "schools", string(school), string(panel)+".svg")
+				protoBytes, err := os.ReadFile(protoPath)
+				if err != nil {
+					t.Fatalf("missing prototype SVG %s: %v", protoPath, err)
+				}
+				if err := render.ValidateSVG(string(protoBytes)); err != nil {
+					t.Errorf("prototype SVG %s failed ValidateSVG: %v", protoPath, err)
+				}
+				if string(protoBytes) != string(genBytes) {
+					t.Errorf("prototype SVG %s is out of sync with %s", protoPath, genPath)
+				}
+			}
+		}
+	}
+
+	// 2. Verify all remaining SVGs in prototypes/ pass ValidateSVG
+	err := filepath.Walk(filepath.Join(root, "prototypes"), func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".svg") {
+			return err
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if vErr := render.ValidateSVG(string(raw)); vErr != nil {
+			t.Errorf("prototype SVG %s failed ValidateSVG: %v", path, vErr)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("error walking prototypes directory: %v", err)
+	}
+
+	// 3. Verify interactive prototype viewer (prototypes/index.html)
+	protoHTMLRaw, err := os.ReadFile(filepath.Join(root, "prototypes", "index.html"))
+	if err != nil {
+		t.Fatalf("missing prototypes/index.html: %v", err)
+	}
+	protoHTML := string(protoHTMLRaw)
+	requiredHTMLTokens := []string{
+		"#0d1117",
+		"#ffffff",
+		"🌙 Dark GitHub",
+		"☀️ Light GitHub",
+		"ArrowRight",
+		"ArrowLeft",
+		"←",
+		"→",
+		"schools/tufte",
+		"schools/few",
+		"schools/cairo",
+		"schools/holmes",
+		"languages.svg",
+		"stack.svg",
+		"kaggle.svg",
+		"impact.svg",
+	}
+	for _, tok := range requiredHTMLTokens {
+		if !strings.Contains(protoHTML, tok) {
+			t.Errorf("prototypes/index.html missing required token %q", tok)
+		}
+	}
+
+	// 4. Verify flagship README.md showcase & documentation
+	readmeRaw, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatalf("missing README.md: %v", err)
+	}
+	readmeStr := string(readmeRaw)
+	requiredReadmeTokens := []string{
+		"languages.svg",
+		"stack.svg",
+		"kaggle.svg",
+		"impact.svg",
+		"Edward Tufte",
+		"Stephen Few",
+		"Alberto Cairo",
+		"Nigel Holmes",
+		"generated/tufte/languages.svg",
+		"generated/few/languages.svg",
+		"generated/cairo/languages.svg",
+		"generated/holmes/languages.svg",
+		"2-Minute Setup Guide",
+		"profile.yaml",
+		"go run ./cmd/dataprofile generate",
+		"go run ./cmd/dataprofile validate",
+		"--demo",
+		"--locale=pt-BR",
+		"go test -v ./...",
+		"GLOSSARY.md",
+		"docs/adr/",
+	}
+	for _, tok := range requiredReadmeTokens {
+		if !strings.Contains(readmeStr, tok) {
+			t.Errorf("README.md missing required section or reference %q", tok)
+		}
+	}
+}
+
+
+

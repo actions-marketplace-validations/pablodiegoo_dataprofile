@@ -15,7 +15,7 @@
 
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
 
-  <!-- Executive Header (Zero mention of Stephen Few — pure executive portfolio telemetry) -->
+  <!-- Executive Header (Zero school meta-label — pure executive portfolio telemetry) -->
   <text x="14" y="20" class="sans hdr">Data Science &amp; ML Summary</text>
   <text x="426" y="20" text-anchor="end" class="mono sub-tag">@pablodiegoo · Top 0.2% Kaggle</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>

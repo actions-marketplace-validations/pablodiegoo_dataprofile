@@ -35,4 +35,4 @@ runs:
           ARGS="$ARGS --locale=${{ inputs.locale }}"
         fi
         go run ./cmd/dataprofile generate $ARGS
-        go run ./cmd/dataprofile validate --config="${{ inputs.config }}"
+        go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}"

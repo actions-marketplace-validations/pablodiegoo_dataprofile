@@ -12,7 +12,7 @@
 
   <rect x="3" y="3" width="434" height="224" rx="10" fill="none" stroke="#d97706" stroke-width="2"/>
 
-  <!-- Bold Editorial Ribbon Header (No meta-label of Nigel Holmes — pure portfolio showcase) -->
+  <!-- Bold Editorial Ribbon Header (No school meta-label — pure portfolio showcase) -->
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,36 L 3,36 Z" fill="#dc2626"/>
   <text x="16" y="24" class="impact" font-size="13" fill="#ffffff" letter-spacing="0.6">DATA SCIENCE &amp; AI IMPACT</text>
   <rect x="284" y="8" width="142" height="20" rx="4" fill="#111827"/>

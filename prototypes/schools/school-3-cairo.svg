@@ -16,7 +16,7 @@
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
   <rect x="2" y="2" width="436" height="4" rx="2" fill="#e11d48"/>
 
-  <!-- Editorial Portfolio Headline (Zero meta-mention of Alberto Cairo) -->
+  <!-- Editorial Portfolio Headline (Zero school meta-label) -->
   <text x="14" y="23" class="serif headline">Beyond Notebooks: A Production-Ready Data Profile</text>
   <text x="14" y="36" class="sans lead">62% of repository code lives in tested production modules, backed by 39 Kaggle medals</text>
   <line x1="14" y1="44" x2="426" y2="44" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
