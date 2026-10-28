@@ -11,6 +11,22 @@ import (
 )
 
 func TestParseKaggleAchievementsText(t *testing.T) {
+	// Verify domain constants for Kaggle modes and tiers
+	modes := []string{domain.KaggleModeHybrid, domain.KaggleModeBrowser, domain.KaggleModeAPI}
+	if len(modes) != 3 || modes[0] != "hybrid" || modes[1] != "browser" || modes[2] != "api" {
+		t.Fatalf("unexpected Kaggle mode constants: %v", modes)
+	}
+	tiers := []string{
+		domain.KaggleTierNovice,
+		domain.KaggleTierContributor,
+		domain.KaggleTierExpert,
+		domain.KaggleTierMaster,
+		domain.KaggleTierGrandmaster,
+	}
+	if len(tiers) != 5 || tiers[0] != "Novice" || tiers[4] != "Grandmaster" {
+		t.Fatalf("unexpected Kaggle tier constants: %v", tiers)
+	}
+
 	domText := `
 		Pablo Diego Kaggle Profile
 		Notebooks Master #412 2 Gold 6 Silver 9 Bronze
@@ -23,7 +39,7 @@ func TestParseKaggleAchievementsText(t *testing.T) {
 	if !st.Available {
 		t.Fatal("expected KaggleStanding to be available")
 	}
-	if st.OverallTier != "Master" {
+	if st.OverallTier != domain.KaggleTierMaster {
 		t.Errorf("expected overall tier Master, got %q", st.OverallTier)
 	}
 	if st.PeakRank != 412 {

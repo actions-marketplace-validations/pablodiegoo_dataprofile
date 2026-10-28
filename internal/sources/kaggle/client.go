@@ -43,7 +43,7 @@ func (c *Client) Collect(ctx context.Context, cfg domain.KaggleSourceConfig) (do
 
 	mode := strings.ToLower(strings.TrimSpace(cfg.Mode))
 	if mode == "" {
-		mode = "hybrid"
+		mode = domain.KaggleModeHybrid
 	}
 
 	dumper := c.DOMDumper
@@ -52,20 +52,20 @@ func (c *Client) Collect(ctx context.Context, cfg domain.KaggleSourceConfig) (do
 	}
 
 	switch mode {
-	case "browser":
+	case domain.KaggleModeBrowser:
 		domText, err := dumper(ctx, cfg.Username)
 		if err != nil {
 			return domain.KaggleStanding{Available: false, Username: cfg.Username}, err
 		}
 		return ParseKaggleAchievementsText(domText, cfg.Username), nil
 
-	case "api":
+	case domain.KaggleModeAPI:
 		if c.APIUsername == "" || c.APIKey == "" {
 			return domain.KaggleStanding{Available: false, Username: cfg.Username}, fmt.Errorf("kaggle REST API v1 mode requires KAGGLE_USERNAME and KAGGLE_KEY")
 		}
 		return c.fetchAPIStanding(ctx, cfg.Username)
 
-	default: // "hybrid"
+	default: // domain.KaggleModeHybrid
 		domText, domErr := dumper(ctx, cfg.Username)
 		var domStanding domain.KaggleStanding
 		if domErr == nil {
@@ -125,7 +125,7 @@ func (c *Client) fetchAPIStanding(ctx context.Context, username string) (domain.
 	st := domain.KaggleStanding{
 		Available:   true,
 		Username:    username,
-		OverallTier: "Novice",
+		OverallTier: domain.KaggleTierNovice,
 		Categories:  cats,
 	}
 	bestWeight := 1
@@ -195,17 +195,17 @@ func tallyArtifactMedals(items []kaggleAPIArtifact) (gold, silver, bronze int) {
 }
 
 func buildCategoryFromMedals(name string, gold, silver, bronze, artifactCount int) domain.KaggleCategory {
-	tier := "Novice"
+	tier := domain.KaggleTierNovice
 	total := gold + silver + bronze
 	switch {
 	case gold >= 5 && total >= 15:
-		tier = "Grandmaster"
+		tier = domain.KaggleTierGrandmaster
 	case gold >= 1 && total >= 10:
-		tier = "Master"
+		tier = domain.KaggleTierMaster
 	case total >= 3 || gold >= 1 || silver >= 2:
-		tier = "Expert"
+		tier = domain.KaggleTierExpert
 	case artifactCount > 0 || total > 0:
-		tier = "Contributor"
+		tier = domain.KaggleTierContributor
 	}
 	cat := domain.KaggleCategory{
 		Name:   name,
@@ -303,11 +303,11 @@ func stripHTMLTags(html string) string {
 }
 
 var tierHierarchy = map[string]int{
-	"Novice":      1,
-	"Contributor": 2,
-	"Expert":      3,
-	"Master":      4,
-	"Grandmaster": 5,
+	domain.KaggleTierNovice:      1,
+	domain.KaggleTierContributor: 2,
+	domain.KaggleTierExpert:      3,
+	domain.KaggleTierMaster:      4,
+	domain.KaggleTierGrandmaster: 5,
 }
 
 // ParseKaggleAchievementsText parses the visible text of a Kaggle profile page into a structured KaggleStanding.
@@ -317,15 +317,21 @@ func ParseKaggleAchievementsText(text, username string) domain.KaggleStanding {
 	st := domain.KaggleStanding{
 		Available:   true,
 		Username:    username,
-		OverallTier: "Contributor",
+		OverallTier: domain.KaggleTierContributor,
 	}
 
 	canonicalCats := []string{"Notebooks", "Datasets", "Competitions", "Discussions"}
-	tiers := []string{"Grandmaster", "Master", "Expert", "Contributor", "Novice"}
+	tiers := []string{
+		domain.KaggleTierGrandmaster,
+		domain.KaggleTierMaster,
+		domain.KaggleTierExpert,
+		domain.KaggleTierContributor,
+		domain.KaggleTierNovice,
+	}
 
 	// Detect overall highest tier mentioned in the profile text
 	bestWeight := 1
-	bestTier := "Novice"
+	bestTier := domain.KaggleTierNovice
 	for _, t := range tiers {
 		if strings.Contains(text, t) {
 			if w := tierHierarchy[t]; w > bestWeight {
@@ -361,7 +367,7 @@ var (
 func parseCategoryBlock(fullText, catName, fallbackTier string) domain.KaggleCategory {
 	cat := domain.KaggleCategory{
 		Name:        catName,
-		Tier:        "Contributor",
+		Tier:        domain.KaggleTierContributor,
 		ProgressPct: 35,
 		TargetPct:   55,
 	}
@@ -389,7 +395,13 @@ func parseCategoryBlock(fullText, catName, fallbackTier string) domain.KaggleCat
 		}
 	}
 
-	for _, t := range []string{"Grandmaster", "Master", "Expert", "Contributor", "Novice"} {
+	for _, t := range []string{
+		domain.KaggleTierGrandmaster,
+		domain.KaggleTierMaster,
+		domain.KaggleTierExpert,
+		domain.KaggleTierContributor,
+		domain.KaggleTierNovice,
+	} {
 		if strings.Contains(window, t) {
 			cat.Tier = t
 			break
@@ -419,19 +431,19 @@ func parseCategoryBlock(fullText, catName, fallbackTier string) domain.KaggleCat
 
 func applyTierProgress(cat *domain.KaggleCategory) {
 	switch cat.Tier {
-	case "Grandmaster":
+	case domain.KaggleTierGrandmaster:
 		cat.ProgressPct = 96
 		cat.TargetPct = 100
 		cat.TopPct = "Top 0.1%"
-	case "Master":
+	case domain.KaggleTierMaster:
 		cat.ProgressPct = 82
 		cat.TargetPct = 90
 		cat.TopPct = "Top 0.8%"
-	case "Expert":
+	case domain.KaggleTierExpert:
 		cat.ProgressPct = 62
 		cat.TargetPct = 75
 		cat.TopPct = "Top 1.5%"
-	case "Contributor":
+	case domain.KaggleTierContributor:
 		cat.ProgressPct = 36
 		cat.TargetPct = 50
 		cat.TopPct = "Top 5%"

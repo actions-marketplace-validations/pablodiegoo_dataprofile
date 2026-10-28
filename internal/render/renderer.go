@@ -6,39 +6,43 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"math"
 	"strings"
 
 	"github.com/pablodiegoo/dataprofile/internal/domain"
 )
 
 type labels struct {
-	IsPtBR bool
+	IsPtBR                bool
+	FewBulletGraphsSuffix string
 
 	// Panel 1: Languages
-	LangTitleTufte       string
-	LangSubTufte         string
-	LangSecTrueProp      string
-	LangSecEDAProd       string
-	LangProdModules      string
-	LangEDANotebooks     string
-	LangSecHygiene       string
-	LangLockfiles        string
-	LangCICD             string
-	LangTests            string
-	LangDocker           string
-	LangFootnote         string
-	LangFewStrippedFmt   string
-	LangFewPrimary       string
-	LangFewProdEDA       string
-	LangFewLockCI        string
-	LangCairoHeadFmt     string
-	LangCairoLeadFmt     string
-	LangCairoCallout     string
-	LangCairoWaffle      string
-	LangHolmesPictorial  string
-	LangHolmesFilter     string
-	LangHolmesStripped   string
-	LangHolmesProdSplit  string
+	LangTitleTufte      string
+	LangSubTufte        string
+	LangSecTrueProp     string
+	LangSecEDAProd      string
+	LangProdModules     string
+	LangEDANotebooks    string
+	LangSecHygiene      string
+	LangLockfiles       string
+	LangCICD            string
+	LangTests           string
+	LangDocker          string
+	LangFootnote        string
+	LangFewStrippedFmt  string
+	LangFewPrimary      string
+	LangFewProdEDA      string
+	LangFewLockCI       string
+	LangFewProdCode     string
+	LangFewTestSuite    string
+	LangCairoHeadFmt    string
+	LangCairoLeadFmt    string
+	LangCairoCallout    string
+	LangCairoWaffle     string
+	LangHolmesPictorial string
+	LangHolmesFilter    string
+	LangHolmesStripped  string
+	LangHolmesProdSplit string
 
 	// Panel 2: Stack
 	StackTitle        string
@@ -58,6 +62,7 @@ type labels struct {
 	KaggleSilver         string
 	KaggleBronze         string
 	KaggleActive         string
+	KaggleTracksFmt      string
 	KaggleTrack          string
 	KaggleGMReq          string
 	KaggleTufteSubFmt    string
@@ -68,6 +73,9 @@ type labels struct {
 	KaggleThMedals       string
 	KaggleTotalTally     string
 	KaggleMedalsWord     string
+	KaggleFewTierTagFmt  string
+	KaggleTop5Finishes   string
+	KaggleTop10Finishes  string
 	KaggleFewMarkerNote  string
 	KaggleCairoHeadFmt   string
 	KaggleCairoLeadFmt   string
@@ -94,6 +102,8 @@ type labels struct {
 	ImpactStreak         string
 	ImpactCommits        string
 	ImpactYoYMomentum    string
+	ImpactDaysCapFmt     string
+	ImpactGrowthFmt      string
 	ImpactTufteHorizon   string
 	ImpactFewVelocityFmt string
 	ImpactCairoHeadFmt   string
@@ -105,169 +115,187 @@ type labels struct {
 func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 	if strings.EqualFold(locale, "pt-BR") || strings.EqualFold(locale, "pt") {
 		return labels{
-			IsPtBR:               true,
-			LangTitleTufte:       "Distribuição de Código & Engenharia de Produção",
-			LangSubTufte:         fmt.Sprintf("Notebooks Normalizados · %d Repos", totalRepos),
-			LangSecTrueProp:      "Proporção Real de Código-Fonte",
-			LangSecEDAProd:       "Exploração vs. Produção",
-			LangProdModules:      "Módulos de Produção",
-			LangEDANotebooks:     "Notebooks de EDA",
-			LangSecHygiene:       "Maturidade de Engenharia",
-			LangLockfiles:        "Lockfiles de Dependência",
-			LangCICD:             "Pipelines de CI/CD",
-			LangTests:            "Suítes de Testes",
-			LangDocker:           "Containers / Docker",
-			LangFootnote:         fmt.Sprintf("*Nota: %.1f MB de cache base64 em arquivos .ipynb removidos antes do cálculo.", strippedMB),
-			LangFewStrippedFmt:   "%.1f MB Removidos",
-			LangFewPrimary:       "Linguagem Principal",
-			LangFewProdEDA:       "Produção vs. EDA",
-			LangFewLockCI:        "Lockfile & CI Prontos",
-			LangCairoHeadFmt:     "%s Lidera com %.1f%% Após Deflacionar %.1f MB de Cache",
-			LangCairoLeadFmt:     "%s · Módulos de produção representam %.0f%% da base de código",
-			LangCairoCallout:     "↳ Saídas .ipynb removidas",
-			LangCairoWaffle:      "Estrutura de Código Waffle (10×5)",
-			LangHolmesPictorial:  "Blocos Pictóricos",
-			LangHolmesFilter:     "🧹 Filtro de Cache Jupyter",
-			LangHolmesStripped:   "Removidos %.1f MB de PNGs base64",
-			LangHolmesProdSplit:  "✓ %.0f%% Produção · %.0f%% Notebooks",
-			StackTitle:           "Ecossistema de Dados, ML & Analytics",
-			StackSub:             fmt.Sprintf("Dependências Verificadas · %d Repos", totalRepos),
-			StackPillarData:      "Dados & Engenharia",
-			StackPillarML:        "Machine Learning & IA",
-			StackPillarViz:       "Visualização & Apps",
-			StackFootnote:        "*Extraído de pyproject.toml, requirements.txt, environment.yml e DESCRIPTION.",
-			StackCairoHeadFmt:    "Ecossistema Completo de Dados & ML Ancorado por %s e %s",
-			StackCairoLeadFmt:    "%s · Cobertura ponta a ponta da ingestão a aplicações interativas",
-			StackCairoCallout:    "↳ Ecossistema principal verificado nos manifestos dos repositórios.",
-			KaggleTitle:          "Desempenho Competitivo no Kaggle",
-			KaggleCumulative:     "Total Acumulado",
-			KaggleGold:           "Ouro",
-			KaggleSilver:         "Prata",
-			KaggleBronze:         "Bronze",
-			KaggleActive:         "Trilhas Ativas",
-			KaggleTrack:          "Progressão por Categoria",
-			KaggleGMReq:          "Requisito GM: 5",
-			KaggleTufteSubFmt:    "Tier: %s · %d Medalhas Totais",
-			KaggleThCat:          "Categoria",
-			KaggleThStanding:     "Nível",
-			KaggleThRank:         "Rank Global",
-			KaggleThPct:          "Percentil",
-			KaggleThMedals:       "Medalhas (O / P / B)",
-			KaggleTotalTally:     "Total Acumulado no Portfólio",
-			KaggleMedalsWord:     "Medalhas",
-			KaggleFewMarkerNote:  "indica o limiar necessário para o próximo Kaggle Tier.",
-			KaggleCairoHeadFmt:   "Nível %s no Kaggle com Rank Global #%s e %d Medalhas",
-			KaggleCairoLeadFmt:   "Percentil nas 4 trilhas oficiais de progressão do Kaggle (%s · %d Prata · %d Bronze)",
-			KaggleCairoBench:     "REFERÊNCIA GLOBAL TOP 1%",
-			KaggleCairoCallout:   "↳ Desempenho consistente no topo percentual em notebooks, datasets e competições.",
-			KaggleHolmesPodium:   "Pódio de Progressão",
-			KaggleHolmesMedals:   "★ %d Medalhas Conquistadas",
-			KaggleOverallTierLbl: "Nível Geral",
-			KaggleTotalMedalsLbl: "Medalhas Totais",
-			ImpactTitle:          "Impacto Open-Source & Comunidade de IA",
-			ImpactContribs:       "Contribuições Anuais",
-			ImpactGitHubSec:      "Alcance no GitHub",
-			ImpactAISec:          "Artefatos de IA & Hub",
-			ImpactStars:          "Estrelas Totais",
-			ImpactRepos:          "Repos Públicos",
-			ImpactForks:          "Forks & Citações",
-			ImpactViews:          "Visitas (14d)",
-			ImpactModels:         "Modelos & Datasets",
-			ImpactDownloads:      "Downloads (30d)",
-			ImpactLikes:          "Curtidas na Comunidade",
-			ImpactVelocitySec:    "Consistência & Entrega",
-			ImpactStreak:         "Sequência Ativa",
-			ImpactCommits:        "Volume de Código",
-			ImpactYoYMomentum:    "Impulso Anual (YoY)",
-			ImpactTufteHorizon:   "Horizonte de 52 Semanas",
-			ImpactFewVelocityFmt: "+%.0f%% VELOCIDADE ANUAL",
-			ImpactCairoHeadFmt:   "%s Contribuições Anuais (+%.0f%% YoY) & Alcance Open-Source",
-			ImpactCairoLeadFmt:   "Produção contínua de engenharia em %d repositórios públicos e artefatos da comunidade",
-			ImpactCairoCallout:   "↳ Pico de velocidade atingido no Q4 com sequência ativa de %d dias.",
-			ImpactHolmesBanner:   "🚀 %s — %s CONTRIBUIÇÕES",
+			IsPtBR:                true,
+			FewBulletGraphsSuffix: "(Gráficos de Bala)",
+			LangTitleTufte:        "Distribuição de Código & Engenharia de Produção",
+			LangSubTufte:          fmt.Sprintf("Notebooks Normalizados · %d Repos", totalRepos),
+			LangSecTrueProp:       "Proporção Real de Código-Fonte",
+			LangSecEDAProd:        "Exploração vs. Produção",
+			LangProdModules:       "Módulos de Produção",
+			LangEDANotebooks:      "Notebooks de EDA",
+			LangSecHygiene:        "Maturidade de Engenharia",
+			LangLockfiles:         "Lockfiles de Dependência",
+			LangCICD:              "Pipelines de CI/CD",
+			LangTests:             "Suítes de Testes",
+			LangDocker:            "Containers / Docker",
+			LangFootnote:          fmt.Sprintf("*Nota: %.1f MB de cache base64 em arquivos .ipynb removidos antes do cálculo.", strippedMB),
+			LangFewStrippedFmt:    "%.1f MB Removidos",
+			LangFewPrimary:        "Linguagem Principal",
+			LangFewProdEDA:        "Produção vs. EDA",
+			LangFewLockCI:         "Lockfile & CI Prontos",
+			LangFewProdCode:       "Cód. Prod",
+			LangFewTestSuite:      "Suíte Testes",
+			LangCairoHeadFmt:      "%s Lidera com %.1f%% Após Deflacionar %.1f MB de Cache",
+			LangCairoLeadFmt:      "%s · Módulos de produção representam %.0f%% da base de código",
+			LangCairoCallout:      "↳ Saídas .ipynb removidas",
+			LangCairoWaffle:       "Estrutura de Código Waffle (10×5)",
+			LangHolmesPictorial:   "Blocos Pictóricos",
+			LangHolmesFilter:      "🧹 Filtro de Cache Jupyter",
+			LangHolmesStripped:    "Removidos %.1f MB de PNGs base64",
+			LangHolmesProdSplit:   "✓ %.0f%% Produção · %.0f%% Notebooks",
+			StackTitle:            "Ecossistema de Dados, ML & Analytics",
+			StackSub:              fmt.Sprintf("Dependências Verificadas · %d Repos", totalRepos),
+			StackPillarData:       "Dados & Engenharia",
+			StackPillarML:         "Machine Learning & IA",
+			StackPillarViz:        "Visualização & Apps",
+			StackFootnote:         "*Extraído de pyproject.toml, requirements.txt, environment.yml e DESCRIPTION.",
+			StackCairoHeadFmt:     "Ecossistema Completo de Dados & ML Ancorado por %s e %s",
+			StackCairoLeadFmt:     "%s · Cobertura ponta a ponta da ingestão a aplicações interativas",
+			StackCairoCallout:     "↳ Ecossistema principal verificado nos manifestos dos repositórios.",
+			KaggleTitle:           "Desempenho Competitivo no Kaggle",
+			KaggleCumulative:      "Total Acumulado",
+			KaggleGold:            "Ouro",
+			KaggleSilver:          "Prata",
+			KaggleBronze:          "Bronze",
+			KaggleActive:          "Trilhas Ativas",
+			KaggleTracksFmt:       "%d Trilhas",
+			KaggleTrack:           "Progressão por Categoria",
+			KaggleGMReq:           "Requisito GM: 5",
+			KaggleTufteSubFmt:     "Tier: %s · %d Medalhas Totais",
+			KaggleThCat:           "Categoria",
+			KaggleThStanding:      "Nível",
+			KaggleThRank:          "Rank Global",
+			KaggleThPct:           "Percentil",
+			KaggleThMedals:        "Medalhas (O / P / B)",
+			KaggleTotalTally:      "Total Acumulado no Portfólio",
+			KaggleMedalsWord:      "Medalhas",
+			KaggleFewTierTagFmt:   "NÍVEL: %s (#%d Pico)",
+			KaggleTop5Finishes:    "Finais Top 5%",
+			KaggleTop10Finishes:   "Finais Top 10%",
+			KaggleFewMarkerNote:   "indica o limiar necessário para o próximo Kaggle Tier.",
+			KaggleCairoHeadFmt:    "Nível %s no Kaggle com Rank Global #%s e %d Medalhas",
+			KaggleCairoLeadFmt:    "Percentil nas 4 trilhas oficiais de progressão do Kaggle (%s · %d Prata · %d Bronze)",
+			KaggleCairoBench:      "REFERÊNCIA GLOBAL TOP 1%",
+			KaggleCairoCallout:    "↳ Desempenho consistente no topo percentual em notebooks, datasets e competições.",
+			KaggleHolmesPodium:    "Pódio de Progressão",
+			KaggleHolmesMedals:    "★ %d Medalhas Conquistadas",
+			KaggleOverallTierLbl:  "Nível Geral",
+			KaggleTotalMedalsLbl:  "Medalhas Totais",
+			ImpactTitle:           "Impacto Open-Source & Comunidade de IA",
+			ImpactContribs:        "Contribuições Anuais",
+			ImpactGitHubSec:       "Alcance no GitHub",
+			ImpactAISec:           "Artefatos de IA & Hub",
+			ImpactStars:           "Estrelas Totais",
+			ImpactRepos:           "Repos Públicos",
+			ImpactForks:           "Forks & Citações",
+			ImpactViews:           "Visitas (14d)",
+			ImpactModels:          "Modelos & Datasets",
+			ImpactDownloads:       "Downloads (30d)",
+			ImpactLikes:           "Curtidas na Comunidade",
+			ImpactVelocitySec:     "Consistência & Entrega",
+			ImpactStreak:          "Sequência Ativa",
+			ImpactCommits:         "Volume de Código",
+			ImpactYoYMomentum:     "Impulso Anual (YoY)",
+			ImpactDaysCapFmt:      "%d Dias",
+			ImpactGrowthFmt:       "+%.0f%% Cresc.",
+			ImpactTufteHorizon:    "Horizonte de 52 Semanas",
+			ImpactFewVelocityFmt:  "+%.0f%% VELOCIDADE ANUAL",
+			ImpactCairoHeadFmt:    "%s Contribuições Anuais (+%.0f%% YoY) & Alcance Open-Source",
+			ImpactCairoLeadFmt:    "Produção contínua de engenharia em %d repositórios públicos e artefatos da comunidade",
+			ImpactCairoCallout:    "↳ Pico de velocidade atingido no Q4 com sequência ativa de %d dias.",
+			ImpactHolmesBanner:    "🚀 %s — %s CONTRIBUIÇÕES",
 		}
 	}
 	return labels{
-		IsPtBR:               false,
-		LangTitleTufte:       "Code Distribution & Production Engineering",
-		LangSubTufte:         fmt.Sprintf("Notebook-Normalized · %d Repos", totalRepos),
-		LangSecTrueProp:      "True Source Code Proportions",
-		LangSecEDAProd:       "Exploration vs. Production",
-		LangProdModules:      "Production Modules",
-		LangEDANotebooks:     "EDA Notebooks",
-		LangSecHygiene:       "Engineering Hygiene Signals",
-		LangLockfiles:        "Dependency Lockfiles",
-		LangCICD:             "CI/CD Workflows",
-		LangTests:            "Automated Test Suites",
-		LangDocker:           "Docker / Containers",
-		LangFootnote:         fmt.Sprintf("*Note: %.1f MB of embedded base64 chart cache stripped from .ipynb files prior to computing proportions.", strippedMB),
-		LangFewStrippedFmt:   "%.1f MB Stripped",
-		LangFewPrimary:       "Primary Language",
-		LangFewProdEDA:       "Production vs. EDA",
-		LangFewLockCI:        "Lockfile & CI Ready",
-		LangCairoHeadFmt:     "%s Leads at %.1f%% After Deflating %.1f MB of Cache",
-		LangCairoLeadFmt:     "%s · Production modules represent %.0f%% of total codebase",
-		LangCairoCallout:     "↳ Stripped .ipynb outputs",
-		LangCairoWaffle:      "Code Structure Waffle (10×5)",
-		LangHolmesPictorial:  "Pictorial Blocks",
-		LangHolmesFilter:     "🧹 Jupyter Bloat Filter",
-		LangHolmesStripped:   "Stripped %.1f MB of base64 PNGs",
-		LangHolmesProdSplit:  "✓ %.0f%% Production · %.0f%% Notebooks",
-		StackTitle:           "Data, ML & Analytics Ecosystem",
-		StackSub:             fmt.Sprintf("Verified Manifests · %d Repos", totalRepos),
-		StackPillarData:      "Data & Analytics",
-		StackPillarML:        "Machine Learning & AI",
-		StackPillarViz:       "Visualization & Data Apps",
-		StackFootnote:        "*Scanned across pyproject.toml, requirements.txt, environment.yml, and DESCRIPTION.",
-		StackCairoHeadFmt:    "Full-Cycle Data & ML Stack Anchored by %s and %s",
-		StackCairoLeadFmt:    "%s · End-to-end coverage from ingestion to interactive apps",
-		StackCairoCallout:    "↳ Core production stack verified across repository manifests.",
-		KaggleTitle:          "Kaggle Competitive Performance",
-		KaggleCumulative:     "Cumulative Tally",
-		KaggleGold:           "Gold",
-		KaggleSilver:         "Silver",
-		KaggleBronze:         "Bronze",
-		KaggleActive:         "Active Tracks",
-		KaggleTrack:          "Category Progression",
-		KaggleGMReq:          "GM Requirement: 5",
-		KaggleTufteSubFmt:    "Tier: %s · %d Total Medals",
-		KaggleThCat:          "Category",
-		KaggleThStanding:     "Standing",
-		KaggleThRank:         "Global Rank",
-		KaggleThPct:          "Percentile",
-		KaggleThMedals:       "Medals (G / S / B)",
-		KaggleTotalTally:     "Total Portfolio Tally",
-		KaggleMedalsWord:     "Medals",
-		KaggleFewMarkerNote:  "indicates the threshold required to unlock the next Kaggle Tier.",
-		KaggleCairoHeadFmt:   "Kaggle %s Standing Ranked #%s Globally with %d Medals",
-		KaggleCairoLeadFmt:   "Percentile standing across all 4 official Kaggle progression tracks (%s · %d Silver · %d Bronze)",
-		KaggleCairoBench:     "TOP 1% GLOBAL BENCHMARK",
-		KaggleCairoCallout:   "↳ Consistent top-percentile standing across notebooks, datasets, and competitive modeling.",
-		KaggleHolmesPodium:   "Tier Climb Podium",
-		KaggleHolmesMedals:   "★ %d Total Medals Earned",
-		KaggleOverallTierLbl: "Overall Tier",
-		KaggleTotalMedalsLbl: "Total Medals",
-		ImpactTitle:          "Open-Source & AI Community Impact",
-		ImpactContribs:       "Annual Contributions",
-		ImpactGitHubSec:      "GitHub Open-Source Reach",
-		ImpactAISec:          "Hugging Face & AI Hub",
-		ImpactStars:          "Total Stars Earned",
-		ImpactRepos:          "Public Repositories",
-		ImpactForks:          "Forks & Citations",
-		ImpactViews:          "Repo Views (14d)",
-		ImpactModels:         "Models & Datasets",
-		ImpactDownloads:      "Downloads (30d)",
-		ImpactLikes:          "Community Likes",
-		ImpactVelocitySec:    "Engineering Velocity",
-		ImpactStreak:         "Active Streak",
-		ImpactCommits:        "Net Code Volume",
-		ImpactYoYMomentum:    "YoY Momentum",
-		ImpactTufteHorizon:   "52-Week Horizon",
-		ImpactFewVelocityFmt: "+%.0f%% YoY VELOCITY",
-		ImpactCairoHeadFmt:   "%s Annual Contributions (+%.0f%% YoY) & Growing Open-Source Reach",
-		ImpactCairoLeadFmt:   "Sustained engineering output across %d public repositories and community artifacts",
-		ImpactCairoCallout:   "↳ Peak velocity achieved in Q4 with %d-day active engineering streak.",
-		ImpactHolmesBanner:   "🚀 %s — %s CONTRIBUTIONS",
+		IsPtBR:                false,
+		FewBulletGraphsSuffix: "(Bullet Graphs)",
+		LangTitleTufte:        "Code Distribution & Production Engineering",
+		LangSubTufte:          fmt.Sprintf("Notebook-Normalized · %d Repos", totalRepos),
+		LangSecTrueProp:       "True Source Code Proportions",
+		LangSecEDAProd:        "Exploration vs. Production",
+		LangProdModules:       "Production Modules",
+		LangEDANotebooks:      "EDA Notebooks",
+		LangSecHygiene:        "Engineering Hygiene Signals",
+		LangLockfiles:         "Dependency Lockfiles",
+		LangCICD:              "CI/CD Workflows",
+		LangTests:             "Automated Test Suites",
+		LangDocker:            "Docker / Containers",
+		LangFootnote:          fmt.Sprintf("*Note: %.1f MB of embedded base64 chart cache stripped from .ipynb files prior to computing proportions.", strippedMB),
+		LangFewStrippedFmt:    "%.1f MB Stripped",
+		LangFewPrimary:        "Primary Language",
+		LangFewProdEDA:        "Production vs. EDA",
+		LangFewLockCI:         "Lockfile & CI Ready",
+		LangFewProdCode:       "Prod Code",
+		LangFewTestSuite:      "Test Suite",
+		LangCairoHeadFmt:      "%s Leads at %.1f%% After Deflating %.1f MB of Cache",
+		LangCairoLeadFmt:      "%s · Production modules represent %.0f%% of total codebase",
+		LangCairoCallout:      "↳ Stripped .ipynb outputs",
+		LangCairoWaffle:       "Code Structure Waffle (10×5)",
+		LangHolmesPictorial:   "Pictorial Blocks",
+		LangHolmesFilter:      "🧹 Jupyter Bloat Filter",
+		LangHolmesStripped:    "Stripped %.1f MB of base64 PNGs",
+		LangHolmesProdSplit:   "✓ %.0f%% Production · %.0f%% Notebooks",
+		StackTitle:            "Data, ML & Analytics Ecosystem",
+		StackSub:              fmt.Sprintf("Verified Manifests · %d Repos", totalRepos),
+		StackPillarData:       "Data & Analytics",
+		StackPillarML:         "Machine Learning & AI",
+		StackPillarViz:        "Visualization & Data Apps",
+		StackFootnote:         "*Scanned across pyproject.toml, requirements.txt, environment.yml, and DESCRIPTION.",
+		StackCairoHeadFmt:     "Full-Cycle Data & ML Stack Anchored by %s and %s",
+		StackCairoLeadFmt:     "%s · End-to-end coverage from ingestion to interactive apps",
+		StackCairoCallout:     "↳ Core production stack verified across repository manifests.",
+		KaggleTitle:           "Kaggle Competitive Performance",
+		KaggleCumulative:      "Cumulative Tally",
+		KaggleGold:            "Gold",
+		KaggleSilver:          "Silver",
+		KaggleBronze:          "Bronze",
+		KaggleActive:          "Active Tracks",
+		KaggleTracksFmt:       "%d Tracks",
+		KaggleTrack:           "Category Progression",
+		KaggleGMReq:           "GM Requirement: 5",
+		KaggleTufteSubFmt:     "Tier: %s · %d Total Medals",
+		KaggleThCat:           "Category",
+		KaggleThStanding:      "Standing",
+		KaggleThRank:          "Global Rank",
+		KaggleThPct:           "Percentile",
+		KaggleThMedals:        "Medals (G / S / B)",
+		KaggleTotalTally:      "Total Portfolio Tally",
+		KaggleMedalsWord:      "Medals",
+		KaggleFewTierTagFmt:   "TIER: %s (#%d Peak)",
+		KaggleTop5Finishes:    "Top 5% Finishes",
+		KaggleTop10Finishes:   "Top 10% Finishes",
+		KaggleFewMarkerNote:   "indicates the threshold required to unlock the next Kaggle Tier.",
+		KaggleCairoHeadFmt:    "Kaggle %s Standing Ranked #%s Globally with %d Medals",
+		KaggleCairoLeadFmt:    "Percentile standing across all 4 official Kaggle progression tracks (%s · %d Silver · %d Bronze)",
+		KaggleCairoBench:      "TOP 1% GLOBAL BENCHMARK",
+		KaggleCairoCallout:    "↳ Consistent top-percentile standing across notebooks, datasets, and competitive modeling.",
+		KaggleHolmesPodium:    "Tier Climb Podium",
+		KaggleHolmesMedals:    "★ %d Total Medals Earned",
+		KaggleOverallTierLbl:  "Overall Tier",
+		KaggleTotalMedalsLbl:  "Total Medals",
+		ImpactTitle:           "Open-Source & AI Community Impact",
+		ImpactContribs:        "Annual Contributions",
+		ImpactGitHubSec:       "GitHub Open-Source Reach",
+		ImpactAISec:           "Hugging Face & AI Hub",
+		ImpactStars:           "Total Stars Earned",
+		ImpactRepos:           "Public Repositories",
+		ImpactForks:           "Forks & Citations",
+		ImpactViews:           "Repo Views (14d)",
+		ImpactModels:          "Models & Datasets",
+		ImpactDownloads:       "Downloads (30d)",
+		ImpactLikes:           "Community Likes",
+		ImpactVelocitySec:     "Engineering Velocity",
+		ImpactStreak:          "Active Streak",
+		ImpactCommits:         "Net Code Volume",
+		ImpactYoYMomentum:     "YoY Momentum",
+		ImpactDaysCapFmt:      "%d Days",
+		ImpactGrowthFmt:       "+%.0f%% Growth",
+		ImpactTufteHorizon:    "52-Week Horizon",
+		ImpactFewVelocityFmt:  "+%.0f%% YoY VELOCITY",
+		ImpactCairoHeadFmt:    "%s Annual Contributions (+%.0f%% YoY) & Growing Open-Source Reach",
+		ImpactCairoLeadFmt:    "Sustained engineering output across %d public repositories and community artifacts",
+		ImpactCairoCallout:    "↳ Peak velocity achieved in Q4 with %d-day active engineering streak.",
+		ImpactHolmesBanner:    "🚀 %s — %s CONTRIBUTIONS",
 	}
 }
 
@@ -351,26 +379,34 @@ func DefaultPortfolioData(manifest domain.ProfileManifest) domain.PortfolioData 
 	}
 }
 
+func normalizePortfolioData(data domain.PortfolioData) domain.PortfolioData {
+	def := DefaultPortfolioData(domain.ProfileManifest{Subject: data.Subject})
+	if len(data.Languages.Languages) == 0 {
+		data.Languages = def.Languages
+	}
+	if len(data.Stack.DataAnalytics) == 0 {
+		data.Stack = def.Stack
+	} else {
+		data.Stack.DataAnalytics = padStack(data.Stack.DataAnalytics, def.Stack.DataAnalytics)
+		data.Stack.MLAndAI = padStack(data.Stack.MLAndAI, def.Stack.MLAndAI)
+		data.Stack.VizAndApps = padStack(data.Stack.VizAndApps, def.Stack.VizAndApps)
+	}
+	if len(data.Kaggle.Categories) == 0 {
+		data.Kaggle = def.Kaggle
+	} else if len(data.Kaggle.Categories) < 4 {
+		data.Kaggle.Categories = append(data.Kaggle.Categories, def.Kaggle.Categories[len(data.Kaggle.Categories):4]...)
+	}
+	if data.Impact.AnnualContributions == 0 && data.Impact.PublicRepos == 0 {
+		data.Impact = def.Impact
+	}
+	return data
+}
+
 // Render generates an SVG document for the specified School and Panel.
 // Guarantees valid XML, zero School meta-labels, Recruiter-First zero handling,
 // and Universal Dual-Surface high contrast on both white (#ffffff) and dark (#0d1117) backgrounds.
 func Render(school domain.School, panel domain.Panel, data domain.PortfolioData) (string, error) {
-	if len(data.Languages.Languages) == 0 {
-		def := DefaultPortfolioData(domain.ProfileManifest{Subject: data.Subject})
-		data.Languages = def.Languages
-	}
-	if len(data.Stack.DataAnalytics) == 0 {
-		def := DefaultPortfolioData(domain.ProfileManifest{Subject: data.Subject})
-		data.Stack = def.Stack
-	}
-	if len(data.Kaggle.Categories) == 0 {
-		def := DefaultPortfolioData(domain.ProfileManifest{Subject: data.Subject})
-		data.Kaggle = def.Kaggle
-	}
-	if data.Impact.AnnualContributions == 0 && data.Impact.PublicRepos == 0 {
-		def := DefaultPortfolioData(domain.ProfileManifest{Subject: data.Subject})
-		data.Impact = def.Impact
-	}
+	data = normalizePortfolioData(data)
 
 	lbl := getLabels(data.Subject.Locale, data.Languages.StrippedBase64MB, data.Languages.TotalRepos)
 
@@ -589,15 +625,21 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     <text x="196" y="%d" text-anchor="end" class="mono val">%.1f%%</text>
 `, y, esc(lg.Name), y-7, y-7, barW, color, y, lg.Percentage)
 		}
+		totalRepos := max(1, lp.TotalRepos)
+		prodBarW := clampInt(int(math.Round((lp.ProductionPct/100.0)*96.0)), 0, 96)
+		lockBarW := clampInt(int(math.Round((float64(lp.LockfileRepos)/float64(totalRepos))*96.0)), 0, 96)
+		ciBarW := clampInt(int(math.Round((float64(lp.CICDRepos)/float64(totalRepos))*96.0)), 0, 96)
+		testBarW := clampInt(int(math.Round((float64(lp.TestSuiteRepos)/float64(totalRepos))*96.0)), 0, 96)
+		dockerBandW := clampInt(int(math.Round((float64(lp.ContainerizedRepos)/float64(totalRepos))*96.0)), 24, 96)
 		fmt.Fprintf(&b, `  </g>
   <line x1="222" y1="68" x2="222" y2="228" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(234, 84)">
-    <text x="0" y="0" class="sans sec">%s (Bullet Graphs)</text>
+    <text x="0" y="0" class="sans sec">%s %s</text>
     <g transform="translate(0, 11)">
-      <text x="0" y="9" class="sans lbl">Prod Code</text>
+      <text x="0" y="9" class="sans lbl">%s</text>
       <rect x="64" y="1" width="96" height="10" fill="#64748b" fill-opacity="0.14"/>
       <rect x="64" y="1" width="68" height="10" fill="#64748b" fill-opacity="0.25"/>
-      <rect x="64" y="3.5" width="60" height="5" fill="#059669"/>
+      <rect x="64" y="3.5" width="%d" height="5" fill="#059669"/>
       <line x1="126" y1="-1" x2="126" y2="13" stroke="#0284c7" stroke-width="2"/>
       <text x="194" y="9" text-anchor="end" class="mono val">%.0f%%</text>
     </g>
@@ -605,7 +647,7 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
       <text x="0" y="9" class="sans lbl">Lockfiles</text>
       <rect x="64" y="1" width="96" height="10" fill="#64748b" fill-opacity="0.14"/>
       <rect x="64" y="1" width="68" height="10" fill="#64748b" fill-opacity="0.25"/>
-      <rect x="64" y="3.5" width="78" height="5" fill="#0284c7"/>
+      <rect x="64" y="3.5" width="%d" height="5" fill="#0284c7"/>
       <line x1="136" y1="-1" x2="136" y2="13" stroke="#0284c7" stroke-width="2"/>
       <text x="194" y="9" text-anchor="end" class="mono val">%d/%d</text>
     </g>
@@ -613,20 +655,20 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
       <text x="0" y="9" class="sans lbl">CI/CD</text>
       <rect x="64" y="1" width="96" height="10" fill="#64748b" fill-opacity="0.14"/>
       <rect x="64" y="1" width="68" height="10" fill="#64748b" fill-opacity="0.25"/>
-      <rect x="64" y="3.5" width="63" height="5" fill="#64748b"/>
+      <rect x="64" y="3.5" width="%d" height="5" fill="#64748b"/>
       <line x1="126" y1="-1" x2="126" y2="13" stroke="#0284c7" stroke-width="2"/>
       <text x="194" y="9" text-anchor="end" class="mono val">%d/%d</text>
     </g>
     <g transform="translate(0, 95)">
-      <text x="0" y="9" class="sans lbl">Test Suite</text>
+      <text x="0" y="9" class="sans lbl">%s</text>
       <rect x="64" y="1" width="96" height="10" fill="#64748b" fill-opacity="0.14"/>
-      <rect x="64" y="1" width="68" height="10" fill="#64748b" fill-opacity="0.25"/>
-      <rect x="64" y="3.5" width="54" height="5" fill="#64748b"/>
+      <rect x="64" y="1" width="%d" height="10" fill="#64748b" fill-opacity="0.25"/>
+      <rect x="64" y="3.5" width="%d" height="5" fill="#64748b"/>
       <line x1="118" y1="-1" x2="118" y2="13" stroke="#0284c7" stroke-width="2"/>
       <text x="194" y="9" text-anchor="end" class="mono val">%d/%d</text>
     </g>
   </g>
-</svg>`, esc(l.LangSecHygiene), lp.ProductionPct, lp.LockfileRepos, lp.TotalRepos, lp.CICDRepos, lp.TotalRepos, lp.TestSuiteRepos, lp.TotalRepos)
+</svg>`, esc(l.LangSecHygiene), esc(l.FewBulletGraphsSuffix), esc(l.LangFewProdCode), prodBarW, lp.ProductionPct, lockBarW, lp.LockfileRepos, lp.TotalRepos, ciBarW, lp.CICDRepos, lp.TotalRepos, esc(l.LangFewTestSuite), dockerBandW, testBarW, lp.TestSuiteRepos, lp.TotalRepos)
 		return b.String()
 
 	case domain.SchoolCairo:
@@ -663,31 +705,27 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     <text x="%d" y="%d" class="mono val">%.1f%%</text>
 `, y, esc(lg.Name), lineY, endX, lineY, lg.Color, endX, lineY, lg.Color, endX+9, y, lg.Percentage)
 		}
+		waffleCells := buildWaffleGridSVG(langs)
 		fmt.Fprintf(&b, `    <path d="M 150,24 L 150,32 L 164,32" fill="none" stroke="#0284c7" stroke-width="1"/>
     <text x="168" y="35" class="serif callout">%s</text>
   </g>
   <g transform="translate(244, 62)">
     <text x="0" y="0" class="sans sec">%s</text>
     <g transform="translate(0, 10)">
-      <rect x="0" y="0" width="176" height="8" rx="2" fill="#059669"/>
-      <rect x="0" y="11" width="176" height="8" rx="2" fill="#059669"/>
-      <rect x="0" y="22" width="176" height="8" rx="2" fill="#059669"/>
-      <rect x="0" y="33" width="22" height="8" rx="2" fill="#059669"/>
-      <rect x="26" y="33" width="150" height="8" rx="2" fill="#d97706"/>
-      <rect x="0" y="44" width="176" height="8" rx="2" fill="#d97706"/>
-    </g>
+%s    </g>
     <text x="0" y="75" class="sans val"><tspan fill="#059669" font-weight="700">■ %.0f%% Prod</tspan> (%d) · <tspan fill="#d97706" font-weight="700">■ %.0f%% EDA</tspan> (%d)</text>
     <text x="0" y="95" class="sans sec">%s</text>
     <text x="0" y="112" class="sans lbl">%s</text><text x="184" y="112" text-anchor="end" class="mono val">%d/%d</text>
     <text x="0" y="128" class="sans lbl">%s</text><text x="184" y="128" text-anchor="end" class="mono val">%d/%d</text>
     <text x="0" y="144" class="sans lbl">%s</text><text x="184" y="144" text-anchor="end" class="mono val">%d/%d</text>
   </g>
-</svg>`, esc(l.LangCairoCallout), esc(l.LangCairoWaffle), lp.ProductionPct, lp.ProductionFiles, lp.ExplorationPct, lp.ExplorationFiles, esc(l.LangSecHygiene), esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos, esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos, esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos)
+</svg>`, esc(l.LangCairoCallout), esc(l.LangCairoWaffle), waffleCells, lp.ProductionPct, lp.ProductionFiles, lp.ExplorationPct, lp.ExplorationFiles, esc(l.LangSecHygiene), esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos, esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos, esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos)
 		return b.String()
 
 	default: // SchoolHolmes
 		strippedMsg := fmt.Sprintf(l.LangHolmesStripped, lp.StrippedBase64MB)
 		prodSplitMsg := fmt.Sprintf(l.LangHolmesProdSplit, lp.ProductionPct, lp.ExplorationPct)
+		isotypeRows := buildHolmesIsotypeRowsSVG(langs)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -703,27 +741,7 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
   <text x="16" y="22" class="sans banner">⚡ %s</text>
   <g transform="translate(16, 48)">
     <text x="0" y="0" class="sans sec">%s (%s)</text>
-    <text x="0" y="22" class="sans lbl">%s</text>
-    <g transform="translate(56, 12)" fill="#0284c7">
-      <rect x="0" y="0" width="14" height="11" rx="2"/><rect x="17" y="0" width="14" height="11" rx="2"/><rect x="34" y="0" width="14" height="11" rx="2"/><rect x="51" y="0" width="14" height="11" rx="2"/><rect x="68" y="0" width="14" height="11" rx="2"/><rect x="85" y="0" width="14" height="11" rx="2"/>
-    </g>
-    <text x="164" y="22" class="mono val">%.1f%%</text>
-    <text x="0" y="45" class="sans lbl">%s</text>
-    <g transform="translate(56, 35)" fill="#d97706">
-      <rect x="0" y="0" width="14" height="11" rx="2"/><rect x="17" y="0" width="14" height="11" rx="2"/>
-    </g>
-    <text x="96" y="45" class="mono val" fill="#d97706">%.1f%%</text>
-    <text x="0" y="68" class="sans lbl">%s</text>
-    <g transform="translate(56, 58)" fill="#00ADD8">
-      <rect x="0" y="0" width="14" height="11" rx="2"/><rect x="17" y="0" width="6" height="11" rx="1"/>
-    </g>
-    <text x="86" y="68" class="mono val" fill="#00ADD8">%.1f%%</text>
-    <text x="0" y="91" class="sans lbl">%s + %s</text>
-    <g transform="translate(56, 81)" fill="#7c3aed">
-      <rect x="0" y="0" width="14" height="11" rx="2"/>
-    </g>
-    <text x="78" y="91" class="mono val" fill="#7c3aed">%.1f%%</text>
-    <rect x="0" y="106" width="196" height="58" rx="8" fill="#0284c7" fill-opacity="0.08" stroke="#0284c7" stroke-opacity="0.35" stroke-width="1.2"/>
+%s    <rect x="0" y="106" width="196" height="58" rx="8" fill="#0284c7" fill-opacity="0.08" stroke="#0284c7" stroke-opacity="0.35" stroke-width="1.2"/>
     <text x="10" y="123" class="sans sec" fill="#0284c7">%s</text>
     <text x="10" y="140" class="sans badge">%s</text>
     <text x="10" y="154" class="sans badge" fill="#059669">%s</text>
@@ -753,10 +771,7 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
   </g>
 </svg>`,
 			esc(l.LangTitleTufte), esc(l.LangSecTrueProp), esc(l.LangHolmesPictorial),
-			esc(langs[0].Name), langs[0].Percentage,
-			esc(langs[1].Name), langs[1].Percentage,
-			esc(langs[2].Name), langs[2].Percentage,
-			esc(langs[3].Name), esc(langs[4].Name), langs[3].Percentage+langs[4].Percentage,
+			isotypeRows,
 			esc(l.LangHolmesFilter), esc(strippedMsg), esc(prodSplitMsg),
 			esc(l.LangSecHygiene),
 			esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos,
@@ -764,6 +779,101 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
 			esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos,
 			esc(l.LangDocker), lp.ContainerizedRepos, lp.TotalRepos)
 	}
+}
+
+func buildWaffleGridSVG(langs []domain.LanguageStat) string {
+	colors := make([]string, 0, 50)
+	for _, lg := range langs {
+		c := lg.Color
+		if c == "" {
+			c = "#64748b"
+		}
+		n := int(math.Round(lg.Percentage / 2.0))
+		for k := 0; k < n && len(colors) < 50; k++ {
+			colors = append(colors, c)
+		}
+	}
+	fallbackColor := "#059669"
+	if len(langs) > 0 && langs[len(langs)-1].Color != "" {
+		fallbackColor = langs[len(langs)-1].Color
+	}
+	for len(colors) < 50 {
+		colors = append(colors, fallbackColor)
+	}
+
+	var b bytes.Buffer
+	for idx := 0; idx < 50; idx++ {
+		row := idx / 10
+		col := idx % 10
+		x := col * 18
+		y := row * 11
+		fmt.Fprintf(&b, `      <rect x="%d" y="%d" width="15" height="8" rx="1.5" fill="%s"/>`+"\n", x, y, colors[idx])
+	}
+	return b.String()
+}
+
+func buildHolmesIsotypeRowsSVG(langs []domain.LanguageStat) string {
+	type rowSpec struct {
+		label string
+		pct   float64
+		color string
+	}
+	rows := []rowSpec{
+		{langs[0].Name, langs[0].Percentage, nonEmptyColor(langs[0].Color, "#0284c7")},
+		{langs[1].Name, langs[1].Percentage, nonEmptyColor(langs[1].Color, "#d97706")},
+		{langs[2].Name, langs[2].Percentage, nonEmptyColor(langs[2].Color, "#00ADD8")},
+		{langs[3].Name + " + " + langs[4].Name, langs[3].Percentage + langs[4].Percentage, "#7c3aed"},
+	}
+
+	counts := make([]int, len(rows))
+	sum := 0
+	maxIdx := 0
+	for i, r := range rows {
+		c := int(math.Round(r.pct / 10.0))
+		if c < 1 && r.pct > 0 {
+			c = 1
+		}
+		counts[i] = c
+		sum += c
+		if r.pct > rows[maxIdx].pct {
+			maxIdx = i
+		}
+	}
+	if sum != 10 && counts[maxIdx]+(10-sum) >= 1 {
+		counts[maxIdx] += 10 - sum
+	}
+
+	var b bytes.Buffer
+	for i, r := range rows {
+		yText := 22 + i*23
+		yBlocks := 12 + i*23
+		fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>`+"\n", yText, esc(r.label))
+		fmt.Fprintf(&b, `    <g transform="translate(56, %d)" fill="%s">`+"\n      ", yBlocks, r.color)
+		for k := 0; k < counts[i]; k++ {
+			fmt.Fprintf(&b, `<rect x="%d" y="0" width="14" height="11" rx="2"/>`, k*17)
+		}
+		fmt.Fprintf(&b, "\n    </g>\n")
+		valX := 56 + counts[i]*17 + 6
+		fmt.Fprintf(&b, `    <text x="%d" y="%d" class="mono val" fill="%s">%.1f%%</text>`+"\n", valX, yText, r.color, r.pct)
+	}
+	return b.String()
+}
+
+func nonEmptyColor(c, fallback string) string {
+	if strings.TrimSpace(c) == "" {
+		return fallback
+	}
+	return c
+}
+
+func clampInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 // ============================================================================
@@ -783,10 +893,20 @@ func padStack(in []domain.StackItem, fallback []domain.StackItem) []domain.Stack
 }
 
 func renderStack(school domain.School, d domain.PortfolioData, l labels) string {
-	def := DefaultPortfolioData(domain.ProfileManifest{Subject: d.Subject}).Stack
-	dataCol := padStack(d.Stack.DataAnalytics, def.DataAnalytics)
-	mlCol := padStack(d.Stack.MLAndAI, def.MLAndAI)
-	vizCol := padStack(d.Stack.VizAndApps, def.VizAndApps)
+	dataCol := d.Stack.DataAnalytics
+	mlCol := d.Stack.MLAndAI
+	vizCol := d.Stack.VizAndApps
+
+	cols := []struct {
+		x     int
+		title string
+		color string
+		items []domain.StackItem
+	}{
+		{12, l.StackPillarData, "#0284c7", dataCol},
+		{156, l.StackPillarML, "#7c3aed", mlCol},
+		{300, l.StackPillarViz, "#059669", vizCol},
+	}
 
 	switch school {
 	case domain.SchoolTufte:
@@ -806,16 +926,6 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
   <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 `, esc(l.StackTitle), esc(l.StackSub))
 
-		cols := []struct {
-			x     int
-			title string
-			color string
-			items []domain.StackItem
-		}{
-			{12, l.StackPillarData, "#0284c7", dataCol},
-			{156, l.StackPillarML, "#7c3aed", mlCol},
-			{300, l.StackPillarViz, "#059669", vizCol},
-		}
 		for _, col := range cols {
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 46)">
     <text x="0" y="0" class="serif sec" fill="%s">%s</text>
@@ -874,16 +984,6 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 			esc(dataCol[0].Name), dataCol[0].RepoCount, esc(l.StackPillarData),
 			esc(mlCol[0].Name), mlCol[0].RepoCount, esc(l.StackPillarML),
 			esc(vizCol[0].Name), vizCol[0].RepoCount, esc(l.StackPillarViz))
-		cols := []struct {
-			x     int
-			title string
-			color string
-			items []domain.StackItem
-		}{
-			{14, l.StackPillarData, "#0284c7", dataCol},
-			{158, l.StackPillarML, "#7c3aed", mlCol},
-			{302, l.StackPillarViz, "#059669", vizCol},
-		}
 		for _, col := range cols {
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 76)">
     <text x="0" y="0" class="sans sec" fill="%s">%s</text>
@@ -938,16 +1038,6 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
   <text x="12" y="39" class="sans lead">%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
 `, esc(head), esc(lead))
-		cols := []struct {
-			x     int
-			title string
-			color string
-			items []domain.StackItem
-		}{
-			{12, l.StackPillarData, "#0284c7", dataCol},
-			{156, l.StackPillarML, "#7c3aed", mlCol},
-			{300, l.StackPillarViz, "#059669", vizCol},
-		}
 		for _, col := range cols {
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 60)">
     <text x="0" y="0" class="sans sec" fill="%s">%s</text>
@@ -987,16 +1077,6 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#7c3aed"/>
   <text x="16" y="22" class="sans banner">🧰 %s</text>
 `, esc(l.StackTitle))
-		cols := []struct {
-			x     int
-			title string
-			color string
-			items []domain.StackItem
-		}{
-			{14, l.StackPillarData, "#0284c7", dataCol},
-			{156, l.StackPillarML, "#7c3aed", mlCol},
-			{298, l.StackPillarViz, "#059669", vizCol},
-		}
 		for _, col := range cols {
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 48)">
     <text x="0" y="0" class="sans sec" fill="%s">%s</text>
@@ -1022,26 +1102,17 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 
 func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string {
 	k := d.Kaggle
-	defCats := DefaultPortfolioData(domain.ProfileManifest{Subject: d.Subject}).Kaggle.Categories
 	cats := k.Categories
-	if len(cats) < 4 {
-		cats = defCats
-	}
 
 	// Recruiter-First KPI logic: never highlight "0 Gold" if Gold == 0
 	kpi2Val := fmt.Sprintf("%d %s", k.TotalGold, l.KaggleGold)
 	kpi2Sub := l.KaggleGMReq
 	if k.TotalGold == 0 {
-		activeCount := 0
-		for _, c := range cats {
-			if c.Rank > 0 || c.Silver+c.Bronze > 0 {
-				activeCount++
-			}
-		}
+		activeCount := len(cats)
 		if activeCount == 0 {
 			activeCount = 4
 		}
-		kpi2Val = fmt.Sprintf("%d Tracks", activeCount)
+		kpi2Val = fmt.Sprintf(l.KaggleTracksFmt, activeCount)
 		kpi2Sub = l.KaggleActive
 	}
 
@@ -1100,6 +1171,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 		if l.IsPtBR {
 			markerLabel = "│ Marcador vertical"
 		}
+		tierTag := fmt.Sprintf(l.KaggleFewTierTagFmt, strings.ToUpper(k.OverallTier), k.PeakRank)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -1114,7 +1186,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   </style>
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
   <text x="14" y="20" class="sans hdr">%s</text>
-  <text x="426" y="20" text-anchor="end" class="mono tag">TIER: %s (#%d Peak)</text>
+  <text x="426" y="20" text-anchor="end" class="mono tag">%s</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 35)">
     <text x="0" y="13" class="mono kpi-num" fill="#d97706">%d %s</text>
@@ -1124,16 +1196,16 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     <text x="118" y="25" class="sans kpi-lbl">%s</text>
     <line x1="214" y1="0" x2="214" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <text x="224" y="13" class="mono kpi-num">%d %s</text>
-    <text x="224" y="25" class="sans kpi-lbl">Top 5%% Finishes</text>
+    <text x="224" y="25" class="sans kpi-lbl">%s</text>
     <line x1="316" y1="0" x2="316" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <text x="326" y="13" class="mono kpi-num">%d %s</text>
-    <text x="326" y="25" class="sans kpi-lbl">Top 10%% Finishes</text>
+    <text x="326" y="25" class="sans kpi-lbl">%s</text>
   </g>
   <line x1="2" y1="69" x2="438" y2="69" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 85)">
-    <text x="0" y="0" class="sans sec">%s (Bullet Graphs)</text>
+    <text x="0" y="0" class="sans sec">%s %s</text>
     <text x="412" y="0" text-anchor="end" class="sans sec">Rank &amp; %s</text>
-`, esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)), k.PeakRank, k.TotalMedals(), esc(l.KaggleMedalsWord), esc(l.KaggleCumulative), esc(kpi2Val), esc(kpi2Sub), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze), esc(l.KaggleTrack), esc(l.KaggleMedalsWord))
+`, esc(l.KaggleTitle), esc(tierTag), k.TotalMedals(), esc(l.KaggleMedalsWord), esc(l.KaggleCumulative), esc(kpi2Val), esc(kpi2Sub), k.TotalSilver, esc(l.KaggleSilver), esc(l.KaggleTop5Finishes), k.TotalBronze, esc(l.KaggleBronze), esc(l.KaggleTop10Finishes), esc(l.KaggleTrack), esc(l.FewBulletGraphsSuffix), esc(l.KaggleMedalsWord))
 		for i, c := range cats[:4] {
 			y := 12 + i*26
 			barW := int((c.ProgressPct / 100.0) * 150.0)
@@ -1208,6 +1280,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 
 	default: // SchoolHolmes
 		medalsEarned := fmt.Sprintf(l.KaggleHolmesMedals, k.TotalMedals())
+		trophyX, trophyY := holmesTrophyPosition(k.OverallTier)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1227,7 +1300,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     <rect x="76" y="54" width="34" height="70" rx="3" fill="#0284c7" fill-opacity="0.65"/>
     <rect x="114" y="30" width="34" height="94" rx="3" fill="#d97706"/>
     <rect x="152" y="10" width="34" height="114" rx="3" fill="none" stroke="#d97706" stroke-dasharray="3,3" stroke-width="1.5"/>
-    <text x="131" y="24" text-anchor="middle" font-size="14">🏆</text>
+    <text x="%d" y="%d" text-anchor="middle" font-size="14">🏆</text>
     <text x="0" y="144" class="sans lbl" fill="#d97706">%s</text>
     <text x="0" y="160" class="mono val">%s · %d %s · %d %s</text>
   </g>
@@ -1248,12 +1321,27 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   </g>
 </svg>`,
 			esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)), formatInt(k.PeakRank),
-			esc(l.KaggleHolmesPodium), esc(medalsEarned), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze),
+			esc(l.KaggleHolmesPodium), trophyX, trophyY, esc(medalsEarned), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze),
 			esc(l.KaggleTrack),
 			esc(cats[0].Name), esc(cats[0].Tier), formatInt(cats[0].Rank),
 			esc(cats[1].Name), esc(cats[1].Tier), formatInt(cats[1].Rank),
 			esc(cats[2].Name), esc(cats[2].Tier), formatInt(cats[2].Rank),
 			esc(cats[3].Name), esc(cats[3].Tier), formatInt(cats[3].Rank))
+	}
+}
+
+func holmesTrophyPosition(tier string) (int, int) {
+	switch strings.ToLower(strings.TrimSpace(tier)) {
+	case strings.ToLower(domain.KaggleTierNovice):
+		return 17, 90
+	case strings.ToLower(domain.KaggleTierContributor):
+		return 55, 70
+	case strings.ToLower(domain.KaggleTierExpert):
+		return 93, 48
+	case strings.ToLower(domain.KaggleTierGrandmaster):
+		return 169, 4
+	default: // Master
+		return 131, 24
 	}
 }
 
@@ -1279,11 +1367,11 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 	if !hasHF {
 		rightSecTitle = l.ImpactVelocitySec
 		rRow1Lbl = l.ImpactStreak
-		rRow1Val = fmt.Sprintf("%d Days", max(14, im.ActiveStreakDays))
+		rRow1Val = fmt.Sprintf(l.ImpactDaysCapFmt, max(14, im.ActiveStreakDays))
 		rRow2Lbl = l.ImpactCommits
 		rRow2Val = fmt.Sprintf("+%s / -%s", formatCompact(max(12400, im.LinesAdded)), formatCompact(max(3200, im.LinesDeleted)))
 		rRow3Lbl = l.ImpactYoYMomentum
-		rRow3Val = fmt.Sprintf("+%.0f%% Growth", maxFloat(24.0, im.YoYGrowthPct))
+		rRow3Val = fmt.Sprintf(l.ImpactGrowthFmt, maxFloat(24.0, im.YoYGrowthPct))
 	}
 
 	switch school {
@@ -1527,15 +1615,10 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 
 func renderSummary(school domain.School, d domain.PortfolioData, l labels) string {
 	langs := padLangs(d.Languages.Languages)
-	def := DefaultPortfolioData(domain.ProfileManifest{Subject: d.Subject}).Stack
-	dataCol := padStack(d.Stack.DataAnalytics, def.DataAnalytics)
-	mlCol := padStack(d.Stack.MLAndAI, def.MLAndAI)
+	dataCol := d.Stack.DataAnalytics
+	mlCol := d.Stack.MLAndAI
 	k := d.Kaggle
-	defCats := DefaultPortfolioData(domain.ProfileManifest{Subject: d.Subject}).Kaggle.Categories
 	cats := k.Categories
-	if len(cats) < 4 {
-		cats = defCats
-	}
 	im := d.Impact
 
 	switch school {

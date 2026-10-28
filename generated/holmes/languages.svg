@@ -17,7 +17,7 @@
     <g transform="translate(56, 12)" fill="#0284c7">
       <rect x="0" y="0" width="14" height="11" rx="2"/><rect x="17" y="0" width="14" height="11" rx="2"/><rect x="34" y="0" width="14" height="11" rx="2"/><rect x="51" y="0" width="14" height="11" rx="2"/><rect x="68" y="0" width="14" height="11" rx="2"/><rect x="85" y="0" width="14" height="11" rx="2"/>
     </g>
-    <text x="164" y="22" class="mono val">58.4%</text>
+    <text x="164" y="22" class="mono val" fill="#0284c7">58.4%</text>
     <text x="0" y="45" class="sans lbl">SQL</text>
     <g transform="translate(56, 35)" fill="#d97706">
       <rect x="0" y="0" width="14" height="11" rx="2"/><rect x="17" y="0" width="14" height="11" rx="2"/>
@@ -25,14 +25,14 @@
     <text x="96" y="45" class="mono val" fill="#d97706">19.2%</text>
     <text x="0" y="68" class="sans lbl">Go</text>
     <g transform="translate(56, 58)" fill="#00ADD8">
-      <rect x="0" y="0" width="14" height="11" rx="2"/><rect x="17" y="0" width="6" height="11" rx="1"/>
+      <rect x="0" y="0" width="14" height="11" rx="2"/>
     </g>
-    <text x="86" y="68" class="mono val" fill="#00ADD8">11.8%</text>
+    <text x="79" y="68" class="mono val" fill="#00ADD8">11.8%</text>
     <text x="0" y="91" class="sans lbl">R + Shell</text>
     <g transform="translate(56, 81)" fill="#7c3aed">
       <rect x="0" y="0" width="14" height="11" rx="2"/>
     </g>
-    <text x="78" y="91" class="mono val" fill="#7c3aed">10.6%</text>
+    <text x="79" y="91" class="mono val" fill="#7c3aed">10.6%</text>
     <rect x="0" y="106" width="196" height="58" rx="8" fill="#0284c7" fill-opacity="0.08" stroke="#0284c7" stroke-opacity="0.35" stroke-width="1.2"/>
     <text x="10" y="123" class="sans sec" fill="#0284c7">🧹 Jupyter Bloat Filter</text>
     <text x="10" y="140" class="sans badge">Stripped 14.2 MB of base64 PNGs</text>

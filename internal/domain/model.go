@@ -67,8 +67,24 @@ type GitHubSourceConfig struct {
 type KaggleSourceConfig struct {
 	Username string `json:"username"`
 	Enabled  bool   `json:"enabled"`
-	Mode     string `json:"mode"` // "hybrid" | "browser" | "api"
+	Mode     string `json:"mode"` // KaggleModeHybrid | KaggleModeBrowser | KaggleModeAPI
 }
+
+// Kaggle collection modes.
+const (
+	KaggleModeHybrid  = "hybrid"
+	KaggleModeBrowser = "browser"
+	KaggleModeAPI     = "api"
+)
+
+// Kaggle progression tiers.
+const (
+	KaggleTierNovice      = "Novice"
+	KaggleTierContributor = "Contributor"
+	KaggleTierExpert      = "Expert"
+	KaggleTierMaster      = "Master"
+	KaggleTierGrandmaster = "Grandmaster"
+)
 
 // HuggingFaceSourceConfig configures public Hugging Face Hub REST collection.
 type HuggingFaceSourceConfig struct {

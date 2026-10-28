@@ -25,7 +25,7 @@
     <text x="307" y="22" class="sans kpi-lbl">Visualization &amp; Data Apps</text>
   </g>
   <line x1="2" y1="63" x2="438" y2="63" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-  <g transform="translate(14, 76)">
+  <g transform="translate(12, 76)">
     <text x="0" y="0" class="sans sec" fill="#0284c7">Data &amp; Analytics</text>
     <text x="0" y="18" class="sans lbl">Pandas / Polars</text>
     <text x="124" y="18" text-anchor="end" class="mono val">28</text>
@@ -52,7 +52,7 @@
     <rect x="0" y="122" width="31" height="6" rx="1.5" fill="#64748b"/>
     <line x1="96" y1="120" x2="96" y2="130" stroke="#0284c7" stroke-width="2"/>
   </g>
-  <g transform="translate(158, 76)">
+  <g transform="translate(156, 76)">
     <text x="0" y="0" class="sans sec" fill="#7c3aed">Machine Learning &amp; AI</text>
     <text x="0" y="18" class="sans lbl">Scikit-Learn</text>
     <text x="124" y="18" text-anchor="end" class="mono val">22</text>
@@ -79,7 +79,7 @@
     <rect x="0" y="122" width="44" height="6" rx="1.5" fill="#64748b"/>
     <line x1="96" y1="120" x2="96" y2="130" stroke="#0284c7" stroke-width="2"/>
   </g>
-  <g transform="translate(302, 76)">
+  <g transform="translate(300, 76)">
     <text x="0" y="0" class="sans sec" fill="#059669">Visualization &amp; Data Apps</text>
     <text x="0" y="18" class="sans lbl">Plotly / Dash</text>
     <text x="124" y="18" text-anchor="end" class="mono val">16</text>

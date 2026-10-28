@@ -30,23 +30,23 @@ func main() {
 
 func runGenerate() {
 	var (
-		configPath string
-		envPath    string
-		outputDir  string
-		locale     string
-		demoMode   bool
+		manifestPath string
+		envPath      string
+		outputDir    string
+		locale       string
+		demoMode     bool
 	)
 
-	flag.StringVar(&configPath, "config", "profile.yaml", "Path to declarative profile.yaml manifest")
+	flag.StringVar(&manifestPath, "config", "profile.yaml", "Path to declarative profile.yaml manifest")
 	flag.StringVar(&envPath, "env", ".env", "Path to optional local .env file")
 	flag.StringVar(&outputDir, "output", "", "Override output directory from profile.yaml")
 	flag.StringVar(&locale, "locale", "", "Override subject locale (en | pt-BR)")
 	flag.BoolVar(&demoMode, "demo", false, "Render deterministic reference metrics without querying live network APIs")
 	flag.Parse()
 
-	manifest, err := config.LoadManifest(configPath)
+	manifest, err := config.LoadManifest(manifestPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not read %s (%v), using default manifest\n", configPath, err)
+		fmt.Fprintf(os.Stderr, "warning: could not read %s (%v), using default manifest\n", manifestPath, err)
 		manifest = config.DefaultManifest()
 	}
 
@@ -100,16 +100,16 @@ func runGenerate() {
 
 func runValidate() {
 	var (
-		configPath string
-		outputDir  string
+		manifestPath string
+		outputDir    string
 	)
-	flag.StringVar(&configPath, "config", "profile.yaml", "Path to declarative profile.yaml manifest")
+	flag.StringVar(&manifestPath, "config", "profile.yaml", "Path to declarative profile.yaml manifest")
 	flag.StringVar(&outputDir, "output", "", "Override output directory from profile.yaml")
 	flag.Parse()
 
-	manifest, err := config.LoadManifest(configPath)
+	manifest, err := config.LoadManifest(manifestPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "validation failed loading %s: %v\n", configPath, err)
+		fmt.Fprintf(os.Stderr, "validation failed loading %s: %v\n", manifestPath, err)
 		os.Exit(1)
 	}
 	if outputDir != "" {
@@ -145,25 +145,22 @@ func collectLiveSources(
 ) {
 	// 1. Collect from GitHub if username configured
 	if manifest.Sources.GitHub.Username != "" && ghClient != nil {
-		if lp, sp, im, err := ghClient.Collect(ctx, manifest.Sources.GitHub, manifest.Normalization); err == nil && lp.TotalRepos > 0 {
+		if lp, sp, im, err := ghClient.Collect(ctx, manifest.Sources.GitHub, manifest.Normalization); err == nil {
 			if len(lp.Languages) > 0 {
 				data.Languages = lp
 			}
 			if len(sp.DataAnalytics) > 0 && sp.DataAnalytics[0].RepoCount > 0 {
 				data.Stack = sp
 			}
-			if im.PublicRepos > 0 {
-				data.Impact.PublicRepos = im.PublicRepos
-			}
-			if im.TotalStars > 0 {
-				data.Impact.TotalStars = im.TotalStars
-			}
-			if im.TotalForks > 0 {
-				data.Impact.TotalForks = im.TotalForks
-			}
-			if im.AnnualContributions > 0 {
-				data.Impact.AnnualContributions = im.AnnualContributions
-			}
+			data.Impact.PublicRepos = im.PublicRepos
+			data.Impact.TotalStars = im.TotalStars
+			data.Impact.TotalForks = im.TotalForks
+			data.Impact.AnnualContributions = im.AnnualContributions
+			data.Impact.RepoViews14d = im.RepoViews14d
+			data.Impact.ActiveStreakDays = im.ActiveStreakDays
+			data.Impact.YoYGrowthPct = im.YoYGrowthPct
+			data.Impact.LinesAdded = im.LinesAdded
+			data.Impact.LinesDeleted = im.LinesDeleted
 			if len(im.WeeklyTrend) > 0 {
 				data.Impact.WeeklyTrend = im.WeeklyTrend
 			}
@@ -172,7 +169,7 @@ func collectLiveSources(
 
 	// 2. Collect from Kaggle if enabled
 	if manifest.Sources.Kaggle.Enabled && manifest.Sources.Kaggle.Username != "" && kgClient != nil {
-		if ks, err := kgClient.Collect(ctx, manifest.Sources.Kaggle); err == nil && ks.Available && ks.TotalMedals() > 0 {
+		if ks, err := kgClient.Collect(ctx, manifest.Sources.Kaggle); err == nil && ks.Available {
 			data.Kaggle = ks
 		}
 	}

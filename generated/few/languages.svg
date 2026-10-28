@@ -78,7 +78,7 @@
     <g transform="translate(0, 95)">
       <text x="0" y="9" class="sans lbl">Test Suite</text>
       <rect x="64" y="1" width="96" height="10" fill="#64748b" fill-opacity="0.14"/>
-      <rect x="64" y="1" width="68" height="10" fill="#64748b" fill-opacity="0.25"/>
+      <rect x="64" y="1" width="42" height="10" fill="#64748b" fill-opacity="0.25"/>
       <rect x="64" y="3.5" width="54" height="5" fill="#64748b"/>
       <line x1="118" y1="-1" x2="118" y2="13" stroke="#0284c7" stroke-width="2"/>
       <text x="194" y="9" text-anchor="end" class="mono val">18/32</text>

@@ -144,8 +144,8 @@ func TestBilingualPtBRRendering(t *testing.T) {
 		{
 			school:       domain.SchoolFew,
 			panel:        domain.PanelLanguages,
-			wantContains: []string{"Distribuição de Código", "MB Removidos", "Linguagem Principal", "Produção vs. EDA", "Lockfile &amp; CI Prontos"},
-			forbid:       []string{"MB Stripped", "Primary Language", "Lockfile &amp; CI Ready"},
+			wantContains: []string{"Distribuição de Código", "MB Removidos", "Linguagem Principal", "Produção vs. EDA", "Lockfile &amp; CI Prontos", "(Gráficos de Bala)", "Cód. Prod", "Suíte Testes"},
+			forbid:       []string{"MB Stripped", "Primary Language", "Lockfile &amp; CI Ready", "(Bullet Graphs)", "Prod Code", "Test Suite"},
 		},
 		{
 			school:       domain.SchoolCairo,
@@ -174,8 +174,8 @@ func TestBilingualPtBRRendering(t *testing.T) {
 		{
 			school:       domain.SchoolFew,
 			panel:        domain.PanelKaggle,
-			wantContains: []string{"Desempenho Competitivo no Kaggle", "Total Acumulado", "Marcador vertical", "indica o limiar necessário"},
-			forbid:       []string{"Vertical marker", "indicates the threshold"},
+			wantContains: []string{"Desempenho Competitivo no Kaggle", "NÍVEL: MASTER (#412 Pico)", "Total Acumulado", "Finais Top 5%", "(Gráficos de Bala)", "Marcador vertical", "indica o limiar necessário"},
+			forbid:       []string{"TIER: MASTER (#412 Peak)", "Top 5% Finishes", "(Bullet Graphs)", "Vertical marker", "indicates the threshold"},
 		},
 		{
 			school:       domain.SchoolCairo,
@@ -244,7 +244,7 @@ func TestBilingualPtBRRendering(t *testing.T) {
 		}
 	}
 
-	// 3. Verify Recruiter-First Velocity fallback in pt-BR
+	// 3. Verify Recruiter-First Velocity fallback and Zero-Gold Kaggle fallback in pt-BR
 	zeroHF := data
 	zeroHF.Impact.HFModels = 0
 	zeroHF.Impact.HFDatasets = 0
@@ -253,10 +253,25 @@ func TestBilingualPtBRRendering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render(tufte, impact) zero-HF pt-BR failed: %v", err)
 	}
-	for _, w := range []string{"Consistência &amp; Entrega", "Sequência Ativa", "Volume de Código", "Impulso Anual (YoY)"} {
+	for _, w := range []string{"Consistência &amp; Entrega", "Sequência Ativa", "Volume de Código", "Impulso Anual (YoY)", "42 Dias", "+34% Cresc."} {
 		if !strings.Contains(svgZeroHF, w) {
 			t.Errorf("Render(tufte, impact) zero-HF pt-BR missing %q", w)
 		}
+	}
+	for _, f := range []string{"42 Days", "+34% Growth"} {
+		if strings.Contains(svgZeroHF, f) {
+			t.Errorf("Render(tufte, impact) zero-HF pt-BR still contains English %q", f)
+		}
+	}
+
+	zeroGoldPt := data
+	zeroGoldPt.Kaggle.TotalGold = 0
+	svgZeroGoldPt, err := Render(domain.SchoolFew, domain.PanelKaggle, zeroGoldPt)
+	if err != nil {
+		t.Fatalf("Render(few, kaggle) zero-gold pt-BR failed: %v", err)
+	}
+	if !strings.Contains(svgZeroGoldPt, "4 Trilhas") || strings.Contains(svgZeroGoldPt, "4 Tracks") {
+		t.Errorf("Render(few, kaggle) zero-gold pt-BR expected '4 Trilhas' instead of '4 Tracks'")
 	}
 }
 
@@ -443,6 +458,121 @@ func TestAllFivePanelsHonorSchoolVisualGrammars(t *testing.T) {
 				t.Errorf("Render(holmes, %s) missing Holmes grammar element %q", panel, want)
 			}
 		}
+	}
+}
+
+func TestDynamicSVGGeometriesAcrossSchools(t *testing.T) {
+	manifest := config.DefaultManifest()
+
+	// 1. Few Languages: changing ProductionPct and hygiene counts must dynamically change bullet bar widths
+	fewA := DefaultPortfolioData(manifest)
+	fewA.Languages.TotalRepos = 20
+	fewA.Languages.ProductionPct = 80.0
+	fewA.Languages.LockfileRepos = 18
+	fewA.Languages.CICDRepos = 16
+	fewA.Languages.TestSuiteRepos = 14
+	fewA.Languages.ContainerizedRepos = 12
+
+	fewB := DefaultPortfolioData(manifest)
+	fewB.Languages.TotalRepos = 20
+	fewB.Languages.ProductionPct = 25.0
+	fewB.Languages.LockfileRepos = 4
+	fewB.Languages.CICDRepos = 2
+	fewB.Languages.TestSuiteRepos = 2
+	fewB.Languages.ContainerizedRepos = 2
+
+	svgFewA, err := Render(domain.SchoolFew, domain.PanelLanguages, fewA)
+	if err != nil {
+		t.Fatalf("Render(few, languages) fewA failed: %v", err)
+	}
+	svgFewB, err := Render(domain.SchoolFew, domain.PanelLanguages, fewB)
+	if err != nil {
+		t.Fatalf("Render(few, languages) fewB failed: %v", err)
+	}
+	// 80% of 96 = 77 vs 25% of 96 = 24
+	if !strings.Contains(svgFewA, `width="77" height="5" fill="#059669"`) {
+		t.Errorf("expected Few Prod Code bullet bar width=77 for 80%%, got SVG:\n%s", svgFewA)
+	}
+	if !strings.Contains(svgFewB, `width="24" height="5" fill="#059669"`) {
+		t.Errorf("expected Few Prod Code bullet bar width=24 for 25%%, got SVG:\n%s", svgFewB)
+	}
+
+	// 2. Cairo Languages: 10x5 Waffle Chart (50 unit cells) colored proportionally to TopLanguages
+	cairoA := DefaultPortfolioData(manifest)
+	cairoA.Languages.Languages = []domain.LanguageStat{
+		{Name: "Python", Percentage: 80.0, Color: "#0284c7"},
+		{Name: "SQL", Percentage: 10.0, Color: "#d97706"},
+		{Name: "Go", Percentage: 4.0, Color: "#00ADD8"},
+		{Name: "R", Percentage: 4.0, Color: "#2563eb"},
+		{Name: "Shell", Percentage: 2.0, Color: "#059669"},
+	}
+	cairoB := DefaultPortfolioData(manifest)
+	cairoB.Languages.Languages = []domain.LanguageStat{
+		{Name: "Python", Percentage: 20.0, Color: "#0284c7"},
+		{Name: "SQL", Percentage: 60.0, Color: "#d97706"},
+		{Name: "Go", Percentage: 10.0, Color: "#00ADD8"},
+		{Name: "R", Percentage: 6.0, Color: "#2563eb"},
+		{Name: "Shell", Percentage: 4.0, Color: "#059669"},
+	}
+	svgCairoA, err := Render(domain.SchoolCairo, domain.PanelLanguages, cairoA)
+	if err != nil {
+		t.Fatalf("Render(cairo, languages) cairoA failed: %v", err)
+	}
+	svgCairoB, err := Render(domain.SchoolCairo, domain.PanelLanguages, cairoB)
+	if err != nil {
+		t.Fatalf("Render(cairo, languages) cairoB failed: %v", err)
+	}
+	// Verify 50 waffle unit cells (width="15" height="8") and dynamic color counts
+	if gotCells := strings.Count(svgCairoA, `width="15" height="8"`); gotCells != 50 {
+		t.Errorf("expected 50 unit cells in Cairo 10x5 Waffle Chart, got %d", gotCells)
+	}
+	if strings.Count(svgCairoA, `fill="#0284c7"`) <= strings.Count(svgCairoB, `fill="#0284c7"`) {
+		t.Errorf("expected Cairo waffle chart to have more #0284c7 cells at 80%% Python than at 20%% Python")
+	}
+
+	// 3. Holmes Languages: 10 Pictorial Unit Blocks (Isotypes) colored dynamically by language percentages
+	svgHolmesA, err := Render(domain.SchoolHolmes, domain.PanelLanguages, cairoA)
+	if err != nil {
+		t.Fatalf("Render(holmes, languages) cairoA failed: %v", err)
+	}
+	svgHolmesB, err := Render(domain.SchoolHolmes, domain.PanelLanguages, cairoB)
+	if err != nil {
+		t.Fatalf("Render(holmes, languages) cairoB failed: %v", err)
+	}
+	if strings.Count(svgHolmesA, `width="14" height="11"`) != 10 || strings.Count(svgHolmesB, `width="14" height="11"`) != 10 {
+		t.Errorf("expected 10 Pictorial Unit Blocks in Holmes languages panel, got A=%d B=%d",
+			strings.Count(svgHolmesA, `width="14" height="11"`), strings.Count(svgHolmesB, `width="14" height="11"`))
+	}
+	if svgHolmesA == svgHolmesB {
+		t.Errorf("expected Holmes Pictorial Unit Blocks to change geometry when language percentages change")
+	}
+
+	// 4. Holmes Kaggle: trophy (🏆) x/y position on stepped podium computed dynamically from OverallTier
+	tiers := []string{
+		domain.KaggleTierNovice,
+		domain.KaggleTierContributor,
+		domain.KaggleTierExpert,
+		domain.KaggleTierMaster,
+		domain.KaggleTierGrandmaster,
+	}
+	seenTrophyTags := make(map[string]bool)
+	for _, tier := range tiers {
+		kd := DefaultPortfolioData(manifest)
+		kd.Kaggle.OverallTier = tier
+		svgK, err := Render(domain.SchoolHolmes, domain.PanelKaggle, kd)
+		if err != nil {
+			t.Fatalf("Render(holmes, kaggle) for tier %s failed: %v", tier, err)
+		}
+		idx := strings.Index(svgK, `text-anchor="middle" font-size="14">🏆</text>`)
+		if idx == -1 {
+			t.Fatalf("expected trophy element in Holmes kaggle SVG for tier %s", tier)
+		}
+		start := strings.LastIndex(svgK[:idx], "<text ")
+		trophyTag := svgK[start : idx+len(`text-anchor="middle" font-size="14">🏆</text>`)]
+		if seenTrophyTags[trophyTag] {
+			t.Errorf("duplicate trophy position %q for tier %s; expected distinct podium step position per tier", trophyTag, tier)
+		}
+		seenTrophyTags[trophyTag] = true
 	}
 }
 

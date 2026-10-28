@@ -96,6 +96,30 @@ func TestCollectRepositoriesLanguagesAndHygiene(t *testing.T) {
 		})
 	}
 
+	rootContents := map[string][]map[string]string{
+		"/repos/adalovelace/ml-pipeline/contents": {
+			{"name": "poetry.lock", "type": "file"},
+			{"name": ".github", "type": "dir"},
+			{"name": "tests", "type": "dir"},
+			{"name": "Dockerfile", "type": "file"},
+		},
+		"/repos/adalovelace/eda-experiments/contents": {
+			{"name": "requirements.txt", "type": "file"},
+			{"name": ".github", "type": "dir"},
+		},
+		"/repos/adalovelace/quarto-reports/contents": {
+			{"name": "go.sum", "type": "file"},
+			{"name": "pipeline_test.go", "type": "file"},
+		},
+	}
+	for path, entries := range rootContents {
+		entriesCopy := entries
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(entriesCopy)
+		})
+	}
+
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
@@ -152,9 +176,14 @@ func TestCollectRepositoriesLanguagesAndHygiene(t *testing.T) {
 		t.Errorf("expected Python as top language, got %+v", langPanel.Languages)
 	}
 
-	// Engineering hygiene signals populated
-	if langPanel.LockfileRepos <= 0 || langPanel.CICDRepos <= 0 || langPanel.TestSuiteRepos <= 0 || langPanel.ContainerizedRepos <= 0 {
-		t.Errorf("expected positive engineering hygiene counts, got %+v", langPanel)
+	// Verified engineering hygiene signals from /repos/{owner}/{repo}/contents:
+	// Lockfiles: 3 (poetry.lock, requirements.txt, go.sum)
+	// CI/CD: 2 (.github in ml-pipeline and eda-experiments)
+	// Tests: 2 (tests dir in ml-pipeline, pipeline_test.go in quarto-reports)
+	// Docker: 1 (Dockerfile in ml-pipeline)
+	if langPanel.LockfileRepos != 3 || langPanel.CICDRepos != 2 || langPanel.TestSuiteRepos != 2 || langPanel.ContainerizedRepos != 1 {
+		t.Errorf("expected verified hygiene counts Lockfiles=3 CI=2 Tests=2 Docker=1, got Lockfiles=%d CI=%d Tests=%d Docker=%d",
+			langPanel.LockfileRepos, langPanel.CICDRepos, langPanel.TestSuiteRepos, langPanel.ContainerizedRepos)
 	}
 }
 
@@ -289,6 +318,12 @@ func TestCollectEnrichesGraphQLContributionsAnd52WeekTrend(t *testing.T) {
 	mux.HandleFunc("/repos/adalovelace/data-lake/languages", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]int64{"SQL": 80000})
 	})
+	mux.HandleFunc("/repos/adalovelace/core-ml/traffic/views", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int{"count": 640, "uniques": 190})
+	})
+	mux.HandleFunc("/repos/adalovelace/data-lake/traffic/views", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int{"count": 280, "uniques": 85})
+	})
 	mux.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST /graphql, got %s", r.Method)
@@ -371,6 +406,12 @@ func TestCollectEnrichesGraphQLContributionsAnd52WeekTrend(t *testing.T) {
 	if impact.AnnualContributions != expectedTotal {
 		t.Errorf("expected AnnualContributions=%d, got %d", expectedTotal, impact.AnnualContributions)
 	}
+	if impact.RepoViews14d != 920 {
+		t.Errorf("expected RepoViews14d=920 from /traffic/views, got %d", impact.RepoViews14d)
+	}
+	if impact.ActiveStreakDays <= 0 || impact.YoYGrowthPct <= 0 || impact.LinesAdded <= 0 || impact.LinesDeleted <= 0 {
+		t.Errorf("expected velocity metrics populated (ActiveStreakDays>0, YoYGrowthPct>0, LinesAdded>0, LinesDeleted>0), got %+v", impact)
+	}
 
 	// Verify non-200 GraphQL status is rejected even if body contains JSON
 	errSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -383,5 +424,82 @@ func TestCollectEnrichesGraphQLContributionsAnd52WeekTrend(t *testing.T) {
 	errClient.BaseURL = errSrv.URL
 	if _, _, err := errClient.fetchGraphQLContributions(context.Background(), "adalovelace"); err == nil {
 		t.Errorf("expected fetchGraphQLContributions to fail on HTTP 401 status")
+	}
+}
+
+func TestCollectIncludePrivateCountAndTrafficFallback(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users/adalovelace/repos", func(w http.ResponseWriter, r *http.Request) {
+		repos := []restRepo{
+			{Name: "repo-a", FullName: "adalovelace/repo-a", Stargazers: 40, Forks: 10, Language: "Go"},
+			{Name: "repo-b", FullName: "adalovelace/repo-b", Stargazers: 20, Forks: 5, Language: "Python"},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(repos)
+	})
+	mux.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer ghp_priv_token" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]int{
+			"total_private_repos": 5,
+			"owned_private_repos": 4,
+		})
+	})
+	mux.HandleFunc("/repos/adalovelace/repo-a/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Go": 80000})
+	})
+	mux.HandleFunc("/repos/adalovelace/repo-b/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Python": 60000})
+	})
+	// Simulate 403 Forbidden on traffic/views (e.g. token without push scope) -> should estimate from stars/forks
+	mux.HandleFunc("/repos/adalovelace/repo-a/traffic/views", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+	mux.HandleFunc("/repos/adalovelace/repo-b/traffic/views", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := NewClient("ghp_priv_token")
+	client.BaseURL = srv.URL
+
+	// 1. With IncludePrivateCount: true -> 2 public + 5 private = 7 repos
+	lpPriv, _, imPriv, err := client.Collect(
+		context.Background(),
+		domain.GitHubSourceConfig{Username: "adalovelace", IncludePrivateCount: true},
+		domain.NormalizationConfig{DeflateNotebooks: true},
+	)
+	if err != nil {
+		t.Fatalf("Collect with IncludePrivateCount=true failed: %v", err)
+	}
+	if lpPriv.TotalRepos != 7 || imPriv.PublicRepos != 7 {
+		t.Errorf("expected TotalRepos=7 and PublicRepos=7 when IncludePrivateCount=true, got TotalRepos=%d PublicRepos=%d",
+			lpPriv.TotalRepos, imPriv.PublicRepos)
+	}
+	if imPriv.RepoViews14d <= 0 {
+		t.Errorf("expected positive estimated RepoViews14d when /traffic/views returns 403, got %d", imPriv.RepoViews14d)
+	}
+	// Since /contents returned 404, baseline ratios should be used on 7 repos
+	if lpPriv.LockfileRepos <= 0 || lpPriv.CICDRepos <= 0 {
+		t.Errorf("expected fallback baseline hygiene counts when /contents is 404, got %+v", lpPriv)
+	}
+
+	// 2. With IncludePrivateCount: false -> 2 public repos only
+	lpPub, _, imPub, err := client.Collect(
+		context.Background(),
+		domain.GitHubSourceConfig{Username: "adalovelace", IncludePrivateCount: false},
+		domain.NormalizationConfig{DeflateNotebooks: true},
+	)
+	if err != nil {
+		t.Fatalf("Collect with IncludePrivateCount=false failed: %v", err)
+	}
+	if lpPub.TotalRepos != 2 || imPub.PublicRepos != 2 {
+		t.Errorf("expected TotalRepos=2 and PublicRepos=2 when IncludePrivateCount=false, got TotalRepos=%d PublicRepos=%d",
+			lpPub.TotalRepos, imPub.PublicRepos)
 	}
 }

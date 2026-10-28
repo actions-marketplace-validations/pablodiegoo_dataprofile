@@ -16,6 +16,7 @@ import (
 	"github.com/pablodiegoo/dataprofile/internal/render"
 	"github.com/pablodiegoo/dataprofile/internal/sources/github"
 	"github.com/pablodiegoo/dataprofile/internal/sources/huggingface"
+	"github.com/pablodiegoo/dataprofile/internal/sources/kaggle"
 )
 
 func TestCLIGenerateAndValidate(t *testing.T) {
@@ -159,6 +160,18 @@ func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {
 	if len(data.Impact.WeeklyTrend) != 4 || data.Impact.WeeklyTrend[3] != 55 {
 		t.Errorf("expected WeeklyTrend=[10 25 40 55], got %v", data.Impact.WeeklyTrend)
 	}
+	if data.Impact.RepoViews14d != 480*5+62*8 {
+		t.Errorf("expected live RepoViews14d=%d, got %d", 480*5+62*8, data.Impact.RepoViews14d)
+	}
+	if data.Impact.ActiveStreakDays != 4 {
+		t.Errorf("expected live ActiveStreakDays=4, got %d", data.Impact.ActiveStreakDays)
+	}
+	if data.Impact.YoYGrowthPct < 100 {
+		t.Errorf("expected live YoYGrowthPct > 100 from [10,25,40,55], got %.1f", data.Impact.YoYGrowthPct)
+	}
+	if data.Impact.LinesAdded <= 0 || data.Impact.LinesDeleted <= 0 || data.Impact.LinesAdded == 84200 {
+		t.Errorf("expected live LinesAdded/LinesDeleted copied instead of demo 84200, got +%d/-%d", data.Impact.LinesAdded, data.Impact.LinesDeleted)
+	}
 	if data.Impact.HFModels != 0 || data.Impact.HFDatasets != 0 || data.Impact.HFSpaces != 0 {
 		t.Errorf("expected zero HF counts when live HF API returns [], got %d/%d/%d",
 			data.Impact.HFModels, data.Impact.HFDatasets, data.Impact.HFSpaces)
@@ -170,6 +183,67 @@ func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {
 	}
 	if !strings.Contains(svgImpact, "Engineering Velocity") || strings.Contains(svgImpact, "0 / 0 / 0") {
 		t.Errorf("expected live zero-HF profile to render Engineering Velocity fallback in impact.svg")
+	}
+}
+
+func TestLiveCollectionZeroGoldKaggleAndZeroStarGitHubDoesNotLeakDemoValues(t *testing.T) {
+	ghMux := http.NewServeMux()
+	ghMux.HandleFunc("/users/newuser/repos", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+			{
+				"name":             "starter-repo",
+				"full_name":        "newuser/starter-repo",
+				"fork":             false,
+				"stargazers_count": 0,
+				"forks_count":      0,
+				"language":         "Python",
+			},
+		})
+	})
+	ghMux.HandleFunc("/repos/newuser/starter-repo/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Python": 25000})
+	})
+	ghSrv := httptest.NewServer(ghMux)
+	defer ghSrv.Close()
+
+	manifest := config.DefaultManifest()
+	manifest.Sources.GitHub.Username = "newuser"
+	manifest.Sources.Kaggle.Enabled = true
+	manifest.Sources.Kaggle.Username = "newuser"
+	manifest.Sources.Kaggle.Mode = domain.KaggleModeBrowser
+	manifest.Sources.HuggingFace.Enabled = false
+
+	ghClient := github.NewClient("")
+	ghClient.BaseURL = ghSrv.URL
+
+	kgClient := kaggle.NewClient("", "")
+	kgClient.DOMDumper = func(ctx context.Context, username string) (string, error) {
+		return `Notebooks Contributor #9,800 0 Gold 0 Silver 0 Bronze Datasets Novice Competitions Novice Discussions Novice`, nil
+	}
+
+	data := render.DefaultPortfolioData(manifest)
+	collectLiveSources(context.Background(), manifest, &data, ghClient, kgClient, nil)
+
+	if data.Impact.TotalStars != 0 || data.Impact.TotalForks != 0 {
+		t.Errorf("expected live zero-star/zero-fork GitHub profile to have 0 stars and 0 forks (not demo 342/78), got stars=%d forks=%d",
+			data.Impact.TotalStars, data.Impact.TotalForks)
+	}
+	if data.Impact.PublicRepos != 1 {
+		t.Errorf("expected PublicRepos=1, got %d", data.Impact.PublicRepos)
+	}
+	if data.Impact.RepoViews14d != 0 {
+		t.Errorf("expected RepoViews14d=0 for zero-star/zero-fork profile, got %d", data.Impact.RepoViews14d)
+	}
+	if data.Kaggle.OverallTier != domain.KaggleTierContributor || data.Kaggle.TotalGold != 0 || data.Kaggle.TotalMedals() != 0 {
+		t.Errorf("expected live zero-gold Kaggle profile to overwrite demo Master standing, got %+v", data.Kaggle)
+	}
+
+	svgKaggle, err := render.Render(domain.SchoolFew, domain.PanelKaggle, data)
+	if err != nil {
+		t.Fatalf("Render kaggle failed: %v", err)
+	}
+	if !strings.Contains(svgKaggle, "4 Tracks") || strings.Contains(svgKaggle, "3 Gold") {
+		t.Errorf("expected live zero-gold Kaggle profile to trigger '4 Tracks' degradation instead of leaking demo '3 Gold'")
 	}
 }
 
