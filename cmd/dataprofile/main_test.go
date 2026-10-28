@@ -76,6 +76,20 @@ output:
 	if out, err := valCmd.CombinedOutput(); err != nil {
 		t.Fatalf("validate with --output failed: %v\n%s", err, string(out))
 	}
+
+	// 3. Run generate with --locale=pt-BR overriding manifest locale: "en"
+	ptOutDir := filepath.Join(dir, "pt-out")
+	genPtCmd := exec.Command(binPath, "generate", "--config", manifestPath, "--output", ptOutDir, "--locale=pt-BR", "--demo")
+	if out, err := genPtCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generate --locale=pt-BR failed: %v\n%s", err, string(out))
+	}
+	ptSVG, err := os.ReadFile(filepath.Join(ptOutDir, "tufte", "languages.svg"))
+	if err != nil {
+		t.Fatalf("expected pt-BR generated SVG: %v", err)
+	}
+	if !strings.Contains(string(ptSVG), "Distribuição de Código") {
+		t.Errorf("expected --locale=pt-BR CLI flag to render Portuguese title in languages.svg")
+	}
 }
 
 func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {

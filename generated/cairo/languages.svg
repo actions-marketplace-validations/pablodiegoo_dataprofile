@@ -16,6 +16,7 @@
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 62)">
     <text x="0" y="0" class="sans sec">True Source Code Proportions</text>
+    <line x1="144" y1="10" x2="144" y2="118" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
     <text x="0" y="22" class="sans lbl">Python</text>
     <line x1="54" y1="18" x2="159" y2="18" stroke="#0284c7" stroke-width="2.2"/>
     <circle cx="159" cy="18" r="4" fill="#0284c7"/>

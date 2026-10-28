@@ -12,138 +12,262 @@ import (
 )
 
 type labels struct {
+	IsPtBR bool
+
 	// Panel 1: Languages
-	LangTitleTufte   string
-	LangSubTufte     string
-	LangSecTrueProp  string
-	LangSecEDAProd   string
-	LangProdModules  string
-	LangEDANotebooks string
-	LangSecHygiene   string
-	LangLockfiles    string
-	LangCICD         string
-	LangTests        string
-	LangDocker       string
-	LangFootnote     string
+	LangTitleTufte       string
+	LangSubTufte         string
+	LangSecTrueProp      string
+	LangSecEDAProd       string
+	LangProdModules      string
+	LangEDANotebooks     string
+	LangSecHygiene       string
+	LangLockfiles        string
+	LangCICD             string
+	LangTests            string
+	LangDocker           string
+	LangFootnote         string
+	LangFewStrippedFmt   string
+	LangFewPrimary       string
+	LangFewProdEDA       string
+	LangFewLockCI        string
+	LangCairoHeadFmt     string
+	LangCairoLeadFmt     string
+	LangCairoCallout     string
+	LangCairoWaffle      string
+	LangHolmesPictorial  string
+	LangHolmesFilter     string
+	LangHolmesStripped   string
+	LangHolmesProdSplit  string
 
 	// Panel 2: Stack
-	StackTitle      string
-	StackSub        string
-	StackPillarData string
-	StackPillarML   string
-	StackPillarViz  string
-	StackFootnote   string
+	StackTitle        string
+	StackSub          string
+	StackPillarData   string
+	StackPillarML     string
+	StackPillarViz    string
+	StackFootnote     string
+	StackCairoHeadFmt string
+	StackCairoLeadFmt string
+	StackCairoCallout string
 
 	// Panel 3: Kaggle
-	KaggleTitle      string
-	KaggleCumulative string
-	KaggleGold       string
-	KaggleSilver     string
-	KaggleBronze     string
-	KaggleActive     string
-	KaggleTrack      string
+	KaggleTitle          string
+	KaggleCumulative     string
+	KaggleGold           string
+	KaggleSilver         string
+	KaggleBronze         string
+	KaggleActive         string
+	KaggleTrack          string
+	KaggleGMReq          string
+	KaggleTufteSubFmt    string
+	KaggleThCat          string
+	KaggleThStanding     string
+	KaggleThRank         string
+	KaggleThPct          string
+	KaggleThMedals       string
+	KaggleTotalTally     string
+	KaggleMedalsWord     string
+	KaggleFewMarkerNote  string
+	KaggleCairoHeadFmt   string
+	KaggleCairoLeadFmt   string
+	KaggleCairoBench     string
+	KaggleCairoCallout   string
+	KaggleHolmesPodium   string
+	KaggleHolmesMedals   string
+	KaggleOverallTierLbl string
+	KaggleTotalMedalsLbl string
 
 	// Panel 4: Impact
-	ImpactTitle       string
-	ImpactContribs    string
-	ImpactGitHubSec   string
-	ImpactAISec       string
-	ImpactStars       string
-	ImpactRepos       string
-	ImpactForks       string
-	ImpactViews       string
-	ImpactModels      string
-	ImpactDownloads   string
-	ImpactLikes       string
-	ImpactVelocitySec string
-	ImpactStreak      string
-	ImpactCommits     string
+	ImpactTitle          string
+	ImpactContribs       string
+	ImpactGitHubSec      string
+	ImpactAISec          string
+	ImpactStars          string
+	ImpactRepos          string
+	ImpactForks          string
+	ImpactViews          string
+	ImpactModels         string
+	ImpactDownloads      string
+	ImpactLikes          string
+	ImpactVelocitySec    string
+	ImpactStreak         string
+	ImpactCommits        string
+	ImpactYoYMomentum    string
+	ImpactTufteHorizon   string
+	ImpactFewVelocityFmt string
+	ImpactCairoHeadFmt   string
+	ImpactCairoLeadFmt   string
+	ImpactCairoCallout   string
+	ImpactHolmesBanner   string
 }
 
 func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 	if strings.EqualFold(locale, "pt-BR") || strings.EqualFold(locale, "pt") {
 		return labels{
-			LangTitleTufte:    "Distribuição de Código & Engenharia de Produção",
-			LangSubTufte:      fmt.Sprintf("Notebooks Normalizados · %d Repos", totalRepos),
-			LangSecTrueProp:   "Proporção Real de Código-Fonte",
-			LangSecEDAProd:    "Exploração vs. Produção",
-			LangProdModules:   "Módulos de Produção",
-			LangEDANotebooks:  "Notebooks de EDA",
-			LangSecHygiene:    "Maturidade de Engenharia",
-			LangLockfiles:     "Lockfiles de Dependência",
-			LangCICD:          "Pipelines de CI/CD",
-			LangTests:         "Suítes de Testes",
-			LangDocker:        "Containers / Docker",
-			LangFootnote:      fmt.Sprintf("*Nota: %.1f MB de cache base64 em arquivos .ipynb removidos antes do cálculo.", strippedMB),
-			StackTitle:        "Ecossistema de Dados, ML & Analytics",
-			StackSub:          fmt.Sprintf("Dependências Verificadas · %d Repos", totalRepos),
-			StackPillarData:   "Dados & Engenharia",
-			StackPillarML:     "Machine Learning & IA",
-			StackPillarViz:    "Visualização & Apps",
-			StackFootnote:     "*Extraído de pyproject.toml, requirements.txt, environment.yml e DESCRIPTION.",
-			KaggleTitle:       "Desempenho Competitivo no Kaggle",
-			KaggleCumulative:  "Total Acumulado",
-			KaggleGold:        "Ouro",
-			KaggleSilver:      "Prata",
-			KaggleBronze:      "Bronze",
-			KaggleActive:      "Trilhas Ativas",
-			KaggleTrack:       "Progressão por Categoria",
-			ImpactTitle:       "Impacto Open-Source & Comunidade de IA",
-			ImpactContribs:    "Contribuições Anuais",
-			ImpactGitHubSec:   "Alcance no GitHub",
-			ImpactAISec:       "Artefatos de IA & Hub",
-			ImpactStars:       "Estrelas Totais",
-			ImpactRepos:       "Repos Públicos",
-			ImpactForks:       "Forks & Citações",
-			ImpactViews:       "Visitas (14d)",
-			ImpactModels:      "Modelos & Datasets",
-			ImpactDownloads:   "Downloads (30d)",
-			ImpactLikes:       "Curtidas na Comunidade",
-			ImpactVelocitySec: "Consistência & Entrega",
-			ImpactStreak:      "Sequência Ativa",
-			ImpactCommits:     "Volume de Código",
+			IsPtBR:               true,
+			LangTitleTufte:       "Distribuição de Código & Engenharia de Produção",
+			LangSubTufte:         fmt.Sprintf("Notebooks Normalizados · %d Repos", totalRepos),
+			LangSecTrueProp:      "Proporção Real de Código-Fonte",
+			LangSecEDAProd:       "Exploração vs. Produção",
+			LangProdModules:      "Módulos de Produção",
+			LangEDANotebooks:     "Notebooks de EDA",
+			LangSecHygiene:       "Maturidade de Engenharia",
+			LangLockfiles:        "Lockfiles de Dependência",
+			LangCICD:             "Pipelines de CI/CD",
+			LangTests:            "Suítes de Testes",
+			LangDocker:           "Containers / Docker",
+			LangFootnote:         fmt.Sprintf("*Nota: %.1f MB de cache base64 em arquivos .ipynb removidos antes do cálculo.", strippedMB),
+			LangFewStrippedFmt:   "%.1f MB Removidos",
+			LangFewPrimary:       "Linguagem Principal",
+			LangFewProdEDA:       "Produção vs. EDA",
+			LangFewLockCI:        "Lockfile & CI Prontos",
+			LangCairoHeadFmt:     "%s Lidera com %.1f%% Após Deflacionar %.1f MB de Cache",
+			LangCairoLeadFmt:     "%s · Módulos de produção representam %.0f%% da base de código",
+			LangCairoCallout:     "↳ Saídas .ipynb removidas",
+			LangCairoWaffle:      "Estrutura de Código Waffle (10×5)",
+			LangHolmesPictorial:  "Blocos Pictóricos",
+			LangHolmesFilter:     "🧹 Filtro de Cache Jupyter",
+			LangHolmesStripped:   "Removidos %.1f MB de PNGs base64",
+			LangHolmesProdSplit:  "✓ %.0f%% Produção · %.0f%% Notebooks",
+			StackTitle:           "Ecossistema de Dados, ML & Analytics",
+			StackSub:             fmt.Sprintf("Dependências Verificadas · %d Repos", totalRepos),
+			StackPillarData:      "Dados & Engenharia",
+			StackPillarML:        "Machine Learning & IA",
+			StackPillarViz:       "Visualização & Apps",
+			StackFootnote:        "*Extraído de pyproject.toml, requirements.txt, environment.yml e DESCRIPTION.",
+			StackCairoHeadFmt:    "Ecossistema Completo de Dados & ML Ancorado por %s e %s",
+			StackCairoLeadFmt:    "%s · Cobertura ponta a ponta da ingestão a aplicações interativas",
+			StackCairoCallout:    "↳ Ecossistema principal verificado nos manifestos dos repositórios.",
+			KaggleTitle:          "Desempenho Competitivo no Kaggle",
+			KaggleCumulative:     "Total Acumulado",
+			KaggleGold:           "Ouro",
+			KaggleSilver:         "Prata",
+			KaggleBronze:         "Bronze",
+			KaggleActive:         "Trilhas Ativas",
+			KaggleTrack:          "Progressão por Categoria",
+			KaggleGMReq:          "Requisito GM: 5",
+			KaggleTufteSubFmt:    "Tier: %s · %d Medalhas Totais",
+			KaggleThCat:          "Categoria",
+			KaggleThStanding:     "Nível",
+			KaggleThRank:         "Rank Global",
+			KaggleThPct:          "Percentil",
+			KaggleThMedals:       "Medalhas (O / P / B)",
+			KaggleTotalTally:     "Total Acumulado no Portfólio",
+			KaggleMedalsWord:     "Medalhas",
+			KaggleFewMarkerNote:  "indica o limiar necessário para o próximo Kaggle Tier.",
+			KaggleCairoHeadFmt:   "Nível %s no Kaggle com Rank Global #%s e %d Medalhas",
+			KaggleCairoLeadFmt:   "Percentil nas 4 trilhas oficiais de progressão do Kaggle (%s · %d Prata · %d Bronze)",
+			KaggleCairoBench:     "REFERÊNCIA GLOBAL TOP 1%",
+			KaggleCairoCallout:   "↳ Desempenho consistente no topo percentual em notebooks, datasets e competições.",
+			KaggleHolmesPodium:   "Pódio de Progressão",
+			KaggleHolmesMedals:   "★ %d Medalhas Conquistadas",
+			KaggleOverallTierLbl: "Nível Geral",
+			KaggleTotalMedalsLbl: "Medalhas Totais",
+			ImpactTitle:          "Impacto Open-Source & Comunidade de IA",
+			ImpactContribs:       "Contribuições Anuais",
+			ImpactGitHubSec:      "Alcance no GitHub",
+			ImpactAISec:          "Artefatos de IA & Hub",
+			ImpactStars:          "Estrelas Totais",
+			ImpactRepos:          "Repos Públicos",
+			ImpactForks:          "Forks & Citações",
+			ImpactViews:          "Visitas (14d)",
+			ImpactModels:         "Modelos & Datasets",
+			ImpactDownloads:      "Downloads (30d)",
+			ImpactLikes:          "Curtidas na Comunidade",
+			ImpactVelocitySec:    "Consistência & Entrega",
+			ImpactStreak:         "Sequência Ativa",
+			ImpactCommits:        "Volume de Código",
+			ImpactYoYMomentum:    "Impulso Anual (YoY)",
+			ImpactTufteHorizon:   "Horizonte de 52 Semanas",
+			ImpactFewVelocityFmt: "+%.0f%% VELOCIDADE ANUAL",
+			ImpactCairoHeadFmt:   "%s Contribuições Anuais (+%.0f%% YoY) & Alcance Open-Source",
+			ImpactCairoLeadFmt:   "Produção contínua de engenharia em %d repositórios públicos e artefatos da comunidade",
+			ImpactCairoCallout:   "↳ Pico de velocidade atingido no Q4 com sequência ativa de %d dias.",
+			ImpactHolmesBanner:   "🚀 %s — %s CONTRIBUIÇÕES",
 		}
 	}
 	return labels{
-		LangTitleTufte:    "Code Distribution & Production Engineering",
-		LangSubTufte:      fmt.Sprintf("Notebook-Normalized · %d Repos", totalRepos),
-		LangSecTrueProp:   "True Source Code Proportions",
-		LangSecEDAProd:    "Exploration vs. Production",
-		LangProdModules:   "Production Modules",
-		LangEDANotebooks:  "EDA Notebooks",
-		LangSecHygiene:    "Engineering Hygiene Signals",
-		LangLockfiles:     "Dependency Lockfiles",
-		LangCICD:          "CI/CD Workflows",
-		LangTests:         "Automated Test Suites",
-		LangDocker:        "Docker / Containers",
-		LangFootnote:      fmt.Sprintf("*Note: %.1f MB of embedded base64 chart cache stripped from .ipynb files prior to computing proportions.", strippedMB),
-		StackTitle:        "Data, ML & Analytics Ecosystem",
-		StackSub:          fmt.Sprintf("Verified Manifests · %d Repos", totalRepos),
-		StackPillarData:   "Data & Analytics",
-		StackPillarML:     "Machine Learning & AI",
-		StackPillarViz:    "Visualization & Data Apps",
-		StackFootnote:     "*Scanned across pyproject.toml, requirements.txt, environment.yml, and DESCRIPTION.",
-		KaggleTitle:       "Kaggle Competitive Performance",
-		KaggleCumulative:  "Cumulative Tally",
-		KaggleGold:        "Gold",
-		KaggleSilver:      "Silver",
-		KaggleBronze:      "Bronze",
-		KaggleActive:      "Active Tracks",
-		KaggleTrack:       "Category Progression",
-		ImpactTitle:       "Open-Source & AI Community Impact",
-		ImpactContribs:    "Annual Contributions",
-		ImpactGitHubSec:   "GitHub Open-Source Reach",
-		ImpactAISec:       "Hugging Face & AI Hub",
-		ImpactStars:       "Total Stars Earned",
-		ImpactRepos:       "Public Repositories",
-		ImpactForks:       "Forks & Citations",
-		ImpactViews:       "Repo Views (14d)",
-		ImpactModels:      "Models & Datasets",
-		ImpactDownloads:   "Downloads (30d)",
-		ImpactLikes:       "Community Likes",
-		ImpactVelocitySec: "Engineering Velocity",
-		ImpactStreak:      "Active Streak",
-		ImpactCommits:     "Net Code Volume",
+		IsPtBR:               false,
+		LangTitleTufte:       "Code Distribution & Production Engineering",
+		LangSubTufte:         fmt.Sprintf("Notebook-Normalized · %d Repos", totalRepos),
+		LangSecTrueProp:      "True Source Code Proportions",
+		LangSecEDAProd:       "Exploration vs. Production",
+		LangProdModules:      "Production Modules",
+		LangEDANotebooks:     "EDA Notebooks",
+		LangSecHygiene:       "Engineering Hygiene Signals",
+		LangLockfiles:        "Dependency Lockfiles",
+		LangCICD:             "CI/CD Workflows",
+		LangTests:            "Automated Test Suites",
+		LangDocker:           "Docker / Containers",
+		LangFootnote:         fmt.Sprintf("*Note: %.1f MB of embedded base64 chart cache stripped from .ipynb files prior to computing proportions.", strippedMB),
+		LangFewStrippedFmt:   "%.1f MB Stripped",
+		LangFewPrimary:       "Primary Language",
+		LangFewProdEDA:       "Production vs. EDA",
+		LangFewLockCI:        "Lockfile & CI Ready",
+		LangCairoHeadFmt:     "%s Leads at %.1f%% After Deflating %.1f MB of Cache",
+		LangCairoLeadFmt:     "%s · Production modules represent %.0f%% of total codebase",
+		LangCairoCallout:     "↳ Stripped .ipynb outputs",
+		LangCairoWaffle:      "Code Structure Waffle (10×5)",
+		LangHolmesPictorial:  "Pictorial Blocks",
+		LangHolmesFilter:     "🧹 Jupyter Bloat Filter",
+		LangHolmesStripped:   "Stripped %.1f MB of base64 PNGs",
+		LangHolmesProdSplit:  "✓ %.0f%% Production · %.0f%% Notebooks",
+		StackTitle:           "Data, ML & Analytics Ecosystem",
+		StackSub:             fmt.Sprintf("Verified Manifests · %d Repos", totalRepos),
+		StackPillarData:      "Data & Analytics",
+		StackPillarML:        "Machine Learning & AI",
+		StackPillarViz:       "Visualization & Data Apps",
+		StackFootnote:        "*Scanned across pyproject.toml, requirements.txt, environment.yml, and DESCRIPTION.",
+		StackCairoHeadFmt:    "Full-Cycle Data & ML Stack Anchored by %s and %s",
+		StackCairoLeadFmt:    "%s · End-to-end coverage from ingestion to interactive apps",
+		StackCairoCallout:    "↳ Core production stack verified across repository manifests.",
+		KaggleTitle:          "Kaggle Competitive Performance",
+		KaggleCumulative:     "Cumulative Tally",
+		KaggleGold:           "Gold",
+		KaggleSilver:         "Silver",
+		KaggleBronze:         "Bronze",
+		KaggleActive:         "Active Tracks",
+		KaggleTrack:          "Category Progression",
+		KaggleGMReq:          "GM Requirement: 5",
+		KaggleTufteSubFmt:    "Tier: %s · %d Total Medals",
+		KaggleThCat:          "Category",
+		KaggleThStanding:     "Standing",
+		KaggleThRank:         "Global Rank",
+		KaggleThPct:          "Percentile",
+		KaggleThMedals:       "Medals (G / S / B)",
+		KaggleTotalTally:     "Total Portfolio Tally",
+		KaggleMedalsWord:     "Medals",
+		KaggleFewMarkerNote:  "indicates the threshold required to unlock the next Kaggle Tier.",
+		KaggleCairoHeadFmt:   "Kaggle %s Standing Ranked #%s Globally with %d Medals",
+		KaggleCairoLeadFmt:   "Percentile standing across all 4 official Kaggle progression tracks (%s · %d Silver · %d Bronze)",
+		KaggleCairoBench:     "TOP 1% GLOBAL BENCHMARK",
+		KaggleCairoCallout:   "↳ Consistent top-percentile standing across notebooks, datasets, and competitive modeling.",
+		KaggleHolmesPodium:   "Tier Climb Podium",
+		KaggleHolmesMedals:   "★ %d Total Medals Earned",
+		KaggleOverallTierLbl: "Overall Tier",
+		KaggleTotalMedalsLbl: "Total Medals",
+		ImpactTitle:          "Open-Source & AI Community Impact",
+		ImpactContribs:       "Annual Contributions",
+		ImpactGitHubSec:      "GitHub Open-Source Reach",
+		ImpactAISec:          "Hugging Face & AI Hub",
+		ImpactStars:          "Total Stars Earned",
+		ImpactRepos:          "Public Repositories",
+		ImpactForks:          "Forks & Citations",
+		ImpactViews:          "Repo Views (14d)",
+		ImpactModels:         "Models & Datasets",
+		ImpactDownloads:      "Downloads (30d)",
+		ImpactLikes:          "Community Likes",
+		ImpactVelocitySec:    "Engineering Velocity",
+		ImpactStreak:         "Active Streak",
+		ImpactCommits:        "Net Code Volume",
+		ImpactYoYMomentum:    "YoY Momentum",
+		ImpactTufteHorizon:   "52-Week Horizon",
+		ImpactFewVelocityFmt: "+%.0f%% YoY VELOCITY",
+		ImpactCairoHeadFmt:   "%s Annual Contributions (+%.0f%% YoY) & Growing Open-Source Reach",
+		ImpactCairoLeadFmt:   "Sustained engineering output across %d public repositories and community artifacts",
+		ImpactCairoCallout:   "↳ Peak velocity achieved in Q4 with %d-day active engineering streak.",
+		ImpactHolmesBanner:   "🚀 %s — %s CONTRIBUTIONS",
 	}
 }
 
@@ -421,6 +545,7 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
 
 	case domain.SchoolFew:
 		var b bytes.Buffer
+		strippedTag := fmt.Sprintf(l.LangFewStrippedFmt, lp.StrippedBase64MB)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -435,22 +560,22 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
   </style>
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
   <text x="14" y="20" class="sans hdr">%s</text>
-  <text x="426" y="20" text-anchor="end" class="mono tag">%.1f MB Stripped</text>
+  <text x="426" y="20" text-anchor="end" class="mono tag">%s</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 35)">
     <text x="0" y="12" class="mono kpi-num" fill="#0284c7">%s (%.1f%%)</text>
-    <text x="0" y="24" class="sans kpi-lbl">Primary Language</text>
+    <text x="0" y="24" class="sans kpi-lbl">%s</text>
     <line x1="145" y1="0" x2="145" y2="27" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <text x="157" y="12" class="mono kpi-num">%.0f%% / %.0f%%</text>
-    <text x="157" y="24" class="sans kpi-lbl">Production vs. EDA</text>
+    <text x="157" y="24" class="sans kpi-lbl">%s</text>
     <line x1="295" y1="0" x2="295" y2="27" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <text x="307" y="12" class="mono kpi-num" fill="#059669">%d / %d Repos</text>
-    <text x="307" y="24" class="sans kpi-lbl">Lockfile &amp; CI Ready</text>
+    <text x="307" y="24" class="sans kpi-lbl">%s</text>
   </g>
   <line x1="2" y1="68" x2="438" y2="68" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 84)">
     <text x="0" y="0" class="sans sec">%s</text>
-`, esc(l.LangTitleTufte), lp.StrippedBase64MB, esc(langs[0].Name), langs[0].Percentage, lp.ProductionPct, lp.ExplorationPct, lp.LockfileRepos, lp.TotalRepos, esc(l.LangSecTrueProp))
+`, esc(l.LangTitleTufte), esc(strippedTag), esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary), lp.ProductionPct, lp.ExplorationPct, esc(l.LangFewProdEDA), lp.LockfileRepos, lp.TotalRepos, esc(l.LangFewLockCI), esc(l.LangSecTrueProp))
 		for i, lg := range langs {
 			y := 18 + i*23
 			barW := int(lg.Percentage * 1.6)
@@ -506,6 +631,8 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
 
 	case domain.SchoolCairo:
 		var b bytes.Buffer
+		head := fmt.Sprintf(l.LangCairoHeadFmt, langs[0].Name, langs[0].Percentage, lp.StrippedBase64MB)
+		lead := fmt.Sprintf(l.LangCairoLeadFmt, l.LangSubTufte, lp.ProductionPct)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -519,12 +646,13 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">%s Leads at %.1f%% After Deflating %.1f MB of Cache</text>
-  <text x="12" y="39" class="sans lead">%s · Production modules represent %.0f%% of total codebase</text>
+  <text x="12" y="25" class="serif headline">%s</text>
+  <text x="12" y="39" class="sans lead">%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 62)">
     <text x="0" y="0" class="sans sec">%s</text>
-`, esc(langs[0].Name), langs[0].Percentage, lp.StrippedBase64MB, esc(l.LangSubTufte), lp.ProductionPct, esc(l.LangSecTrueProp))
+    <line x1="144" y1="10" x2="144" y2="118" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
+`, esc(head), esc(lead), esc(l.LangSecTrueProp))
 		for i, lg := range langs {
 			y := 22 + i*23
 			lineY := y - 4
@@ -536,10 +664,10 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
 `, y, esc(lg.Name), lineY, endX, lineY, lg.Color, endX, lineY, lg.Color, endX+9, y, lg.Percentage)
 		}
 		fmt.Fprintf(&b, `    <path d="M 150,24 L 150,32 L 164,32" fill="none" stroke="#0284c7" stroke-width="1"/>
-    <text x="168" y="35" class="serif callout">↳ Stripped .ipynb outputs</text>
+    <text x="168" y="35" class="serif callout">%s</text>
   </g>
   <g transform="translate(244, 62)">
-    <text x="0" y="0" class="sans sec">Code Structure Waffle (10×5)</text>
+    <text x="0" y="0" class="sans sec">%s</text>
     <g transform="translate(0, 10)">
       <rect x="0" y="0" width="176" height="8" rx="2" fill="#059669"/>
       <rect x="0" y="11" width="176" height="8" rx="2" fill="#059669"/>
@@ -554,10 +682,12 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     <text x="0" y="128" class="sans lbl">%s</text><text x="184" y="128" text-anchor="end" class="mono val">%d/%d</text>
     <text x="0" y="144" class="sans lbl">%s</text><text x="184" y="144" text-anchor="end" class="mono val">%d/%d</text>
   </g>
-</svg>`, lp.ProductionPct, lp.ProductionFiles, lp.ExplorationPct, lp.ExplorationFiles, esc(l.LangSecHygiene), esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos, esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos, esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos)
+</svg>`, esc(l.LangCairoCallout), esc(l.LangCairoWaffle), lp.ProductionPct, lp.ProductionFiles, lp.ExplorationPct, lp.ExplorationFiles, esc(l.LangSecHygiene), esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos, esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos, esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos)
 		return b.String()
 
 	default: // SchoolHolmes
+		strippedMsg := fmt.Sprintf(l.LangHolmesStripped, lp.StrippedBase64MB)
+		prodSplitMsg := fmt.Sprintf(l.LangHolmesProdSplit, lp.ProductionPct, lp.ExplorationPct)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -572,7 +702,7 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#0284c7"/>
   <text x="16" y="22" class="sans banner">⚡ %s</text>
   <g transform="translate(16, 48)">
-    <text x="0" y="0" class="sans sec">%s (Pictorial Blocks)</text>
+    <text x="0" y="0" class="sans sec">%s (%s)</text>
     <text x="0" y="22" class="sans lbl">%s</text>
     <g transform="translate(56, 12)" fill="#0284c7">
       <rect x="0" y="0" width="14" height="11" rx="2"/><rect x="17" y="0" width="14" height="11" rx="2"/><rect x="34" y="0" width="14" height="11" rx="2"/><rect x="51" y="0" width="14" height="11" rx="2"/><rect x="68" y="0" width="14" height="11" rx="2"/><rect x="85" y="0" width="14" height="11" rx="2"/>
@@ -594,9 +724,9 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     </g>
     <text x="78" y="91" class="mono val" fill="#7c3aed">%.1f%%</text>
     <rect x="0" y="106" width="196" height="58" rx="8" fill="#0284c7" fill-opacity="0.08" stroke="#0284c7" stroke-opacity="0.35" stroke-width="1.2"/>
-    <text x="10" y="123" class="sans sec" fill="#0284c7">🧹 Jupyter Bloat Filter</text>
-    <text x="10" y="140" class="sans badge">Stripped %.1f MB of base64 PNGs</text>
-    <text x="10" y="154" class="sans badge" fill="#059669">✓ %.0f%% Production · %.0f%% Notebooks</text>
+    <text x="10" y="123" class="sans sec" fill="#0284c7">%s</text>
+    <text x="10" y="140" class="sans badge">%s</text>
+    <text x="10" y="154" class="sans badge" fill="#059669">%s</text>
   </g>
   <g transform="translate(232, 48)">
     <text x="0" y="0" class="sans sec">%s</text>
@@ -622,12 +752,12 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     </g>
   </g>
 </svg>`,
-			esc(l.LangTitleTufte), esc(l.LangSecTrueProp),
+			esc(l.LangTitleTufte), esc(l.LangSecTrueProp), esc(l.LangHolmesPictorial),
 			esc(langs[0].Name), langs[0].Percentage,
 			esc(langs[1].Name), langs[1].Percentage,
 			esc(langs[2].Name), langs[2].Percentage,
 			esc(langs[3].Name), esc(langs[4].Name), langs[3].Percentage+langs[4].Percentage,
-			lp.StrippedBase64MB, lp.ProductionPct, lp.ExplorationPct,
+			esc(l.LangHolmesFilter), esc(strippedMsg), esc(prodSplitMsg),
 			esc(l.LangSecHygiene),
 			esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos,
 			esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos,
@@ -722,12 +852,28 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
     .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
     .lbl { font-size: 10px; font-weight: 500; fill: #526071; }
     .val { font-size: 9.5px; font-weight: 600; fill: #64748b; }
+    .kpi-num { font-size: 12.5px; font-weight: 700; fill: #526071; }
+    .kpi-lbl { font-size: 8px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
   <text x="14" y="20" class="sans hdr">%s</text>
   <text x="426" y="20" text-anchor="end" class="mono tag">%s</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-`, esc(l.StackTitle), esc(l.StackSub))
+  <g transform="translate(14, 33)">
+    <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s (%d)</text>
+    <text x="0" y="22" class="sans kpi-lbl">%s</text>
+    <line x1="145" y1="0" x2="145" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="157" y="11" class="mono kpi-num" fill="#7c3aed">%s (%d)</text>
+    <text x="157" y="22" class="sans kpi-lbl">%s</text>
+    <line x1="295" y1="0" x2="295" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="307" y="11" class="mono kpi-num" fill="#059669">%s (%d)</text>
+    <text x="307" y="22" class="sans kpi-lbl">%s</text>
+  </g>
+  <line x1="2" y1="63" x2="438" y2="63" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+`, esc(l.StackTitle), esc(l.StackSub),
+			esc(dataCol[0].Name), dataCol[0].RepoCount, esc(l.StackPillarData),
+			esc(mlCol[0].Name), mlCol[0].RepoCount, esc(l.StackPillarML),
+			esc(vizCol[0].Name), vizCol[0].RepoCount, esc(l.StackPillarViz))
 		cols := []struct {
 			x     int
 			title string
@@ -739,7 +885,7 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 			{302, l.StackPillarViz, "#059669", vizCol},
 		}
 		for _, col := range cols {
-			fmt.Fprintf(&b, `  <g transform="translate(%d, 44)">
+			fmt.Fprintf(&b, `  <g transform="translate(%d, 76)">
     <text x="0" y="0" class="sans sec" fill="%s">%s</text>
 `, col.x, col.color, esc(col.title))
 			hasLeader := false
@@ -750,7 +896,7 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 				}
 			}
 			for i, it := range col.items {
-				y := 18 + i*38
+				y := 18 + i*33
 				barW := int((it.WeightPct / 100.0) * 124.0)
 				fill := "#64748b"
 				if it.IsLeader || (!hasLeader && i == 0 && it.RepoCount > 0) {
@@ -758,19 +904,23 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 				}
 				fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>
     <text x="124" y="%d" text-anchor="end" class="mono val">%d</text>
-    <rect x="0" y="%d" width="124" height="6" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="0" y="%d" width="124" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="0" y="%d" width="84" height="8" rx="1.5" fill="#64748b" fill-opacity="0.25"/>
     <rect x="0" y="%d" width="%d" height="6" rx="1.5" fill="%s"/>
-`, y, esc(it.Name), y, it.RepoCount, y+5, y+5, barW, fill)
+    <line x1="96" y1="%d" x2="96" y2="%d" stroke="#0284c7" stroke-width="2"/>
+`, y, esc(it.Name), y, it.RepoCount, y+4, y+4, y+5, barW, fill, y+3, y+13)
 			}
 			fmt.Fprintf(&b, "  </g>\n")
 		}
-		fmt.Fprintf(&b, `  <line x1="148" y1="28" x2="148" y2="228" stroke="#64748b" stroke-opacity="0.2" stroke-width="1"/>
-  <line x1="292" y1="28" x2="292" y2="228" stroke="#64748b" stroke-opacity="0.2" stroke-width="1"/>
+		fmt.Fprintf(&b, `  <line x1="148" y1="63" x2="148" y2="228" stroke="#64748b" stroke-opacity="0.2" stroke-width="1"/>
+  <line x1="292" y1="63" x2="292" y2="228" stroke="#64748b" stroke-opacity="0.2" stroke-width="1"/>
 </svg>`)
 		return b.String()
 
 	case domain.SchoolCairo:
 		var b bytes.Buffer
+		head := fmt.Sprintf(l.StackCairoHeadFmt, dataCol[0].Name, mlCol[0].Name)
+		lead := fmt.Sprintf(l.StackCairoLeadFmt, l.StackSub)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -781,12 +931,13 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
     .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
     .lbl { font-size: 10px; font-weight: 600; fill: #526071; }
     .val { font-size: 9.5px; font-weight: 600; fill: #64748b; }
+    .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">Full-Cycle Data &amp; ML Stack Anchored by %s and %s</text>
-  <text x="12" y="39" class="sans lead">%s · End-to-end coverage from ingestion to interactive apps</text>
+  <text x="12" y="25" class="serif headline">%s</text>
+  <text x="12" y="39" class="sans lead">%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-`, esc(dataCol[0].Name), esc(mlCol[0].Name), esc(l.StackSub))
+`, esc(head), esc(lead))
 		cols := []struct {
 			x     int
 			title string
@@ -800,9 +951,10 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 		for _, col := range cols {
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 60)">
     <text x="0" y="0" class="sans sec" fill="%s">%s</text>
+    <line x1="88" y1="8" x2="88" y2="140" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
 `, col.x, col.color, esc(col.title))
 			for i, it := range col.items {
-				y := 18 + i*37
+				y := 18 + i*33
 				endX := int((it.WeightPct / 100.0) * 116.0)
 				if endX < 18 {
 					endX = 18
@@ -816,7 +968,8 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 			}
 			fmt.Fprintf(&b, "  </g>\n")
 		}
-		fmt.Fprintf(&b, "</svg>")
+		fmt.Fprintf(&b, `  <text x="12" y="218" class="serif callout">%s</text>
+</svg>`, esc(l.StackCairoCallout))
 		return b.String()
 
 	default: // SchoolHolmes
@@ -877,7 +1030,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 
 	// Recruiter-First KPI logic: never highlight "0 Gold" if Gold == 0
 	kpi2Val := fmt.Sprintf("%d %s", k.TotalGold, l.KaggleGold)
-	kpi2Sub := "GM Requirement: 5"
+	kpi2Sub := l.KaggleGMReq
 	if k.TotalGold == 0 {
 		activeCount := 0
 		for _, c := range cats {
@@ -895,6 +1048,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 	switch school {
 	case domain.SchoolTufte:
 		var b bytes.Buffer
+		sub := fmt.Sprintf(l.KaggleTufteSubFmt, k.OverallTier, k.TotalMedals())
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
@@ -907,16 +1061,16 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     .micro { font-size: 9.5px; fill: #64748b; }
   </style>
   <text x="12" y="21" class="serif h1">%s</text>
-  <text x="428" y="21" text-anchor="end" class="serif sub">Tier: %s · %d Total Medals</text>
+  <text x="428" y="21" text-anchor="end" class="serif sub">%s</text>
   <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
   <g transform="translate(12, 48)">
-    <text x="0" y="0" class="serif th">Category</text>
-    <text x="105" y="0" class="serif th">Standing</text>
-    <text x="200" y="0" text-anchor="end" class="serif th">Global Rank</text>
-    <text x="278" y="0" text-anchor="end" class="serif th">Percentile</text>
-    <text x="416" y="0" text-anchor="end" class="serif th">Medals (G / S / B)</text>
+    <text x="0" y="0" class="serif th">%s</text>
+    <text x="105" y="0" class="serif th">%s</text>
+    <text x="200" y="0" text-anchor="end" class="serif th">%s</text>
+    <text x="278" y="0" text-anchor="end" class="serif th">%s</text>
+    <text x="416" y="0" text-anchor="end" class="serif th">%s</text>
     <line x1="0" y1="7" x2="416" y2="7" stroke="#64748b" stroke-opacity="0.4" stroke-width="0.6"/>
-`, esc(l.KaggleTitle), esc(k.OverallTier), k.TotalMedals())
+`, esc(l.KaggleTitle), esc(sub), esc(l.KaggleThCat), esc(l.KaggleThStanding), esc(l.KaggleThRank), esc(l.KaggleThPct), esc(l.KaggleThMedals))
 		for i, c := range cats[:4] {
 			y := 28 + i*28
 			tierColor := "#526071"
@@ -933,15 +1087,19 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 `, y, esc(c.Name), y, tierColor, esc(c.Tier), y, formatInt(c.Rank), y, esc(c.TopPct), y, c.Gold, c.Silver, c.Bronze)
 		}
 		fmt.Fprintf(&b, `    <line x1="0" y1="128" x2="416" y2="128" stroke="#64748b" stroke-opacity="0.4" stroke-width="0.6"/>
-    <text x="0" y="144" class="serif val">Total Portfolio Tally</text>
-    <text x="416" y="144" text-anchor="end" class="num val" fill="#d97706">%d Medals (%s · %d %s · %d %s)</text>
+    <text x="0" y="144" class="serif val">%s</text>
+    <text x="416" y="144" text-anchor="end" class="num val" fill="#d97706">%d %s (%s · %d %s · %d %s)</text>
   </g>
   <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
-</svg>`, k.TotalMedals(), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze))
+</svg>`, esc(l.KaggleTotalTally), k.TotalMedals(), esc(l.KaggleMedalsWord), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze))
 		return b.String()
 
 	case domain.SchoolFew:
 		var b bytes.Buffer
+		markerLabel := "│ Vertical marker"
+		if l.IsPtBR {
+			markerLabel = "│ Marcador vertical"
+		}
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -959,7 +1117,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   <text x="426" y="20" text-anchor="end" class="mono tag">TIER: %s (#%d Peak)</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 35)">
-    <text x="0" y="13" class="mono kpi-num" fill="#d97706">%d Medals</text>
+    <text x="0" y="13" class="mono kpi-num" fill="#d97706">%d %s</text>
     <text x="0" y="25" class="sans kpi-lbl">%s</text>
     <line x1="108" y1="0" x2="108" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <text x="118" y="13" class="mono kpi-num" fill="#d97706">%s</text>
@@ -974,8 +1132,8 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   <line x1="2" y1="69" x2="438" y2="69" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 85)">
     <text x="0" y="0" class="sans sec">%s (Bullet Graphs)</text>
-    <text x="412" y="0" text-anchor="end" class="sans sec">Rank &amp; Medals</text>
-`, esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)), k.PeakRank, k.TotalMedals(), esc(l.KaggleCumulative), esc(kpi2Val), esc(kpi2Sub), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze), esc(l.KaggleTrack))
+    <text x="412" y="0" text-anchor="end" class="sans sec">Rank &amp; %s</text>
+`, esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)), k.PeakRank, k.TotalMedals(), esc(l.KaggleMedalsWord), esc(l.KaggleCumulative), esc(kpi2Val), esc(kpi2Sub), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze), esc(l.KaggleTrack), esc(l.KaggleMedalsWord))
 		for i, c := range cats[:4] {
 			y := 12 + i*26
 			barW := int((c.ProgressPct / 100.0) * 150.0)
@@ -1001,13 +1159,15 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     </g>
 `, y, esc(c.Name), barW, barColor, targetX, targetX, barColor, esc(shortTier), formatInt(c.Rank), c.Gold, c.Silver, c.Bronze)
 		}
-		fmt.Fprintf(&b, `    <text x="0" y="124" class="sans" font-size="8.5" fill="#64748b"><tspan fill="#0284c7" font-weight="700">│ Vertical marker</tspan> indicates the threshold required to unlock the next Kaggle Tier.</text>
+		fmt.Fprintf(&b, `    <text x="0" y="124" class="sans" font-size="8.5" fill="#64748b"><tspan fill="#0284c7" font-weight="700">%s</tspan> %s</text>
   </g>
-</svg>`)
+</svg>`, esc(markerLabel), esc(l.KaggleFewMarkerNote))
 		return b.String()
 
 	case domain.SchoolCairo:
 		var b bytes.Buffer
+		head := fmt.Sprintf(l.KaggleCairoHeadFmt, k.OverallTier, formatInt(k.PeakRank), k.TotalMedals())
+		lead := fmt.Sprintf(l.KaggleCairoLeadFmt, kpi2Val, k.TotalSilver, k.TotalBronze)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -1020,13 +1180,13 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     .callout { font-size: 9px; font-style: italic; fill: #d97706; }
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">Kaggle %s Standing Ranked #%s Globally with %d Medals</text>
-  <text x="12" y="39" class="sans lead">Percentile standing across all 4 official Kaggle progression tracks (%s · %d Silver · %d Bronze)</text>
+  <text x="12" y="25" class="serif headline">%s</text>
+  <text x="12" y="39" class="sans lead">%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 66)">
     <line x1="230" y1="0" x2="230" y2="128" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1.2"/>
-    <text x="230" y="-4" text-anchor="middle" class="sans" font-size="8.5" font-weight="700" fill="#e11d48">TOP 1%% GLOBAL BENCHMARK</text>
-`, esc(k.OverallTier), formatInt(k.PeakRank), k.TotalMedals(), esc(kpi2Val), k.TotalSilver, k.TotalBronze)
+    <text x="230" y="-4" text-anchor="middle" class="sans" font-size="8.5" font-weight="700" fill="#e11d48">%s</text>
+`, esc(head), esc(lead), esc(l.KaggleCairoBench))
 		for i, c := range cats[:4] {
 			y := 20 + i*30
 			endX := 92 + int((c.ProgressPct/100.0)*185.0)
@@ -1041,12 +1201,13 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     <text x="416" y="%d" text-anchor="end" class="mono val">%s · #%s (%s)</text>
 `, y, esc(c.Name), y-4, y-4, y-4, endX, y-4, color, endX, y-4, color, y, esc(c.Tier), formatInt(c.Rank), esc(c.TopPct))
 		}
-		fmt.Fprintf(&b, `    <text x="0" y="146" class="serif callout">↳ Consistent top-percentile standing across notebooks, datasets, and competitive modeling.</text>
+		fmt.Fprintf(&b, `    <text x="0" y="146" class="serif callout">%s</text>
   </g>
-</svg>`)
+</svg>`, esc(l.KaggleCairoCallout))
 		return b.String()
 
 	default: // SchoolHolmes
+		medalsEarned := fmt.Sprintf(l.KaggleHolmesMedals, k.TotalMedals())
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1060,15 +1221,15 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#d97706"/>
   <text x="16" y="22" class="sans banner">🏆 %s — %s (#%s PEAK)</text>
   <g transform="translate(16, 48)">
-    <text x="0" y="0" class="sans sec">Tier Climb Podium</text>
+    <text x="0" y="0" class="sans sec">%s</text>
     <rect x="0" y="96" width="34" height="28" rx="3" fill="#64748b" fill-opacity="0.25"/>
     <rect x="38" y="76" width="34" height="48" rx="3" fill="#059669" fill-opacity="0.4"/>
     <rect x="76" y="54" width="34" height="70" rx="3" fill="#0284c7" fill-opacity="0.65"/>
     <rect x="114" y="30" width="34" height="94" rx="3" fill="#d97706"/>
     <rect x="152" y="10" width="34" height="114" rx="3" fill="none" stroke="#d97706" stroke-dasharray="3,3" stroke-width="1.5"/>
     <text x="131" y="24" text-anchor="middle" font-size="14">🏆</text>
-    <text x="0" y="144" class="sans lbl" fill="#d97706">★ %d Total Medals Earned</text>
-    <text x="0" y="160" class="mono val">%s · %d Silver · %d Bronze</text>
+    <text x="0" y="144" class="sans lbl" fill="#d97706">%s</text>
+    <text x="0" y="160" class="mono val">%s · %d %s · %d %s</text>
   </g>
   <g transform="translate(220, 48)">
     <text x="0" y="0" class="sans sec">%s</text>
@@ -1087,7 +1248,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   </g>
 </svg>`,
 			esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)), formatInt(k.PeakRank),
-			k.TotalMedals(), esc(kpi2Val), k.TotalSilver, k.TotalBronze,
+			esc(l.KaggleHolmesPodium), esc(medalsEarned), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze),
 			esc(l.KaggleTrack),
 			esc(cats[0].Name), esc(cats[0].Tier), formatInt(cats[0].Rank),
 			esc(cats[1].Name), esc(cats[1].Tier), formatInt(cats[1].Rank),
@@ -1121,7 +1282,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 		rRow1Val = fmt.Sprintf("%d Days", max(14, im.ActiveStreakDays))
 		rRow2Lbl = l.ImpactCommits
 		rRow2Val = fmt.Sprintf("+%s / -%s", formatCompact(max(12400, im.LinesAdded)), formatCompact(max(3200, im.LinesDeleted)))
-		rRow3Lbl = "YoY Momentum"
+		rRow3Lbl = l.ImpactYoYMomentum
 		rRow3Val = fmt.Sprintf("+%.0f%% Growth", maxFloat(24.0, im.YoYGrowthPct))
 	}
 
@@ -1140,7 +1301,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     .big-num { font-size: 18px; font-weight: bold; fill: #526071; }
   </style>
   <text x="12" y="21" class="serif h1">%s</text>
-  <text x="428" y="21" text-anchor="end" class="serif sub">52-Week Horizon</text>
+  <text x="428" y="21" text-anchor="end" class="serif sub">%s</text>
   <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
   <g transform="translate(12, 42)">
     <text x="0" y="16" class="num big-num">%s</text>
@@ -1166,7 +1327,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
   </g>
   <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 </svg>`,
-			esc(l.ImpactTitle),
+			esc(l.ImpactTitle), esc(l.ImpactTufteHorizon),
 			formatInt(im.AnnualContributions), esc(l.ImpactContribs), im.YoYGrowthPct,
 			pts, lastX, lastY,
 			esc(l.ImpactGitHubSec),
@@ -1182,6 +1343,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 
 	case domain.SchoolFew:
 		pts, _, _ := buildTrendPolyline(im.WeeklyTrend, 0, 88, 194, 27)
+		velTag := fmt.Sprintf(l.ImpactFewVelocityFmt, im.YoYGrowthPct)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -1196,7 +1358,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
   </style>
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
   <text x="14" y="20" class="sans hdr">%s</text>
-  <text x="426" y="20" text-anchor="end" class="mono tag">+%.0f%% YoY VELOCITY</text>
+  <text x="426" y="20" text-anchor="end" class="mono tag">%s</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 35)">
     <text x="0" y="13" class="mono kpi-num" fill="#0284c7">%s</text>
@@ -1215,6 +1377,10 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     <text x="0" y="48" class="sans lbl">%s</text><text x="192" y="48" text-anchor="end" class="mono val">%d</text>
     <text x="0" y="72" class="sans lbl">%s</text><text x="192" y="72" text-anchor="end" class="mono val">%s</text>
     <text x="0" y="96" class="sans lbl">%s</text><text x="192" y="96" text-anchor="end" class="mono val" fill="#059669">%d days</text>
+    <rect x="0" y="106" width="192" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="0" y="106" width="128" height="8" rx="1.5" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="0" y="108" width="144" height="4" rx="1" fill="#059669"/>
+    <line x1="150" y1="104" x2="150" y2="116" stroke="#0284c7" stroke-width="2"/>
   </g>
   <line x1="220" y1="69" x2="220" y2="228" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(232, 85)">
@@ -1225,7 +1391,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     <polyline fill="none" stroke="#0284c7" stroke-width="2" points="%s"/>
   </g>
 </svg>`,
-			esc(l.ImpactTitle), im.YoYGrowthPct,
+			esc(l.ImpactTitle), esc(velTag),
 			formatInt(im.AnnualContributions), esc(l.ImpactContribs),
 			formatInt(im.TotalStars), esc(l.ImpactStars),
 			esc(rRow2Val), esc(rRow2Lbl),
@@ -1242,6 +1408,9 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 
 	case domain.SchoolCairo:
 		pts, lastX, lastY := buildTrendPolyline(im.WeeklyTrend, 0, 2, 416, 32)
+		head := fmt.Sprintf(l.ImpactCairoHeadFmt, formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		lead := fmt.Sprintf(l.ImpactCairoLeadFmt, im.PublicRepos)
+		callout := fmt.Sprintf(l.ImpactCairoCallout, im.ActiveStreakDays)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -1255,8 +1424,8 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     .callout { font-size: 9px; font-style: italic; fill: #059669; }
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">%s Annual Contributions (+%.0f%% YoY) &amp; Growing Open-Source Reach</text>
-  <text x="12" y="39" class="sans lead">Sustained engineering output across %d public repositories and community artifacts</text>
+  <text x="12" y="25" class="serif headline">%s</text>
+  <text x="12" y="39" class="sans lead">%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 62)">
     <text x="0" y="0" class="sans sec">%s</text>
@@ -1273,12 +1442,13 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     <text x="0" y="82" class="sans lbl">%s</text><text x="196" y="82" text-anchor="end" class="mono val">%d days</text>
   </g>
   <g transform="translate(12, 166)">
+    <line x1="0" y1="18" x2="416" y2="18" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
     <polyline fill="none" stroke="#0284c7" stroke-width="2" points="%s"/>
     <circle cx="%d" cy="%d" r="3.5" fill="#059669"/>
-    <text x="0" y="50" class="serif callout">↳ Peak velocity achieved in Q4 with %d-day active engineering streak.</text>
+    <text x="0" y="50" class="serif callout">%s</text>
   </g>
 </svg>`,
-			formatInt(im.AnnualContributions), im.YoYGrowthPct, im.PublicRepos,
+			esc(head), esc(lead),
 			esc(l.ImpactGitHubSec),
 			esc(l.ImpactStars), formatInt(im.TotalStars),
 			esc(l.ImpactRepos), im.PublicRepos,
@@ -1290,9 +1460,10 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 			esc(rRow3Lbl), esc(rRow3Val),
 			esc(l.ImpactStreak), im.ActiveStreakDays,
 			pts, lastX, lastY,
-			im.ActiveStreakDays)
+			esc(callout))
 
 	default: // SchoolHolmes
+		banner := fmt.Sprintf(l.ImpactHolmesBanner, l.ImpactTitle, formatInt(im.AnnualContributions))
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1304,7 +1475,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
   </style>
   <rect x="3" y="3" width="434" height="224" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#059669"/>
-  <text x="16" y="22" class="sans banner">🚀 %s — %s CONTRIBUTIONS</text>
+  <text x="16" y="22" class="sans banner">%s</text>
   <g transform="translate(16, 48)">
     <text x="0" y="0" class="sans sec">%s</text>
     <rect x="0" y="10" width="194" height="34" rx="6" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1.2"/>
@@ -1336,7 +1507,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     <text x="186" y="157" text-anchor="end" class="mono val" fill="#d97706">%d days</text>
   </g>
 </svg>`,
-			esc(l.ImpactTitle), formatInt(im.AnnualContributions),
+			esc(banner),
 			esc(l.ImpactGitHubSec),
 			esc(l.ImpactStars), formatInt(im.TotalStars),
 			esc(l.ImpactRepos), im.PublicRepos,
@@ -1360,92 +1531,386 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 	dataCol := padStack(d.Stack.DataAnalytics, def.DataAnalytics)
 	mlCol := padStack(d.Stack.MLAndAI, def.MLAndAI)
 	k := d.Kaggle
+	defCats := DefaultPortfolioData(domain.ProfileManifest{Subject: d.Subject}).Kaggle.Categories
+	cats := k.Categories
+	if len(cats) < 4 {
+		cats = defCats
+	}
 	im := d.Impact
 
-	fontClass := `font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;`
-	accent := "#0284c7"
 	switch school {
 	case domain.SchoolTufte:
-		fontClass = `font-family: Georgia, "Palatino Linotype", serif;`
-	case domain.SchoolCairo:
-		accent = "#e11d48"
-	case domain.SchoolHolmes:
-		accent = "#d97706"
-	}
-
-	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
+		pts, lastX, lastY := buildTrendPolyline(im.WeeklyTrend, 118, 46, 82, 12)
+		l0End := 58 + int(langs[0].Percentage*1.4)
+		l1End := 58 + int(langs[1].Percentage*1.4)
+		l2End := 58 + int(langs[2].Percentage*1.4)
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
   <style>
-    .base { %s }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
-    .h1 { font-size: 13.5px; font-weight: 700; fill: #526071; }
-    .sub { font-size: 10px; fill: #64748b; }
-    .sec { font-size: 9.5px; font-weight: 700; fill: %s; text-transform: uppercase; letter-spacing: 0.4px; }
-    .lbl { font-size: 10px; font-weight: 600; fill: #526071; }
+    .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
+    .num { font-family: Georgia, serif; font-variant-numeric: tabular-nums; }
+    .h1 { font-size: 13.5px; font-weight: bold; fill: #526071; }
+    .sub { font-size: 10px; font-style: italic; fill: #64748b; }
+    .sec { font-size: 10px; font-style: italic; font-weight: bold; fill: #0284c7; }
+    .lbl { font-size: 10px; fill: #526071; }
+    .val { font-size: 10px; font-weight: bold; fill: #526071; }
+  </style>
+  <text x="14" y="22" class="serif h1">%s — %s</text>
+  <text x="451" y="22" text-anchor="end" class="num sub">%d Repos · ★ %s</text>
+  <line x1="14" y1="30" x2="451" y2="30" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+
+  <!-- Q1: Languages (Dot-Dash Plot) -->
+  <g transform="translate(14, 46)">
+    <text x="0" y="0" class="serif sec">1. %s</text>
+    <text x="0" y="18" class="serif lbl">%s</text>
+    <line x1="58" y1="14" x2="%d" y2="14" stroke="#64748b" stroke-width="1.1"/>
+    <circle cx="%d" cy="14" r="2.5" fill="#0284c7"/>
+    <text x="200" y="18" text-anchor="end" class="num val" fill="#0284c7">%.1f%%</text>
+    <text x="0" y="34" class="serif lbl">%s</text>
+    <line x1="58" y1="30" x2="%d" y2="30" stroke="#64748b" stroke-width="1.1"/>
+    <circle cx="%d" cy="30" r="2.5" fill="#d97706"/>
+    <text x="200" y="34" text-anchor="end" class="num val">%.1f%%</text>
+    <text x="0" y="50" class="serif lbl">%s</text>
+    <line x1="58" y1="46" x2="%d" y2="46" stroke="#64748b" stroke-width="1.1"/>
+    <circle cx="%d" cy="46" r="2.5" fill="#00ADD8"/>
+    <text x="200" y="50" text-anchor="end" class="num val">%.1f%%</text>
+    <text x="0" y="66" class="serif lbl">%s</text>
+    <text x="200" y="66" text-anchor="end" class="num val" fill="#059669">%.0f%% Prod / %.0f%% EDA</text>
+  </g>
+
+  <!-- Q2: Stack (Supertable) -->
+  <g transform="translate(248, 46)">
+    <text x="0" y="0" class="serif sec">2. %s</text>
+    <text x="0" y="18" class="serif lbl">%s</text><text x="203" y="18" text-anchor="end" class="num val">%d repos</text>
+    <text x="0" y="34" class="serif lbl">%s</text><text x="203" y="34" text-anchor="end" class="num val">%d repos</text>
+    <text x="0" y="50" class="serif lbl">%s</text><text x="203" y="50" text-anchor="end" class="num val">%d repos</text>
+    <text x="0" y="66" class="serif lbl">%s</text><text x="203" y="66" text-anchor="end" class="num val">%d / %d</text>
+  </g>
+
+  <line x1="14" y1="132" x2="451" y2="132" stroke="#64748b" stroke-opacity="0.35" stroke-width="0.6"/>
+
+  <!-- Q3: Kaggle (Supertable) -->
+  <g transform="translate(14, 150)">
+    <text x="0" y="0" class="serif sec">3. %s</text>
+    <text x="0" y="18" class="serif lbl">%s</text><text x="200" y="18" text-anchor="end" class="num val" fill="#d97706">%s (#%s)</text>
+    <text x="0" y="34" class="serif lbl">%s</text><text x="200" y="34" text-anchor="end" class="num val">%d (%dG · %dS · %dB)</text>
+    <text x="0" y="50" class="serif lbl">Notebooks / Datasets</text><text x="200" y="50" text-anchor="end" class="num val">#%s / #%s</text>
+  </g>
+
+  <!-- Q4: Impact (Supertable + Inline Sparkline with Interquartile Band) -->
+  <g transform="translate(248, 150)">
+    <text x="0" y="0" class="serif sec">4. %s</text>
+    <text x="0" y="18" class="serif lbl">%s</text><text x="203" y="18" text-anchor="end" class="num val" fill="#059669">%s (+%.0f%%)</text>
+    <text x="0" y="34" class="serif lbl">%s</text><text x="203" y="34" text-anchor="end" class="num val">★ %s (%d forks)</text>
+    <text x="0" y="54" class="serif lbl">%s</text>
+    <rect x="118" y="46" width="82" height="12" fill="#64748b" fill-opacity="0.12"/>
+    <polyline fill="none" stroke="#0284c7" stroke-width="1.2" points="%s"/>
+    <circle cx="%d" cy="%d" r="2.2" fill="#059669"/>
+  </g>
+
+  <line x1="14" y1="242" x2="451" y2="242" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+</svg>`,
+			esc(d.Subject.Name), esc(d.Subject.Role),
+			d.Languages.TotalRepos, formatInt(im.TotalStars),
+			esc(l.LangSecTrueProp),
+			esc(langs[0].Name), l0End, l0End, langs[0].Percentage,
+			esc(langs[1].Name), l1End, l1End, langs[1].Percentage,
+			esc(langs[2].Name), l2End, l2End, langs[2].Percentage,
+			esc(l.LangSecEDAProd), d.Languages.ProductionPct, d.Languages.ExplorationPct,
+			esc(l.StackTitle),
+			esc(dataCol[0].Name), dataCol[0].RepoCount,
+			esc(mlCol[0].Name), mlCol[0].RepoCount,
+			esc(mlCol[1].Name), mlCol[1].RepoCount,
+			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
+			esc(l.KaggleTitle),
+			esc(l.KaggleOverallTierLbl), esc(k.OverallTier), formatInt(k.PeakRank),
+			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
+			formatInt(cats[0].Rank), formatInt(cats[1].Rank),
+			esc(l.ImpactTitle),
+			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
+			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
+			esc(l.ImpactDownloads), pts, lastX, lastY)
+
+	case domain.SchoolFew:
+		l0Bar := int(langs[0].Percentage * 0.9)
+		prodBar := int(d.Languages.ProductionPct * 0.9)
+		kBar := int((cats[0].ProgressPct / 100.0) * 90.0)
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
+  <style>
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .hdr { font-size: 12px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.5px; }
+    .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
+    .lbl { font-size: 10px; font-weight: 500; fill: #526071; }
     .val { font-size: 10px; font-weight: 700; fill: #64748b; }
+    .kpi-num { font-size: 13px; font-weight: 700; fill: #526071; }
+    .kpi-lbl { font-size: 8px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
   <rect x="2" y="2" width="461" height="251" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
-  <text x="14" y="22" class="base h1">%s — %s</text>
-  <text x="451" y="22" text-anchor="end" class="mono sub">%d Repos · ★ %s</text>
-  <line x1="14" y1="30" x2="451" y2="30" stroke="%s" stroke-opacity="0.6" stroke-width="1.2"/>
+  <text x="14" y="20" class="sans hdr">%s — %s</text>
+  <text x="451" y="20" text-anchor="end" class="mono val">%d Repos · ★ %s</text>
+  <line x1="2" y1="27" x2="463" y2="27" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
 
-  <!-- Q1: Languages -->
-  <g transform="translate(14, 46)">
-    <text x="0" y="0" class="base sec">1. %s</text>
-    <text x="0" y="18" class="base lbl">%s</text><text x="200" y="18" text-anchor="end" class="mono val" fill="#0284c7">%.1f%%</text>
-    <text x="0" y="34" class="base lbl">%s</text><text x="200" y="34" text-anchor="end" class="mono val">%.1f%%</text>
-    <text x="0" y="50" class="base lbl">%s</text><text x="200" y="50" text-anchor="end" class="mono val">%.1f%%</text>
-    <text x="0" y="66" class="base lbl">%s</text><text x="200" y="66" text-anchor="end" class="mono val" fill="#059669">%.0f%% Prod / %.0f%% EDA</text>
+  <!-- Top KPI Strip -->
+  <g transform="translate(14, 33)">
+    <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s %.1f%%</text>
+    <text x="0" y="22" class="sans kpi-lbl">%s</text>
+    <line x1="145" y1="0" x2="145" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="157" y="11" class="mono kpi-num" fill="#d97706">%s (#%s)</text>
+    <text x="157" y="22" class="sans kpi-lbl">%s</text>
+    <line x1="305" y1="0" x2="305" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="317" y="11" class="mono kpi-num" fill="#059669">%s (+%.0f%%)</text>
+    <text x="317" y="22" class="sans kpi-lbl">%s</text>
+  </g>
+  <line x1="2" y1="63" x2="463" y2="63" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+
+  <!-- Q1: Languages (Bullet Graphs) -->
+  <g transform="translate(14, 78)">
+    <text x="0" y="0" class="sans sec">1. %s</text>
+    <text x="0" y="18" class="sans lbl">%s</text>
+    <rect x="62" y="10" width="90" height="9" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="62" y="10" width="64" height="9" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="62" y="12" width="%d" height="5" fill="#0284c7"/>
+    <line x1="126" y1="8" x2="126" y2="21" stroke="#0284c7" stroke-width="2"/>
+    <text x="200" y="18" text-anchor="end" class="mono val" fill="#0284c7">%.1f%%</text>
+
+    <text x="0" y="38" class="sans lbl">Prod vs EDA</text>
+    <rect x="62" y="30" width="90" height="9" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="62" y="30" width="64" height="9" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="62" y="32" width="%d" height="5" fill="#059669"/>
+    <line x1="120" y1="28" x2="120" y2="41" stroke="#0284c7" stroke-width="2"/>
+    <text x="200" y="38" text-anchor="end" class="mono val">%.0f%%</text>
+
+    <text x="0" y="56" class="sans lbl">%s / %s</text>
+    <text x="200" y="56" text-anchor="end" class="mono val">%.1f%% / %.1f%%</text>
   </g>
 
   <!-- Q2: Stack -->
-  <g transform="translate(248, 46)">
-    <text x="0" y="0" class="base sec">2. %s</text>
-    <text x="0" y="18" class="base lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val">%d repos</text>
-    <text x="0" y="34" class="base lbl">%s</text><text x="203" y="34" text-anchor="end" class="mono val">%d repos</text>
-    <text x="0" y="50" class="base lbl">%s</text><text x="203" y="50" text-anchor="end" class="mono val">%d repos</text>
-    <text x="0" y="66" class="base lbl">%s</text><text x="203" y="66" text-anchor="end" class="mono val">%d / %d</text>
+  <g transform="translate(248, 78)">
+    <text x="0" y="0" class="sans sec">2. %s</text>
+    <text x="0" y="18" class="sans lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#0284c7">%d repos</text>
+    <text x="0" y="38" class="sans lbl">%s</text><text x="203" y="38" text-anchor="end" class="mono val" fill="#7c3aed">%d repos</text>
+    <text x="0" y="56" class="sans lbl">%s</text><text x="203" y="56" text-anchor="end" class="mono val">%d / %d</text>
   </g>
 
-  <line x1="14" y1="132" x2="451" y2="132" stroke="#64748b" stroke-opacity="0.22" stroke-width="1"/>
+  <line x1="232" y1="63" x2="232" y2="253" stroke="#64748b" stroke-opacity="0.22" stroke-width="1"/>
+  <line x1="2" y1="154" x2="463" y2="154" stroke="#64748b" stroke-opacity="0.22" stroke-width="1"/>
 
-  <!-- Q3: Kaggle -->
-  <g transform="translate(14, 150)">
-    <text x="0" y="0" class="base sec">3. %s</text>
-    <text x="0" y="18" class="base lbl">Overall Tier</text><text x="200" y="18" text-anchor="end" class="mono val" fill="#d97706">%s (#%s)</text>
-    <text x="0" y="34" class="base lbl">Total Medals</text><text x="200" y="34" text-anchor="end" class="mono val">%d (%dG · %dS · %dB)</text>
-    <text x="0" y="50" class="base lbl">Notebooks / Datasets</text><text x="200" y="50" text-anchor="end" class="mono val">#%s / #%s</text>
+  <!-- Q3: Kaggle (Bullet Graph) -->
+  <g transform="translate(14, 170)">
+    <text x="0" y="0" class="sans sec">3. %s</text>
+    <text x="0" y="18" class="sans lbl">%s</text>
+    <rect x="62" y="10" width="90" height="9" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="62" y="10" width="64" height="9" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="62" y="12" width="%d" height="5" fill="#d97706"/>
+    <line x1="142" y1="8" x2="142" y2="21" stroke="#0284c7" stroke-width="2"/>
+    <text x="200" y="18" text-anchor="end" class="mono val" fill="#d97706">#%s</text>
+    <text x="0" y="38" class="sans lbl">%s</text><text x="200" y="38" text-anchor="end" class="mono val">%d (%dG · %dS · %dB)</text>
+    <text x="0" y="56" class="sans lbl">Notebooks / Datasets</text><text x="200" y="56" text-anchor="end" class="mono val">#%s / #%s</text>
   </g>
 
   <!-- Q4: Impact -->
-  <g transform="translate(248, 150)">
-    <text x="0" y="0" class="base sec">4. %s</text>
-    <text x="0" y="18" class="base lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#059669">%s (+%.0f%%)</text>
-    <text x="0" y="34" class="base lbl">%s</text><text x="203" y="34" text-anchor="end" class="mono val">★ %s (%d forks)</text>
-    <text x="0" y="50" class="base lbl">%s</text><text x="203" y="50" text-anchor="end" class="mono val">%s (30d)</text>
+  <g transform="translate(248, 170)">
+    <text x="0" y="0" class="sans sec">4. %s</text>
+    <text x="0" y="18" class="sans lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#059669">%s (+%.0f%%)</text>
+    <text x="0" y="38" class="sans lbl">%s</text><text x="203" y="38" text-anchor="end" class="mono val">★ %s (%d forks)</text>
+    <text x="0" y="56" class="sans lbl">%s</text><text x="203" y="56" text-anchor="end" class="mono val">%s (30d)</text>
   </g>
 </svg>`,
-		fontClass, accent,
-		esc(d.Subject.Name), esc(d.Subject.Role),
-		d.Languages.TotalRepos, formatInt(im.TotalStars),
-		accent,
-		esc(l.LangSecTrueProp),
-		esc(langs[0].Name), langs[0].Percentage,
-		esc(langs[1].Name), langs[1].Percentage,
-		esc(langs[2].Name), langs[2].Percentage,
-		esc(l.LangSecEDAProd), d.Languages.ProductionPct, d.Languages.ExplorationPct,
-		esc(l.StackTitle),
-		esc(dataCol[0].Name), dataCol[0].RepoCount,
-		esc(mlCol[0].Name), mlCol[0].RepoCount,
-		esc(mlCol[1].Name), mlCol[1].RepoCount,
-		esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
-		esc(l.KaggleTitle),
-		esc(k.OverallTier), formatInt(k.PeakRank),
-		k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
-		formatInt(k.Categories[0].Rank), formatInt(k.Categories[1].Rank),
-		esc(l.ImpactTitle),
-		esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
-		esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
-		esc(l.ImpactDownloads), formatCompact(im.HFDownloads30d))
+			esc(d.Subject.Name), esc(d.Subject.Role),
+			d.Languages.TotalRepos, formatInt(im.TotalStars),
+			esc(langs[0].Name), langs[0].Percentage, esc(l.LangSecTrueProp),
+			esc(k.OverallTier), formatInt(k.PeakRank), esc(l.KaggleTitle),
+			formatInt(im.AnnualContributions), im.YoYGrowthPct, esc(l.ImpactContribs),
+			esc(l.LangSecTrueProp),
+			esc(langs[0].Name), l0Bar, langs[0].Percentage,
+			prodBar, d.Languages.ProductionPct,
+			esc(langs[1].Name), esc(langs[2].Name), langs[1].Percentage, langs[2].Percentage,
+			esc(l.StackTitle),
+			esc(dataCol[0].Name), dataCol[0].RepoCount,
+			esc(mlCol[0].Name), mlCol[0].RepoCount,
+			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
+			esc(l.KaggleTitle),
+			esc(cats[0].Name), kBar, formatInt(cats[0].Rank),
+			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
+			formatInt(cats[0].Rank), formatInt(cats[1].Rank),
+			esc(l.ImpactTitle),
+			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
+			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
+			esc(l.ImpactDownloads), formatCompact(im.HFDownloads30d))
+
+	case domain.SchoolCairo:
+		l0End := 62 + int(langs[0].Percentage*1.5)
+		l1End := 62 + int(langs[1].Percentage*1.5)
+		sumLead := "Executive portfolio synthesis across source code, ecosystem stack, Kaggle standing, and community reach"
+		sumCallout := fmt.Sprintf("↳ Notebook-deflated source code (%.1f MB stripped) combined with verified multi-platform telemetry.", d.Languages.StrippedBase64MB)
+		if l.IsPtBR {
+			sumLead = "Síntese executiva do portfólio em código-fonte, ecossistema, Kaggle e alcance na comunidade"
+			sumCallout = fmt.Sprintf("↳ Código-fonte normalizado (%.1f MB removidos) combinado com telemetria multiplataforma verificada.", d.Languages.StrippedBase64MB)
+		}
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
+  <style>
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .headline { font-size: 12.5px; font-weight: bold; fill: #526071; }
+    .lead { font-size: 9.8px; fill: #64748b; }
+    .sec { font-size: 9px; font-weight: 700; fill: #e11d48; text-transform: uppercase; letter-spacing: 0.4px; }
+    .lbl { font-size: 10px; font-weight: 600; fill: #526071; }
+    .val { font-size: 10px; font-weight: 700; fill: #64748b; }
+    .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
+  </style>
+  <rect x="12" y="6" width="441" height="3" fill="#e11d48"/>
+  <text x="12" y="24" class="serif headline">%s — %s (%d Repos · ★ %s)</text>
+  <text x="12" y="38" class="sans lead">%s</text>
+  <line x1="12" y1="45" x2="453" y2="45" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+
+  <!-- Q1: Languages (Lollipop + Waffle) -->
+  <g transform="translate(12, 60)">
+    <text x="0" y="0" class="sans sec">1. %s</text>
+    <text x="0" y="18" class="sans lbl">%s</text>
+    <line x1="62" y1="14" x2="%d" y2="14" stroke="#0284c7" stroke-width="2.2"/>
+    <circle cx="%d" cy="14" r="3.5" fill="#0284c7"/>
+    <text x="202" y="18" text-anchor="end" class="mono val" fill="#0284c7">%.1f%%</text>
+
+    <text x="0" y="36" class="sans lbl">%s</text>
+    <line x1="62" y1="32" x2="%d" y2="32" stroke="#d97706" stroke-width="2.2"/>
+    <circle cx="%d" cy="32" r="3.5" fill="#d97706"/>
+    <text x="202" y="36" text-anchor="end" class="mono val">%.1f%%</text>
+
+    <text x="0" y="54" class="sans lbl">%s</text>
+    <text x="202" y="54" text-anchor="end" class="mono val" fill="#059669">%.0f%% Prod / %.0f%% EDA</text>
+  </g>
+
+  <!-- Q2: Stack (Lollipop + Dashed Benchmark) -->
+  <g transform="translate(248, 60)">
+    <text x="0" y="0" class="sans sec">2. %s</text>
+    <line x1="150" y1="8" x2="150" y2="58" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
+    <text x="0" y="18" class="sans lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val">%d repos</text>
+    <text x="0" y="36" class="sans lbl">%s</text><text x="203" y="36" text-anchor="end" class="mono val">%d repos</text>
+    <text x="0" y="54" class="sans lbl">%s</text><text x="203" y="54" text-anchor="end" class="mono val">%d / %d</text>
+  </g>
+
+  <line x1="12" y1="132" x2="453" y2="132" stroke="#64748b" stroke-opacity="0.22" stroke-width="1"/>
+
+  <!-- Q3: Kaggle -->
+  <g transform="translate(12, 148)">
+    <text x="0" y="0" class="sans sec">3. %s</text>
+    <text x="0" y="18" class="sans lbl">%s</text><text x="202" y="18" text-anchor="end" class="mono val" fill="#d97706">%s (#%s)</text>
+    <text x="0" y="36" class="sans lbl">%s</text><text x="202" y="36" text-anchor="end" class="mono val">%d (%dG · %dS · %dB)</text>
+    <text x="0" y="54" class="sans lbl">Notebooks / Datasets</text><text x="202" y="54" text-anchor="end" class="mono val">#%s / #%s</text>
+  </g>
+
+  <!-- Q4: Impact -->
+  <g transform="translate(248, 148)">
+    <text x="0" y="0" class="sans sec">4. %s</text>
+    <text x="0" y="18" class="sans lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#059669">%s (+%.0f%%)</text>
+    <text x="0" y="36" class="sans lbl">%s</text><text x="203" y="36" text-anchor="end" class="mono val">★ %s (%d forks)</text>
+    <text x="0" y="54" class="sans lbl">%s</text><text x="203" y="54" text-anchor="end" class="mono val">%s (30d)</text>
+  </g>
+
+  <text x="12" y="238" class="serif callout">%s</text>
+</svg>`,
+			esc(d.Subject.Name), esc(d.Subject.Role),
+			d.Languages.TotalRepos, formatInt(im.TotalStars),
+			esc(sumLead),
+			esc(l.LangSecTrueProp),
+			esc(langs[0].Name), l0End, l0End, langs[0].Percentage,
+			esc(langs[1].Name), l1End, l1End, langs[1].Percentage,
+			esc(l.LangSecEDAProd), d.Languages.ProductionPct, d.Languages.ExplorationPct,
+			esc(l.StackTitle),
+			esc(dataCol[0].Name), dataCol[0].RepoCount,
+			esc(mlCol[0].Name), mlCol[0].RepoCount,
+			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
+			esc(l.KaggleTitle),
+			esc(l.KaggleOverallTierLbl), esc(k.OverallTier), formatInt(k.PeakRank),
+			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
+			formatInt(cats[0].Rank), formatInt(cats[1].Rank),
+			esc(l.ImpactTitle),
+			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
+			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
+			esc(l.ImpactDownloads), formatCompact(im.HFDownloads30d),
+			esc(sumCallout))
+
+	default: // SchoolHolmes
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
+  <style>
+    .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
+    .banner { font-size: 12px; font-weight: 800; fill: #ffffff; letter-spacing: 0.6px; text-transform: uppercase; }
+    .sec { font-size: 9.5px; font-weight: 800; fill: #d97706; text-transform: uppercase; letter-spacing: 0.4px; }
+    .lbl { font-size: 10px; font-weight: 700; fill: #526071; }
+    .val { font-size: 10px; font-weight: 800; fill: #0284c7; }
+  </style>
+  <rect x="3" y="3" width="459" height="249" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
+  <path d="M 3,13 Q 3,3 13,3 L 452,3 Q 462,3 462,13 L 462,32 L 3,32 Z" fill="#0284c7"/>
+  <text x="16" y="22" class="sans banner">⚡ %s — %s (%d REPOS)</text>
+
+  <!-- Q1: Languages (Pictorial Unit Blocks) -->
+  <g transform="translate(16, 48)">
+    <text x="0" y="0" class="sans sec">1. %s</text>
+    <text x="0" y="20" class="sans lbl">%s</text>
+    <g transform="translate(54, 10)" fill="#0284c7">
+      <rect x="0" y="0" width="12" height="10" rx="2"/><rect x="15" y="0" width="12" height="10" rx="2"/><rect x="30" y="0" width="12" height="10" rx="2"/><rect x="45" y="0" width="12" height="10" rx="2"/><rect x="60" y="0" width="12" height="10" rx="2"/>
+    </g>
+    <text x="200" y="20" text-anchor="end" class="mono val">%.1f%%</text>
+    <text x="0" y="38" class="sans lbl">%s / %s</text>
+    <text x="200" y="38" text-anchor="end" class="mono val" fill="#d97706">%.1f%% / %.1f%%</text>
+    <rect x="0" y="46" width="200" height="22" rx="5" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="8" y="61" class="sans lbl" fill="#059669">✓ %.0f%% Prod · %.0f%% EDA</text>
+  </g>
+
+  <!-- Q2: Stack (Visual Engineering Badges) -->
+  <g transform="translate(244, 48)">
+    <text x="0" y="0" class="sans sec">2. %s</text>
+    <rect x="0" y="8" width="204" height="20" rx="5" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="8" y="22" class="sans lbl">🧰 %s</text><text x="196" y="22" text-anchor="end" class="mono val">%d repos</text>
+    <rect x="0" y="32" width="204" height="20" rx="5" fill="#7c3aed" fill-opacity="0.1" stroke="#7c3aed" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="8" y="46" class="sans lbl">🤖 %s</text><text x="196" y="46" text-anchor="end" class="mono val" fill="#7c3aed">%d repos</text>
+    <rect x="0" y="56" width="204" height="20" rx="5" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="8" y="70" class="sans lbl">🔒 %s</text><text x="196" y="70" text-anchor="end" class="mono val" fill="#059669">%d/%d</text>
+  </g>
+
+  <!-- Q3: Kaggle (Stepped Podium + Trophy) -->
+  <g transform="translate(16, 146)">
+    <text x="0" y="0" class="sans sec">3. %s</text>
+    <rect x="0" y="44" width="18" height="16" rx="2" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="21" y="34" width="18" height="26" rx="2" fill="#059669" fill-opacity="0.4"/>
+    <rect x="42" y="22" width="18" height="38" rx="2" fill="#0284c7" fill-opacity="0.65"/>
+    <rect x="63" y="10" width="18" height="50" rx="2" fill="#d97706"/>
+    <text x="72" y="8" text-anchor="middle" font-size="10">🏆</text>
+    <text x="92" y="26" class="sans lbl">Tier: %s</text>
+    <text x="92" y="42" class="mono val" fill="#d97706">#%s · %d Medals</text>
+    <text x="92" y="58" class="mono val">%dG · %dS · %dB</text>
+  </g>
+
+  <!-- Q4: Impact (Visual Badges) -->
+  <g transform="translate(244, 146)">
+    <text x="0" y="0" class="sans sec">4. %s</text>
+    <rect x="0" y="8" width="204" height="24" rx="5" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="8" y="24" class="sans lbl">🚀 %s</text><text x="196" y="24" text-anchor="end" class="mono val" fill="#059669">%s (+%.0f%%)</text>
+    <rect x="0" y="36" width="204" height="24" rx="5" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="8" y="52" class="sans lbl">⭐ %s</text><text x="196" y="52" text-anchor="end" class="mono val" fill="#d97706">★ %s</text>
+    <rect x="0" y="64" width="204" height="24" rx="5" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="8" y="80" class="sans lbl">📥 %s</text><text x="196" y="80" text-anchor="end" class="mono val">%s (30d)</text>
+  </g>
+</svg>`,
+			esc(d.Subject.Name), esc(d.Subject.Role), d.Languages.TotalRepos,
+			esc(l.LangSecTrueProp),
+			esc(langs[0].Name), langs[0].Percentage,
+			esc(langs[1].Name), esc(langs[2].Name), langs[1].Percentage, langs[2].Percentage,
+			d.Languages.ProductionPct, d.Languages.ExplorationPct,
+			esc(l.StackTitle),
+			esc(dataCol[0].Name), dataCol[0].RepoCount,
+			esc(mlCol[0].Name), mlCol[0].RepoCount,
+			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
+			esc(l.KaggleTitle),
+			esc(k.OverallTier), formatInt(k.PeakRank), k.TotalMedals(),
+			k.TotalGold, k.TotalSilver, k.TotalBronze,
+			esc(l.ImpactTitle),
+			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
+			esc(l.ImpactStars), formatInt(im.TotalStars),
+			esc(l.ImpactDownloads), formatCompact(im.HFDownloads30d))
+	}
 }
 
 func buildTrendPolyline(weekly []int, x0, y0, width, height int) (string, int, int) {

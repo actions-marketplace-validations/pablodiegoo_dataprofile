@@ -115,12 +115,148 @@ func TestBilingualPtBRRendering(t *testing.T) {
 	manifest.Subject.Locale = "pt-BR"
 	data := DefaultPortfolioData(manifest)
 
-	svg, err := Render(domain.SchoolTufte, domain.PanelLanguages, data)
-	if err != nil {
-		t.Fatalf("Render pt-BR failed: %v", err)
+	// 1. Verify all 20 School x Panel combinations render valid SVGs in pt-BR
+	for _, school := range domain.AllSchools() {
+		for _, panel := range domain.AllPanels() {
+			svg, err := Render(school, panel, data)
+			if err != nil {
+				t.Fatalf("Render(%s, %s) pt-BR failed: %v", school, panel, err)
+			}
+			if err := ValidateSVG(svg); err != nil {
+				t.Errorf("ValidateSVG(%s, %s) pt-BR failed: %v", school, panel, err)
+			}
+		}
 	}
-	if !strings.Contains(svg, "Distribuição de Código") {
-		t.Errorf("expected Portuguese title in pt-BR locale, got SVG without it")
+
+	// 2. Verify School-specific Portuguese localization across all 5 Panels
+	checks := []struct {
+		school       domain.School
+		panel        domain.Panel
+		wantContains []string
+		forbid       []string
+	}{
+		{
+			school:       domain.SchoolTufte,
+			panel:        domain.PanelLanguages,
+			wantContains: []string{"Distribuição de Código", "Proporção Real de Código-Fonte", "Módulos de Produção", "Maturidade de Engenharia", "*Nota:"},
+			forbid:       []string{"True Source Code Proportions", "Engineering Hygiene Signals"},
+		},
+		{
+			school:       domain.SchoolFew,
+			panel:        domain.PanelLanguages,
+			wantContains: []string{"Distribuição de Código", "MB Removidos", "Linguagem Principal", "Produção vs. EDA", "Lockfile &amp; CI Prontos"},
+			forbid:       []string{"MB Stripped", "Primary Language", "Lockfile &amp; CI Ready"},
+		},
+		{
+			school:       domain.SchoolCairo,
+			panel:        domain.PanelLanguages,
+			wantContains: []string{"Lidera com", "Módulos de produção representam", "↳ Saídas .ipynb removidas", "Estrutura de Código Waffle"},
+			forbid:       []string{"Leads at", "↳ Stripped .ipynb outputs", "Code Structure Waffle"},
+		},
+		{
+			school:       domain.SchoolHolmes,
+			panel:        domain.PanelLanguages,
+			wantContains: []string{"Distribuição de Código", "Filtro de Cache Jupyter", "Removidos"},
+			forbid:       []string{"Jupyter Bloat Filter", "Stripped "},
+		},
+		{
+			school:       domain.SchoolCairo,
+			panel:        domain.PanelStack,
+			wantContains: []string{"Ecossistema Completo de Dados &amp; ML Ancorado por", "Cobertura ponta a ponta", "↳ Ecossistema principal verificado"},
+			forbid:       []string{"Full-Cycle Data", "End-to-end coverage"},
+		},
+		{
+			school:       domain.SchoolTufte,
+			panel:        domain.PanelKaggle,
+			wantContains: []string{"Desempenho Competitivo no Kaggle", "Medalhas Totais", "Categoria", "Nível", "Rank Global", "Percentil", "Total Acumulado no Portfólio"},
+			forbid:       []string{">Category<", ">Global Rank<", "Total Portfolio Tally"},
+		},
+		{
+			school:       domain.SchoolFew,
+			panel:        domain.PanelKaggle,
+			wantContains: []string{"Desempenho Competitivo no Kaggle", "Total Acumulado", "Marcador vertical", "indica o limiar necessário"},
+			forbid:       []string{"Vertical marker", "indicates the threshold"},
+		},
+		{
+			school:       domain.SchoolCairo,
+			panel:        domain.PanelKaggle,
+			wantContains: []string{"Nível", "Percentil nas 4 trilhas oficiais", "REFERÊNCIA GLOBAL TOP 1%", "↳ Desempenho consistente"},
+			forbid:       []string{"TOP 1% GLOBAL BENCHMARK", "↳ Consistent top-percentile"},
+		},
+		{
+			school:       domain.SchoolHolmes,
+			panel:        domain.PanelKaggle,
+			wantContains: []string{"Desempenho Competitivo no Kaggle", "Pódio de Progressão", "Medalhas Conquistadas"},
+			forbid:       []string{"Tier Climb Podium", "Total Medals Earned"},
+		},
+		{
+			school:       domain.SchoolTufte,
+			panel:        domain.PanelImpact,
+			wantContains: []string{"Impacto Open-Source &amp; Comunidade de IA", "Horizonte de 52 Semanas", "Contribuições Anuais", "Alcance no GitHub"},
+			forbid:       []string{"52-Week Horizon"},
+		},
+		{
+			school:       domain.SchoolFew,
+			panel:        domain.PanelImpact,
+			wantContains: []string{"Impacto Open-Source &amp; Comunidade de IA", "VELOCIDADE ANUAL", "Contribuições Anuais"},
+			forbid:       []string{"YoY VELOCITY"},
+		},
+		{
+			school:       domain.SchoolCairo,
+			panel:        domain.PanelImpact,
+			wantContains: []string{"Contribuições Anuais", "Alcance Open-Source", "Produção contínua de engenharia", "↳ Pico de velocidade atingido"},
+			forbid:       []string{"Growing Open-Source Reach", "↳ Peak velocity achieved"},
+		},
+		{
+			school:       domain.SchoolHolmes,
+			panel:        domain.PanelImpact,
+			wantContains: []string{"CONTRIBUIÇÕES", "Alcance no GitHub", "Artefatos de IA &amp; Hub"},
+			forbid:       []string{"CONTRIBUTIONS"},
+		},
+		{
+			school:       domain.SchoolTufte,
+			panel:        domain.PanelSummary,
+			wantContains: []string{"1. Proporção Real de Código-Fonte", "2. Ecossistema de Dados, ML &amp; Analytics", "3. Desempenho Competitivo no Kaggle", "4. Impacto Open-Source &amp; Comunidade de IA", "Nível Geral", "Medalhas Totais"},
+			forbid:       []string{">Overall Tier<", ">Total Medals<"},
+		},
+		{
+			school:       domain.SchoolCairo,
+			panel:        domain.PanelSummary,
+			wantContains: []string{"1. Proporção Real de Código-Fonte", "2. Ecossistema de Dados, ML &amp; Analytics", "3. Desempenho Competitivo no Kaggle", "4. Impacto Open-Source &amp; Comunidade de IA", "Nível Geral", "Medalhas Totais", "Síntese executiva do portfólio", "↳ Código-fonte normalizado"},
+			forbid:       []string{">Overall Tier<", ">Total Medals<", "Executive portfolio synthesis", "Notebook-deflated source code"},
+		},
+	}
+
+	for _, tc := range checks {
+		svg, err := Render(tc.school, tc.panel, data)
+		if err != nil {
+			t.Fatalf("Render(%s, %s) failed: %v", tc.school, tc.panel, err)
+		}
+		for _, w := range tc.wantContains {
+			if !strings.Contains(svg, w) {
+				t.Errorf("Render(%s, %s) pt-BR missing expected localized string %q", tc.school, tc.panel, w)
+			}
+		}
+		for _, f := range tc.forbid {
+			if strings.Contains(svg, f) {
+				t.Errorf("Render(%s, %s) pt-BR still contains unlocalized English string %q", tc.school, tc.panel, f)
+			}
+		}
+	}
+
+	// 3. Verify Recruiter-First Velocity fallback in pt-BR
+	zeroHF := data
+	zeroHF.Impact.HFModels = 0
+	zeroHF.Impact.HFDatasets = 0
+	zeroHF.Impact.HFSpaces = 0
+	svgZeroHF, err := Render(domain.SchoolTufte, domain.PanelImpact, zeroHF)
+	if err != nil {
+		t.Fatalf("Render(tufte, impact) zero-HF pt-BR failed: %v", err)
+	}
+	for _, w := range []string{"Consistência &amp; Entrega", "Sequência Ativa", "Volume de Código", "Impulso Anual (YoY)"} {
+		if !strings.Contains(svgZeroHF, w) {
+			t.Errorf("Render(tufte, impact) zero-HF pt-BR missing %q", w)
+		}
 	}
 }
 
@@ -205,4 +341,110 @@ func TestRenderStackPanelAllSchoolsAndLeaderHighlighting(t *testing.T) {
 		t.Errorf("expected zero-count non-leader items not to receive leader accent bar fill #0284c7")
 	}
 }
+
+func TestRenderSummarySchoolGrammars(t *testing.T) {
+	manifest := config.DefaultManifest()
+	data := DefaultPortfolioData(manifest)
+
+	// 1. Tufte summary.svg: zero outer border/cage, serif + tabular-nums, dot-dash plot, supertable, and sparkline with interquartile band
+	tufteSVG, err := Render(domain.SchoolTufte, domain.PanelSummary, data)
+	if err != nil {
+		t.Fatalf("Render(tufte, summary) failed: %v", err)
+	}
+	if strings.Contains(tufteSVG, `<rect x="2" y="2"`) || strings.Contains(tufteSVG, `<rect x="3" y="3"`) {
+		t.Errorf("Render(tufte, summary): expected zero outer cages/borders, found outer <rect>")
+	}
+	for _, want := range []string{"tabular-nums", "<polyline", "<circle", "1. True Source Code Proportions", "2. Data, ML &amp; Analytics Ecosystem", "3. Kaggle Competitive Performance", "4. Open-Source &amp; AI Community Impact"} {
+		if !strings.Contains(tufteSVG, want) {
+			t.Errorf("Render(tufte, summary): missing expected Tufte grammar element %q", want)
+		}
+	}
+
+	// 2. Few summary.svg: top KPI strip, bullet graph qualitative bands + vertical target marker
+	fewSVG, err := Render(domain.SchoolFew, domain.PanelSummary, data)
+	if err != nil {
+		t.Fatalf("Render(few, summary) failed: %v", err)
+	}
+	for _, want := range []string{"kpi-num", "kpi-lbl", `fill-opacity="0.14"`, `fill-opacity="0.25"`, `stroke="#0284c7" stroke-width="2"`} {
+		if !strings.Contains(fewSVG, want) {
+			t.Errorf("Render(few, summary): missing expected Few grammar element %q", want)
+		}
+	}
+
+	// 3. Cairo summary.svg: top crimson rule (#e11d48), serif headline + lead deck, dashed benchmark line, and ↳ callout
+	cairoSVG, err := Render(domain.SchoolCairo, domain.PanelSummary, data)
+	if err != nil {
+		t.Fatalf("Render(cairo, summary) failed: %v", err)
+	}
+	for _, want := range []string{`fill="#e11d48"`, `class="serif headline"`, `class="sans lead"`, `stroke-dasharray="3,3"`, "↳"} {
+		if !strings.Contains(cairoSVG, want) {
+			t.Errorf("Render(cairo, summary): missing expected Cairo grammar element %q", want)
+		}
+	}
+
+	// 4. Holmes summary.svg: magazine header ribbon, isotype blocks, stepped podium with trophy 🏆, and visual badges
+	holmesSVG, err := Render(domain.SchoolHolmes, domain.PanelSummary, data)
+	if err != nil {
+		t.Fatalf("Render(holmes, summary) failed: %v", err)
+	}
+	for _, want := range []string{`<path d="M 3,13 Q 3,3 13,3`, "🏆", `class="sans banner"`} {
+		if !strings.Contains(holmesSVG, want) {
+			t.Errorf("Render(holmes, summary): missing expected Holmes grammar element %q", want)
+		}
+	}
+}
+
+func TestAllFivePanelsHonorSchoolVisualGrammars(t *testing.T) {
+	manifest := config.DefaultManifest()
+	data := DefaultPortfolioData(manifest)
+
+	for _, panel := range domain.AllPanels() {
+		// Tufte: zero outer cages/borders, serif + tabular-nums across all 5 panels
+		tufteSVG, err := Render(domain.SchoolTufte, panel, data)
+		if err != nil {
+			t.Fatalf("Render(tufte, %s) failed: %v", panel, err)
+		}
+		if strings.Contains(tufteSVG, `<rect x="2" y="2"`) || strings.Contains(tufteSVG, `<rect x="3" y="3"`) {
+			t.Errorf("Render(tufte, %s) has outer cage/border <rect>", panel)
+		}
+		if !strings.Contains(tufteSVG, "tabular-nums") {
+			t.Errorf("Render(tufte, %s) missing tabular-nums", panel)
+		}
+
+		// Few: top KPI strip + Bullet Graph qualitative bands + vertical target marker across all 5 panels
+		fewSVG, err := Render(domain.SchoolFew, panel, data)
+		if err != nil {
+			t.Fatalf("Render(few, %s) failed: %v", panel, err)
+		}
+		for _, want := range []string{"kpi-num", "kpi-lbl", `fill-opacity="0.1`, `fill-opacity="0.2`, `stroke="#0284c7" stroke-width="2`} {
+			if !strings.Contains(fewSVG, want) {
+				t.Errorf("Render(few, %s) missing Few grammar element %q", panel, want)
+			}
+		}
+
+		// Cairo: top crimson rule (#e11d48), serif headline + lead deck, dashed benchmark line, and ↳ callout across all 5 panels
+		cairoSVG, err := Render(domain.SchoolCairo, panel, data)
+		if err != nil {
+			t.Fatalf("Render(cairo, %s) failed: %v", panel, err)
+		}
+		for _, want := range []string{`fill="#e11d48"`, `class="serif headline"`, `class="sans lead"`, `stroke-dasharray="3,3"`, "↳"} {
+			if !strings.Contains(cairoSVG, want) {
+				t.Errorf("Render(cairo, %s) missing Cairo grammar element %q", panel, want)
+			}
+		}
+
+		// Holmes: magazine header ribbon across all 5 panels
+		holmesSVG, err := Render(domain.SchoolHolmes, panel, data)
+		if err != nil {
+			t.Fatalf("Render(holmes, %s) failed: %v", panel, err)
+		}
+		for _, want := range []string{`<path d="M 3,13 Q 3,3 13,3`, `class="sans banner"`} {
+			if !strings.Contains(holmesSVG, want) {
+				t.Errorf("Render(holmes, %s) missing Holmes grammar element %q", panel, want)
+			}
+		}
+	}
+}
+
+
 
