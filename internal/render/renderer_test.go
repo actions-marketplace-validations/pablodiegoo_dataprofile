@@ -36,17 +36,27 @@ func TestRecruiterFirstGracefulDegradation(t *testing.T) {
 	manifest := config.DefaultManifest()
 	data := DefaultPortfolioData(manifest)
 
-	// Case 1: 0 Gold medals -> should show "4 Tracks" instead of "0 Gold" in KPI
+	// Case 1: 0 Gold medals -> should show "4 Tracks" instead of "0 Gold" across all 4 Schools
 	data.Kaggle.TotalGold = 0
-	svgKaggle, err := Render(domain.SchoolFew, domain.PanelKaggle, data)
-	if err != nil {
-		t.Fatalf("Render failed: %v", err)
-	}
-	if strings.Contains(svgKaggle, ">0 Gold<") {
-		t.Errorf("expected Recruiter-First degradation to avoid highlighting '0 Gold' in KPI")
-	}
-	if !strings.Contains(svgKaggle, "4 Tracks") {
-		t.Errorf("expected '4 Tracks' fallback KPI when TotalGold == 0")
+	for _, school := range domain.AllSchools() {
+		svgKaggle, err := Render(school, domain.PanelKaggle, data)
+		if err != nil {
+			t.Fatalf("Render(%s, kaggle) failed: %v", school, err)
+		}
+		if err := ValidateSVG(svgKaggle); err != nil {
+			t.Errorf("ValidateSVG(%s, kaggle) failed: %v", school, err)
+		}
+		if strings.Contains(svgKaggle, "0 Gold") {
+			t.Errorf("Render(%s, kaggle): expected Recruiter-First degradation to avoid highlighting '0 Gold'", school)
+		}
+		if !strings.Contains(svgKaggle, "4 Tracks") {
+			t.Errorf("Render(%s, kaggle): expected '4 Tracks' fallback KPI when TotalGold == 0", school)
+		}
+		for _, cat := range []string{"Notebooks", "Datasets", "Competitions", "Discussions"} {
+			if !strings.Contains(svgKaggle, cat) {
+				t.Errorf("Render(%s, kaggle): expected category track %q in SVG", school, cat)
+			}
+		}
 	}
 
 	// Case 2: 0 Hugging Face models/datasets/spaces -> should pivot to Engineering Velocity

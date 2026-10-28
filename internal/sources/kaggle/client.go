@@ -2,8 +2,10 @@ package kaggle
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -15,7 +17,9 @@ import (
 
 // Client collects Kaggle competitive standing via hybrid Headless Chrome CDP + optional REST API v1.
 type Client struct {
+	BaseURL     string
 	HTTPClient  *http.Client
+	DOMDumper   func(ctx context.Context, username string) (string, error)
 	APIUsername string
 	APIKey      string
 }
@@ -23,7 +27,9 @@ type Client struct {
 // NewClient creates a Kaggle hybrid collector.
 func NewClient(apiUsername, apiKey string) *Client {
 	return &Client{
+		BaseURL:     "https://www.kaggle.com",
 		HTTPClient:  &http.Client{Timeout: 15 * time.Second},
+		DOMDumper:   dumpKaggleDOM,
 		APIUsername: strings.TrimSpace(apiUsername),
 		APIKey:      strings.TrimSpace(apiKey),
 	}
@@ -35,13 +41,224 @@ func (c *Client) Collect(ctx context.Context, cfg domain.KaggleSourceConfig) (do
 		return domain.KaggleStanding{Available: false}, nil
 	}
 
-	domText, err := dumpKaggleDOM(ctx, cfg.Username)
-	if err != nil {
-		return domain.KaggleStanding{Available: false, Username: cfg.Username}, err
+	mode := strings.ToLower(strings.TrimSpace(cfg.Mode))
+	if mode == "" {
+		mode = "hybrid"
 	}
 
-	standing := ParseKaggleAchievementsText(domText, cfg.Username)
-	return standing, nil
+	dumper := c.DOMDumper
+	if dumper == nil {
+		dumper = dumpKaggleDOM
+	}
+
+	switch mode {
+	case "browser":
+		domText, err := dumper(ctx, cfg.Username)
+		if err != nil {
+			return domain.KaggleStanding{Available: false, Username: cfg.Username}, err
+		}
+		return ParseKaggleAchievementsText(domText, cfg.Username), nil
+
+	case "api":
+		if c.APIUsername == "" || c.APIKey == "" {
+			return domain.KaggleStanding{Available: false, Username: cfg.Username}, fmt.Errorf("kaggle REST API v1 mode requires KAGGLE_USERNAME and KAGGLE_KEY")
+		}
+		return c.fetchAPIStanding(ctx, cfg.Username)
+
+	default: // "hybrid"
+		domText, domErr := dumper(ctx, cfg.Username)
+		var domStanding domain.KaggleStanding
+		if domErr == nil {
+			domStanding = ParseKaggleAchievementsText(domText, cfg.Username)
+		}
+
+		if c.APIUsername != "" && c.APIKey != "" {
+			apiStanding, apiErr := c.fetchAPIStanding(ctx, cfg.Username)
+			if apiErr == nil {
+				if domErr != nil {
+					return apiStanding, nil
+				}
+				return enrichStanding(domStanding, apiStanding), nil
+			}
+			if domErr != nil {
+				return domain.KaggleStanding{Available: false, Username: cfg.Username}, domErr
+			}
+		}
+
+		if domErr != nil {
+			return domain.KaggleStanding{Available: false, Username: cfg.Username}, domErr
+		}
+		return domStanding, nil
+	}
+}
+
+type kaggleAPIArtifact struct {
+	Ref        string `json:"ref"`
+	Title      string `json:"title"`
+	Medal      string `json:"medal"`
+	Gold       int    `json:"gold"`
+	Silver     int    `json:"silver"`
+	Bronze     int    `json:"bronze"`
+	TotalVotes int    `json:"totalVotes"`
+}
+
+func (c *Client) fetchAPIStanding(ctx context.Context, username string) (domain.KaggleStanding, error) {
+	kernels, err := c.fetchAPIArtifacts(ctx, "/api/v1/kernels/list", username)
+	if err != nil {
+		return domain.KaggleStanding{Available: false, Username: username}, err
+	}
+	datasets, err := c.fetchAPIArtifacts(ctx, "/api/v1/datasets/list", username)
+	if err != nil {
+		return domain.KaggleStanding{Available: false, Username: username}, err
+	}
+
+	nbGold, nbSilver, nbBronze := tallyArtifactMedals(kernels)
+	dsGold, dsSilver, dsBronze := tallyArtifactMedals(datasets)
+
+	cats := []domain.KaggleCategory{
+		buildCategoryFromMedals("Notebooks", nbGold, nbSilver, nbBronze, len(kernels)),
+		buildCategoryFromMedals("Datasets", dsGold, dsSilver, dsBronze, len(datasets)),
+		buildCategoryFromMedals("Competitions", 0, 0, 0, 0),
+		buildCategoryFromMedals("Discussions", 0, 0, 0, 0),
+	}
+
+	st := domain.KaggleStanding{
+		Available:   true,
+		Username:    username,
+		OverallTier: "Novice",
+		Categories:  cats,
+	}
+	bestWeight := 1
+	for _, cat := range cats {
+		st.TotalGold += cat.Gold
+		st.TotalSilver += cat.Silver
+		st.TotalBronze += cat.Bronze
+		if w := tierHierarchy[cat.Tier]; w > bestWeight {
+			bestWeight = w
+			st.OverallTier = cat.Tier
+		}
+	}
+	return st, nil
+}
+
+func (c *Client) fetchAPIArtifacts(ctx context.Context, endpoint, username string) ([]kaggleAPIArtifact, error) {
+	base := strings.TrimRight(c.BaseURL, "/")
+	if base == "" {
+		base = "https://www.kaggle.com"
+	}
+	reqURL := fmt.Sprintf("%s%s?user=%s", base, endpoint, url.QueryEscape(username))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	if c.APIUsername != "" && c.APIKey != "" {
+		req.SetBasicAuth(c.APIUsername, c.APIKey)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	hc := c.HTTPClient
+	if hc == nil {
+		hc = &http.Client{Timeout: 15 * time.Second}
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("kaggle API %s returned status %d", endpoint, resp.StatusCode)
+	}
+
+	var items []kaggleAPIArtifact
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func tallyArtifactMedals(items []kaggleAPIArtifact) (gold, silver, bronze int) {
+	for _, it := range items {
+		gold += it.Gold
+		silver += it.Silver
+		bronze += it.Bronze
+		switch strings.ToLower(strings.TrimSpace(it.Medal)) {
+		case "gold":
+			gold++
+		case "silver":
+			silver++
+		case "bronze":
+			bronze++
+		}
+	}
+	return gold, silver, bronze
+}
+
+func buildCategoryFromMedals(name string, gold, silver, bronze, artifactCount int) domain.KaggleCategory {
+	tier := "Novice"
+	total := gold + silver + bronze
+	switch {
+	case gold >= 5 && total >= 15:
+		tier = "Grandmaster"
+	case gold >= 1 && total >= 10:
+		tier = "Master"
+	case total >= 3 || gold >= 1 || silver >= 2:
+		tier = "Expert"
+	case artifactCount > 0 || total > 0:
+		tier = "Contributor"
+	}
+	cat := domain.KaggleCategory{
+		Name:   name,
+		Tier:   tier,
+		Gold:   gold,
+		Silver: silver,
+		Bronze: bronze,
+	}
+	applyTierProgress(&cat)
+	return cat
+}
+
+func enrichStanding(base, api domain.KaggleStanding) domain.KaggleStanding {
+	out := base
+	apiByName := make(map[string]domain.KaggleCategory, len(api.Categories))
+	for _, c := range api.Categories {
+		apiByName[c.Name] = c
+	}
+
+	out.TotalGold = 0
+	out.TotalSilver = 0
+	out.TotalBronze = 0
+	bestWeight := tierHierarchy[out.OverallTier]
+	if bestWeight == 0 {
+		bestWeight = 1
+	}
+
+	for i := range out.Categories {
+		cat := &out.Categories[i]
+		if ac, ok := apiByName[cat.Name]; ok {
+			if ac.Gold > cat.Gold {
+				cat.Gold = ac.Gold
+			}
+			if ac.Silver > cat.Silver {
+				cat.Silver = ac.Silver
+			}
+			if ac.Bronze > cat.Bronze {
+				cat.Bronze = ac.Bronze
+			}
+			if tierHierarchy[ac.Tier] > tierHierarchy[cat.Tier] {
+				cat.Tier = ac.Tier
+				applyTierProgress(cat)
+			}
+		}
+		out.TotalGold += cat.Gold
+		out.TotalSilver += cat.Silver
+		out.TotalBronze += cat.Bronze
+		if w := tierHierarchy[cat.Tier]; w > bestWeight {
+			bestWeight = w
+			out.OverallTier = cat.Tier
+		}
+	}
+	return out
 }
 
 func dumpKaggleDOM(ctx context.Context, username string) (string, error) {
@@ -96,6 +313,7 @@ var tierHierarchy = map[string]int{
 // ParseKaggleAchievementsText parses the visible text of a Kaggle profile page into a structured KaggleStanding.
 // Exported for deterministic unit testing against real Kaggle DOM snapshots.
 func ParseKaggleAchievementsText(text, username string) domain.KaggleStanding {
+	text = stripHTMLTags(text)
 	st := domain.KaggleStanding{
 		Available:   true,
 		Username:    username,
@@ -157,6 +375,19 @@ func parseCategoryBlock(fullText, catName, fallbackTier string) domain.KaggleCat
 	if len(window) > 180 {
 		window = window[:180]
 	}
+	lowerWindow := strings.ToLower(window)
+	for _, otherCat := range []string{"Notebooks", "Datasets", "Competitions", "Discussions"} {
+		if strings.EqualFold(otherCat, catName) {
+			continue
+		}
+		if nextIdx := strings.Index(lowerWindow[len(catName):], strings.ToLower(otherCat)); nextIdx != -1 {
+			cutoff := len(catName) + nextIdx
+			if cutoff < len(window) {
+				window = window[:cutoff]
+				lowerWindow = lowerWindow[:cutoff]
+			}
+		}
+	}
 
 	for _, t := range []string{"Grandmaster", "Master", "Expert", "Contributor", "Novice"} {
 		if strings.Contains(window, t) {
@@ -182,6 +413,11 @@ func parseCategoryBlock(fullText, catName, fallbackTier string) domain.KaggleCat
 		cat.Bronze, _ = strconv.Atoi(m[1])
 	}
 
+	applyTierProgress(&cat)
+	return cat
+}
+
+func applyTierProgress(cat *domain.KaggleCategory) {
 	switch cat.Tier {
 	case "Grandmaster":
 		cat.ProgressPct = 96
@@ -204,6 +440,4 @@ func parseCategoryBlock(fullText, catName, fallbackTier string) domain.KaggleCat
 		cat.TargetPct = 35
 		cat.TopPct = "Active"
 	}
-
-	return cat
 }
