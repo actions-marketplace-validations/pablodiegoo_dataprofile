@@ -255,7 +255,7 @@ var canonicalStackRules = []stackRule{
 	{canonical: "Pandas / Polars", pillar: "data", tokens: []string{"pandas", "polars", "geopandas"}},
 	{canonical: "SQL / DuckDB", pillar: "data", tokens: []string{"duckdb", "sqlalchemy", "psycopg", "sql", "bigquery", "snowflake"}},
 	{canonical: "Apache Spark", pillar: "data", tokens: []string{"pyspark", "spark", "databricks", "delta-spark"}},
-	{canonical: "dbt / Airflow", pillar: "data", tokens: []string{"dbt-", "dbt_core", "apache-airflow", "airflow", "prefect", "dagster"}},
+	{canonical: "dbt / Airflow", pillar: "data", tokens: []string{"dbt-", "dbt_core", "dbt", "apache-airflow", "airflow", "prefect", "dagster"}},
 
 	// Machine Learning & AI
 	{canonical: "Scikit-Learn", pillar: "ml", tokens: []string{"scikit-learn", "sklearn", "scipy", "statsmodels"}},
@@ -302,7 +302,7 @@ func DetectStackFromManifests(repoManifests []string) domain.StackPanel {
 				RepoCount: c,
 			})
 		}
-		sort.Slice(list, func(i, j int) bool {
+		sort.SliceStable(list, func(i, j int) bool {
 			return list[i].RepoCount > list[j].RepoCount
 		})
 		for i := range list {

@@ -97,16 +97,95 @@ func TestNormalizeLanguageMapDeflatesNotebooks(t *testing.T) {
 
 func TestDetectStackFromManifests(t *testing.T) {
 	manifests := []string{
-		"pandas==2.1.0\nscikit-learn>=1.3\nplotly\nstreamlit",
-		"polars\npytorch\nxgboost\nduckdb\nmatplotlib",
-		"pandas\nscikit-learn\ntransformers\nseaborn",
+		// Repo 1: pyproject.toml + SQL artifacts
+		`[project]
+dependencies = ["pandas>=2.1.0", "scikit-learn>=1.3", "plotly>=5.18", "streamlit>=1.30"]
+-- analytics_queries.sql
+SELECT * FROM events;`,
+		// Repo 2: requirements.txt
+		"polars==0.20.0\npytorch>=2.1\nxgboost>=2.0\nduckdb>=0.10\nmatplotlib>=3.8\ndbt\n",
+		// Repo 3: environment.yml
+		`name: ml-env
+dependencies:
+  - pandas
+  - scikit-learn
+  - transformers
+  - seaborn
+  - pyspark
+  - plotly`,
+		// Repo 4: R DESCRIPTION file + SQL
+		`Package: customerchurn
+Title: Customer Churn Modeling
+Imports:
+    ggplot2,
+    tidyverse,
+    dplyr
+Suggests: duckdb`,
 	}
 
 	stack := DetectStackFromManifests(manifests)
-	if len(stack.DataAnalytics) == 0 || stack.DataAnalytics[0].Name != "Pandas / Polars" || stack.DataAnalytics[0].RepoCount != 3 {
-		t.Errorf("unexpected DataAnalytics leader: %+v", stack.DataAnalytics)
+	if stack.TotalSources != 4 {
+		t.Errorf("expected TotalSources=4, got %d", stack.TotalSources)
 	}
-	if len(stack.MLAndAI) == 0 || stack.MLAndAI[0].Name != "Scikit-Learn" || stack.MLAndAI[0].RepoCount != 2 {
-		t.Errorf("unexpected MLAndAI leader: %+v", stack.MLAndAI)
+
+	// Verify Data & Analytics pillar (all 4 canonical items ranked by RepoCount)
+	// Pandas/Polars: repos 1, 2, 3 -> 3 (100%, IsLeader=true)
+	// SQL/DuckDB: repos 1, 2, 4 -> 3 (100%, IsLeader=false due to canonical tie-break)
+	// Apache Spark: repo 3 -> 1 (33%, IsLeader=false)
+	// dbt/Airflow: repo 2 -> 1 (33%, IsLeader=false)
+	if len(stack.DataAnalytics) != 4 {
+		t.Fatalf("expected 4 items in DataAnalytics, got %d", len(stack.DataAnalytics))
+	}
+	if stack.DataAnalytics[0].Name != "Pandas / Polars" || stack.DataAnalytics[0].RepoCount != 3 || stack.DataAnalytics[0].WeightPct != 100 || !stack.DataAnalytics[0].IsLeader {
+		t.Errorf("unexpected DataAnalytics[0]: %+v", stack.DataAnalytics[0])
+	}
+	if stack.DataAnalytics[1].Name != "SQL / DuckDB" || stack.DataAnalytics[1].RepoCount != 3 || stack.DataAnalytics[1].WeightPct != 100 || stack.DataAnalytics[1].IsLeader {
+		t.Errorf("unexpected DataAnalytics[1]: %+v", stack.DataAnalytics[1])
+	}
+	if stack.DataAnalytics[2].Name != "Apache Spark" || stack.DataAnalytics[2].RepoCount != 1 || stack.DataAnalytics[2].WeightPct != 33 || stack.DataAnalytics[2].IsLeader {
+		t.Errorf("unexpected DataAnalytics[2]: %+v", stack.DataAnalytics[2])
+	}
+	if stack.DataAnalytics[3].Name != "dbt / Airflow" || stack.DataAnalytics[3].RepoCount != 1 || stack.DataAnalytics[3].WeightPct != 33 || stack.DataAnalytics[3].IsLeader {
+		t.Errorf("unexpected DataAnalytics[3]: %+v", stack.DataAnalytics[3])
+	}
+
+	// Verify Machine Learning & AI pillar
+	// Scikit-Learn: repos 1, 3 -> 2 (100%, IsLeader=true)
+	// PyTorch: repo 2 -> 1 (50%, IsLeader=false)
+	// XGBoost / LightGBM: repo 2 -> 1 (50%, IsLeader=false)
+	// Hugging Face: repo 3 -> 1 (50%, IsLeader=false)
+	if len(stack.MLAndAI) != 4 {
+		t.Fatalf("expected 4 items in MLAndAI, got %d", len(stack.MLAndAI))
+	}
+	if stack.MLAndAI[0].Name != "Scikit-Learn" || stack.MLAndAI[0].RepoCount != 2 || stack.MLAndAI[0].WeightPct != 100 || !stack.MLAndAI[0].IsLeader {
+		t.Errorf("unexpected MLAndAI[0]: %+v", stack.MLAndAI[0])
+	}
+	for i := 1; i < 4; i++ {
+		if stack.MLAndAI[i].RepoCount != 1 || stack.MLAndAI[i].WeightPct != 50 || stack.MLAndAI[i].IsLeader {
+			t.Errorf("unexpected MLAndAI[%d]: %+v", i, stack.MLAndAI[i])
+		}
+	}
+
+	// Verify Visualization & Data Apps pillar
+	// Plotly / Dash: repos 1, 3 -> 2 (100%, IsLeader=true)
+	// Matplotlib / Seaborn: repos 2, 3 -> 2 (100%, IsLeader=false)
+	// Streamlit: repo 1 -> 1 (50%, IsLeader=false)
+	// ggplot2 / Tidyverse: repo 4 -> 1 (50%, IsLeader=false)
+	if len(stack.VizAndApps) != 4 {
+		t.Fatalf("expected 4 items in VizAndApps, got %d", len(stack.VizAndApps))
+	}
+	if stack.VizAndApps[0].Name != "Plotly / Dash" || stack.VizAndApps[0].RepoCount != 2 || stack.VizAndApps[0].WeightPct != 100 || !stack.VizAndApps[0].IsLeader {
+		t.Errorf("unexpected VizAndApps[0]: %+v", stack.VizAndApps[0])
+	}
+	if stack.VizAndApps[1].Name != "Matplotlib / Seaborn" || stack.VizAndApps[1].RepoCount != 2 || stack.VizAndApps[1].WeightPct != 100 || stack.VizAndApps[1].IsLeader {
+		t.Errorf("unexpected VizAndApps[1]: %+v", stack.VizAndApps[1])
+	}
+
+	// Verify empty manifests do not flag any leader and have 0% weight
+	emptyStack := DetectStackFromManifests(nil)
+	for _, item := range emptyStack.DataAnalytics {
+		if item.IsLeader || item.WeightPct != 0 || item.RepoCount != 0 {
+			t.Errorf("expected zeroed item for empty manifest, got %+v", item)
+		}
 	}
 }

@@ -108,3 +108,56 @@ func TestValidateSVGInvariants(t *testing.T) {
 	}
 }
 
+func TestRenderStackPanelAllSchoolsAndLeaderHighlighting(t *testing.T) {
+	manifest := config.DefaultManifest()
+	data := DefaultPortfolioData(manifest)
+
+	canonicalPillars := []string{
+		"Data &amp; Analytics",
+		"Machine Learning &amp; AI",
+		"Visualization &amp; Data Apps",
+	}
+	canonicalTools := []string{
+		"Pandas / Polars", "SQL / DuckDB", "Apache Spark", "dbt / Airflow",
+		"Scikit-Learn", "PyTorch", "XGBoost / LightGBM", "Hugging Face",
+		"Plotly / Dash", "Streamlit", "Matplotlib / Seaborn", "ggplot2 / Tidyverse",
+	}
+
+	for _, school := range domain.AllSchools() {
+		svg, err := Render(school, domain.PanelStack, data)
+		if err != nil {
+			t.Fatalf("Render(%s, stack) failed: %v", school, err)
+		}
+		if err := ValidateSVG(svg); err != nil {
+			t.Errorf("ValidateSVG(%s, stack) failed: %v", school, err)
+		}
+		for _, pillar := range canonicalPillars {
+			if !strings.Contains(svg, pillar) {
+				t.Errorf("Render(%s, stack) missing pillar %q", school, pillar)
+			}
+		}
+		for _, tool := range canonicalTools {
+			if !strings.Contains(svg, tool) {
+				t.Errorf("Render(%s, stack) missing canonical tool %q", school, tool)
+			}
+		}
+	}
+
+	// Verify IsLeader flag controls pre-attentive leader highlighting in Few stack panel:
+	// When all items in DataAnalytics have RepoCount == 0 and IsLeader == false, none should get the #0284c7 bar fill.
+	zeroData := DefaultPortfolioData(manifest)
+	zeroData.Stack.DataAnalytics = []domain.StackItem{
+		{Name: "Pandas / Polars", RepoCount: 0, WeightPct: 0, IsLeader: false},
+		{Name: "SQL / DuckDB", RepoCount: 0, WeightPct: 0, IsLeader: false},
+		{Name: "Apache Spark", RepoCount: 0, WeightPct: 0, IsLeader: false},
+		{Name: "dbt / Airflow", RepoCount: 0, WeightPct: 0, IsLeader: false},
+	}
+	svgFewZero, err := Render(domain.SchoolFew, domain.PanelStack, zeroData)
+	if err != nil {
+		t.Fatalf("Render(few, stack) failed: %v", err)
+	}
+	if strings.Contains(svgFewZero, `height="6" rx="1.5" fill="#0284c7"`) {
+		t.Errorf("expected zero-count non-leader items not to receive leader accent bar fill #0284c7")
+	}
+}
+
