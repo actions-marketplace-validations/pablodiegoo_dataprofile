@@ -49,19 +49,54 @@ func TestRecruiterFirstGracefulDegradation(t *testing.T) {
 		t.Errorf("expected '4 Tracks' fallback KPI when TotalGold == 0")
 	}
 
-	// Case 2: 0 Hugging Face models/datasets/spaces -> should pivot to Engineering Velocity
+	// Case 2: 0 Hugging Face models/datasets/spaces -> should pivot to Engineering Velocity across all 4 Schools
 	data.Impact.HFModels = 0
 	data.Impact.HFDatasets = 0
 	data.Impact.HFSpaces = 0
-	svgImpact, err := Render(domain.SchoolTufte, domain.PanelImpact, data)
-	if err != nil {
-		t.Fatalf("Render failed: %v", err)
+	for _, school := range domain.AllSchools() {
+		svgImpact, err := Render(school, domain.PanelImpact, data)
+		if err != nil {
+			t.Fatalf("Render(%s, impact) failed: %v", school, err)
+		}
+		if strings.Contains(svgImpact, "0 / 0 / 0") {
+			t.Errorf("Render(%s, impact): expected Recruiter-First degradation to avoid rendering '0 / 0 / 0' when HF is unused", school)
+		}
+		if strings.Contains(svgImpact, "Hugging Face") {
+			t.Errorf("Render(%s, impact): expected Recruiter-First degradation to omit 'Hugging Face' section header when HF == 0", school)
+		}
+		for _, want := range []string{"Engineering Velocity", "Active Streak", "Net Code Volume", "YoY Momentum"} {
+			if !strings.Contains(svgImpact, want) {
+				t.Errorf("Render(%s, impact): expected %q in fallback velocity section when HF == 0", school, want)
+			}
+		}
 	}
-	if strings.Contains(svgImpact, "0 / 0 / 0") {
-		t.Errorf("expected Recruiter-First degradation to avoid rendering '0 / 0 / 0' when HF is unused")
+}
+
+func TestImpactPanelRendersDynamicWeeklyTrend(t *testing.T) {
+	manifest := config.DefaultManifest()
+	dataA := DefaultPortfolioData(manifest)
+	dataA.Impact.WeeklyTrend = []int{5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60}
+
+	dataB := DefaultPortfolioData(manifest)
+	// 52-week trend ending at minimum (0) instead of maximum
+	trend52 := make([]int, 52)
+	for i := range trend52 {
+		trend52[i] = 52 - i
 	}
-	if !strings.Contains(svgImpact, "Engineering Velocity") {
-		t.Errorf("expected 'Engineering Velocity' fallback section when HF == 0")
+	dataB.Impact.WeeklyTrend = trend52
+
+	for _, school := range []domain.School{domain.SchoolTufte, domain.SchoolFew, domain.SchoolCairo} {
+		svgA, err := Render(school, domain.PanelImpact, dataA)
+		if err != nil {
+			t.Fatalf("Render(%s, impact) dataA failed: %v", school, err)
+		}
+		svgB, err := Render(school, domain.PanelImpact, dataB)
+		if err != nil {
+			t.Fatalf("Render(%s, impact) dataB failed: %v", school, err)
+		}
+		if svgA == svgB {
+			t.Errorf("Render(%s, impact) produced identical SVG for different WeeklyTrend slices; expected dynamic polyline points", school)
+		}
 	}
 }
 

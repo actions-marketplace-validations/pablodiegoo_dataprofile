@@ -1,11 +1,21 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/pablodiegoo/dataprofile/internal/config"
+	"github.com/pablodiegoo/dataprofile/internal/domain"
+	"github.com/pablodiegoo/dataprofile/internal/render"
+	"github.com/pablodiegoo/dataprofile/internal/sources/github"
+	"github.com/pablodiegoo/dataprofile/internal/sources/huggingface"
 )
 
 func TestCLIGenerateAndValidate(t *testing.T) {
@@ -67,3 +77,85 @@ output:
 		t.Fatalf("validate with --output failed: %v\n%s", err, string(out))
 	}
 }
+
+func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {
+	ghMux := http.NewServeMux()
+	ghMux.HandleFunc("/users/adalovelace/repos", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+			{
+				"name":             "forecast-engine",
+				"full_name":        "adalovelace/forecast-engine",
+				"fork":             false,
+				"stargazers_count": 480,
+				"forks_count":      62,
+				"language":         "Python",
+			},
+		})
+	})
+	ghMux.HandleFunc("/repos/adalovelace/forecast-engine/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Python": 500000})
+	})
+	ghMux.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": map[string]interface{}{
+				"user": map[string]interface{}{
+					"contributionsCollection": map[string]interface{}{
+						"contributionCalendar": map[string]interface{}{
+							"totalContributions": 2150,
+							"weeks": []map[string]interface{}{
+								{"contributionDays": []map[string]int{{"contributionCount": 10}}},
+								{"contributionDays": []map[string]int{{"contributionCount": 25}}},
+								{"contributionDays": []map[string]int{{"contributionCount": 40}}},
+								{"contributionDays": []map[string]int{{"contributionCount": 55}}},
+							},
+						},
+					},
+				},
+			},
+		})
+	})
+	ghSrv := httptest.NewServer(ghMux)
+	defer ghSrv.Close()
+
+	// Hugging Face server returning zero artifacts
+	hfZeroSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer hfZeroSrv.Close()
+
+	manifest := config.DefaultManifest()
+	manifest.Sources.GitHub.Username = "adalovelace"
+	manifest.Sources.Kaggle.Enabled = false
+	manifest.Sources.HuggingFace.Enabled = true
+	manifest.Sources.HuggingFace.Username = "adalovelace"
+
+	ghClient := github.NewClient("ghp_live_token")
+	ghClient.BaseURL = ghSrv.URL
+
+	hfClient := huggingface.NewClient()
+	hfClient.BaseURL = hfZeroSrv.URL
+
+	data := render.DefaultPortfolioData(manifest)
+	collectLiveSources(context.Background(), manifest, &data, ghClient, nil, hfClient)
+
+	if data.Impact.AnnualContributions != 2150 {
+		t.Errorf("expected AnnualContributions=2150, got %d", data.Impact.AnnualContributions)
+	}
+	if len(data.Impact.WeeklyTrend) != 4 || data.Impact.WeeklyTrend[3] != 55 {
+		t.Errorf("expected WeeklyTrend=[10 25 40 55], got %v", data.Impact.WeeklyTrend)
+	}
+	if data.Impact.HFModels != 0 || data.Impact.HFDatasets != 0 || data.Impact.HFSpaces != 0 {
+		t.Errorf("expected zero HF counts when live HF API returns [], got %d/%d/%d",
+			data.Impact.HFModels, data.Impact.HFDatasets, data.Impact.HFSpaces)
+	}
+
+	svgImpact, err := render.Render(domain.SchoolTufte, domain.PanelImpact, data)
+	if err != nil {
+		t.Fatalf("Render impact failed: %v", err)
+	}
+	if !strings.Contains(svgImpact, "Engineering Velocity") || strings.Contains(svgImpact, "0 / 0 / 0") {
+		t.Errorf("expected live zero-HF profile to render Engineering Velocity fallback in impact.svg")
+	}
+}
+

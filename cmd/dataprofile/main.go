@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pablodiegoo/dataprofile/internal/config"
+	"github.com/pablodiegoo/dataprofile/internal/domain"
 	"github.com/pablodiegoo/dataprofile/internal/render"
 	"github.com/pablodiegoo/dataprofile/internal/sources/github"
 	"github.com/pablodiegoo/dataprofile/internal/sources/huggingface"
@@ -63,50 +64,10 @@ func runGenerate() {
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 		defer cancel()
 
-		// 1. Collect from GitHub if username configured
-		if manifest.Sources.GitHub.Username != "" {
-			ghClient := github.NewClient(secrets.GitHubToken)
-			if lp, sp, im, err := ghClient.Collect(ctx, manifest.Sources.GitHub, manifest.Normalization); err == nil && lp.TotalRepos > 0 {
-				if len(lp.Languages) > 0 {
-					data.Languages = lp
-				}
-				if len(sp.DataAnalytics) > 0 && sp.DataAnalytics[0].RepoCount > 0 {
-					data.Stack = sp
-				}
-				if im.PublicRepos > 0 {
-					data.Impact.PublicRepos = im.PublicRepos
-				}
-				if im.TotalStars > 0 {
-					data.Impact.TotalStars = im.TotalStars
-				}
-				if im.TotalForks > 0 {
-					data.Impact.TotalForks = im.TotalForks
-				}
-				if im.AnnualContributions > 0 {
-					data.Impact.AnnualContributions = im.AnnualContributions
-				}
-			}
-		}
-
-		// 2. Collect from Kaggle if enabled
-		if manifest.Sources.Kaggle.Enabled && manifest.Sources.Kaggle.Username != "" {
-			kgClient := kaggle.NewClient(secrets.KaggleUsername, secrets.KaggleKey)
-			if ks, err := kgClient.Collect(ctx, manifest.Sources.Kaggle); err == nil && ks.Available && ks.TotalMedals() > 0 {
-				data.Kaggle = ks
-			}
-		}
-
-		// 3. Collect from Hugging Face Hub if enabled
-		if manifest.Sources.HuggingFace.Enabled && manifest.Sources.HuggingFace.Username != "" {
-			hfClient := huggingface.NewClient()
-			if hf, err := hfClient.Collect(ctx, manifest.Sources.HuggingFace); err == nil && (hf.Models+hf.Datasets+hf.Spaces) > 0 {
-				data.Impact.HFModels = hf.Models
-				data.Impact.HFDatasets = hf.Datasets
-				data.Impact.HFSpaces = hf.Spaces
-				data.Impact.HFDownloads30d = hf.Downloads30d
-				data.Impact.HFLikes = hf.Likes
-			}
-		}
+		ghClient := github.NewClient(secrets.GitHubToken)
+		kgClient := kaggle.NewClient(secrets.KaggleUsername, secrets.KaggleKey)
+		hfClient := huggingface.NewClient()
+		collectLiveSources(ctx, manifest, &data, ghClient, kgClient, hfClient)
 	}
 
 	totalGenerated := 0
@@ -173,3 +134,64 @@ func runValidate() {
 	}
 	fmt.Printf("✓ Validated %d SVG files in %s/ (XML well-formed, high-contrast, zero meta-labels)\n", checked, manifest.Output.Directory)
 }
+
+func collectLiveSources(
+	ctx context.Context,
+	manifest domain.ProfileManifest,
+	data *domain.PortfolioData,
+	ghClient *github.Client,
+	kgClient *kaggle.Client,
+	hfClient *huggingface.Client,
+) {
+	// 1. Collect from GitHub if username configured
+	if manifest.Sources.GitHub.Username != "" && ghClient != nil {
+		if lp, sp, im, err := ghClient.Collect(ctx, manifest.Sources.GitHub, manifest.Normalization); err == nil && lp.TotalRepos > 0 {
+			if len(lp.Languages) > 0 {
+				data.Languages = lp
+			}
+			if len(sp.DataAnalytics) > 0 && sp.DataAnalytics[0].RepoCount > 0 {
+				data.Stack = sp
+			}
+			if im.PublicRepos > 0 {
+				data.Impact.PublicRepos = im.PublicRepos
+			}
+			if im.TotalStars > 0 {
+				data.Impact.TotalStars = im.TotalStars
+			}
+			if im.TotalForks > 0 {
+				data.Impact.TotalForks = im.TotalForks
+			}
+			if im.AnnualContributions > 0 {
+				data.Impact.AnnualContributions = im.AnnualContributions
+			}
+			if len(im.WeeklyTrend) > 0 {
+				data.Impact.WeeklyTrend = im.WeeklyTrend
+			}
+		}
+	}
+
+	// 2. Collect from Kaggle if enabled
+	if manifest.Sources.Kaggle.Enabled && manifest.Sources.Kaggle.Username != "" && kgClient != nil {
+		if ks, err := kgClient.Collect(ctx, manifest.Sources.Kaggle); err == nil && ks.Available && ks.TotalMedals() > 0 {
+			data.Kaggle = ks
+		}
+	}
+
+	// 3. Collect from Hugging Face Hub if enabled
+	if !manifest.Sources.HuggingFace.Enabled || manifest.Sources.HuggingFace.Username == "" {
+		data.Impact.HFModels = 0
+		data.Impact.HFDatasets = 0
+		data.Impact.HFSpaces = 0
+		data.Impact.HFDownloads30d = 0
+		data.Impact.HFLikes = 0
+	} else if hfClient != nil {
+		if hf, err := hfClient.Collect(ctx, manifest.Sources.HuggingFace); err == nil {
+			data.Impact.HFModels = hf.Models
+			data.Impact.HFDatasets = hf.Datasets
+			data.Impact.HFSpaces = hf.Spaces
+			data.Impact.HFDownloads30d = hf.Downloads30d
+			data.Impact.HFLikes = hf.Likes
+		}
+	}
+}
+

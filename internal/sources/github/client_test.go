@@ -157,3 +157,120 @@ func TestCollectRepositoriesLanguagesAndHygiene(t *testing.T) {
 		t.Errorf("expected positive engineering hygiene counts, got %+v", langPanel)
 	}
 }
+
+func TestCollectEnrichesGraphQLContributionsAnd52WeekTrend(t *testing.T) {
+	var gotAuthHeader string
+	var gotLoginVar string
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users/adalovelace/repos", func(w http.ResponseWriter, r *http.Request) {
+		repos := []restRepo{
+			{Name: "core-ml", FullName: "adalovelace/core-ml", Stargazers: 210, Forks: 34, Language: "Python"},
+			{Name: "data-lake", FullName: "adalovelace/data-lake", Stargazers: 90, Forks: 12, Language: "SQL"},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(repos)
+	})
+	mux.HandleFunc("/repos/adalovelace/core-ml/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Python": 120000})
+	})
+	mux.HandleFunc("/repos/adalovelace/data-lake/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"SQL": 80000})
+	})
+	mux.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST /graphql, got %s", r.Method)
+		}
+		gotAuthHeader = r.Header.Get("Authorization")
+		var reqBody struct {
+			Query     string            `json:"query"`
+			Variables map[string]string `json:"variables"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&reqBody)
+		gotLoginVar = reqBody.Variables["login"]
+
+		type day struct {
+			ContributionCount int `json:"contributionCount"`
+		}
+		type week struct {
+			ContributionDays []day `json:"contributionDays"`
+		}
+		weeks := make([]week, 52)
+		total := 0
+		for i := 0; i < 52; i++ {
+			c1 := (i % 7) + 2
+			c2 := (i % 5) + 1
+			weeks[i] = week{
+				ContributionDays: []day{{ContributionCount: c1}, {ContributionCount: c2}},
+			}
+			total += c1 + c2
+		}
+
+		resp := map[string]interface{}{
+			"data": map[string]interface{}{
+				"user": map[string]interface{}{
+					"contributionsCollection": map[string]interface{}{
+						"contributionCalendar": map[string]interface{}{
+							"totalContributions": total,
+							"weeks":              weeks,
+						},
+					},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := NewClient("ghp_secret_token")
+	client.BaseURL = srv.URL
+
+	_, _, impact, err := client.Collect(
+		context.Background(),
+		domain.GitHubSourceConfig{Username: "adalovelace"},
+		domain.NormalizationConfig{DeflateNotebooks: true},
+	)
+	if err != nil {
+		t.Fatalf("Collect failed: %v", err)
+	}
+
+	if gotAuthHeader != "Bearer ghp_secret_token" {
+		t.Errorf("expected Authorization header 'Bearer ghp_secret_token', got %q", gotAuthHeader)
+	}
+	if gotLoginVar != "adalovelace" {
+		t.Errorf("expected GraphQL login variable 'adalovelace', got %q", gotLoginVar)
+	}
+	if impact.PublicRepos != 2 || impact.TotalStars != 300 || impact.TotalForks != 46 {
+		t.Errorf("expected PublicRepos=2 TotalStars=300 TotalForks=46, got %+v", impact)
+	}
+	if len(impact.WeeklyTrend) != 52 {
+		t.Fatalf("expected 52 weekly contribution points, got %d", len(impact.WeeklyTrend))
+	}
+	if impact.WeeklyTrend[0] != 3 || impact.WeeklyTrend[1] != 5 {
+		t.Errorf("unexpected weekly sums: week[0]=%d week[1]=%d", impact.WeeklyTrend[0], impact.WeeklyTrend[1])
+	}
+	expectedTotal := 0
+	for _, w := range impact.WeeklyTrend {
+		expectedTotal += w
+	}
+	if impact.AnnualContributions != expectedTotal {
+		t.Errorf("expected AnnualContributions=%d, got %d", expectedTotal, impact.AnnualContributions)
+	}
+
+	// Verify non-200 GraphQL status is rejected even if body contains JSON
+	errSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"data":{"user":{"contributionsCollection":{"contributionCalendar":{"totalContributions":999}}}}}`))
+	}))
+	defer errSrv.Close()
+
+	errClient := NewClient("bad_token")
+	errClient.BaseURL = errSrv.URL
+	if _, _, err := errClient.fetchGraphQLContributions(context.Background(), "adalovelace"); err == nil {
+		t.Errorf("expected fetchGraphQLContributions to fail on HTTP 401 status")
+	}
+}
+

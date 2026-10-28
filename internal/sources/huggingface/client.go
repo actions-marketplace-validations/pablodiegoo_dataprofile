@@ -48,8 +48,8 @@ func (c *Client) Collect(ctx context.Context, cfg domain.HuggingFaceSourceConfig
 		return out, nil
 	}
 
-	models, err := c.fetchEndpoint(ctx, fmt.Sprintf("%s/api/models?author=%s", c.BaseURL, username))
-	if err == nil {
+	models, modelsErr := c.fetchEndpoint(ctx, fmt.Sprintf("%s/api/models?author=%s", c.BaseURL, username))
+	if modelsErr == nil {
 		out.Models = len(models)
 		for _, m := range models {
 			out.Downloads30d += m.Downloads
@@ -57,8 +57,8 @@ func (c *Client) Collect(ctx context.Context, cfg domain.HuggingFaceSourceConfig
 		}
 	}
 
-	datasets, err := c.fetchEndpoint(ctx, fmt.Sprintf("%s/api/datasets?author=%s", c.BaseURL, username))
-	if err == nil {
+	datasets, datasetsErr := c.fetchEndpoint(ctx, fmt.Sprintf("%s/api/datasets?author=%s", c.BaseURL, username))
+	if datasetsErr == nil {
 		out.Datasets = len(datasets)
 		for _, d := range datasets {
 			out.Downloads30d += d.Downloads
@@ -66,12 +66,16 @@ func (c *Client) Collect(ctx context.Context, cfg domain.HuggingFaceSourceConfig
 		}
 	}
 
-	spaces, err := c.fetchEndpoint(ctx, fmt.Sprintf("%s/api/spaces?author=%s", c.BaseURL, username))
-	if err == nil {
+	spaces, spacesErr := c.fetchEndpoint(ctx, fmt.Sprintf("%s/api/spaces?author=%s", c.BaseURL, username))
+	if spacesErr == nil {
 		out.Spaces = len(spaces)
 		for _, s := range spaces {
 			out.Likes += s.Likes
 		}
+	}
+
+	if modelsErr != nil && datasetsErr != nil && spacesErr != nil {
+		return out, modelsErr
 	}
 
 	return out, nil

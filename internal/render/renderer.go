@@ -1120,6 +1120,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 
 	switch school {
 	case domain.SchoolTufte:
+		pts, lastX, lastY := buildTrendPolyline(im.WeeklyTrend, 240, 1, 176, 16)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
@@ -1138,8 +1139,8 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     <text x="0" y="16" class="num big-num">%s</text>
     <text x="58" y="16" class="serif lbl">%s (+%.0f%% YoY)</text>
     <rect x="240" y="3" width="176" height="14" fill="#64748b" fill-opacity="0.12"/>
-    <polyline fill="none" stroke="#0284c7" stroke-width="1.3" points="240,17 254,14 268,16 282,11 296,13 310,8 324,10 338,6 352,9 366,4 380,7 396,3 416,1"/>
-    <circle cx="416" cy="1" r="2.5" fill="#059669"/>
+    <polyline fill="none" stroke="#0284c7" stroke-width="1.3" points="%s"/>
+    <circle cx="%d" cy="%d" r="2.5" fill="#059669"/>
   </g>
   <line x1="12" y1="72" x2="428" y2="72" stroke="#64748b" stroke-opacity="0.35" stroke-width="0.6"/>
   <g transform="translate(12, 90)">
@@ -1160,6 +1161,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 </svg>`,
 			esc(l.ImpactTitle),
 			formatInt(im.AnnualContributions), esc(l.ImpactContribs), im.YoYGrowthPct,
+			pts, lastX, lastY,
 			esc(l.ImpactGitHubSec),
 			esc(l.ImpactStars), formatInt(im.TotalStars),
 			esc(l.ImpactRepos), im.PublicRepos,
@@ -1172,6 +1174,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 			esc(l.ImpactStreak), im.ActiveStreakDays)
 
 	case domain.SchoolFew:
+		pts, _, _ := buildTrendPolyline(im.WeeklyTrend, 0, 88, 194, 27)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -1212,7 +1215,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     <text x="0" y="24" class="sans lbl">%s</text><text x="194" y="24" text-anchor="end" class="mono val">%s</text>
     <text x="0" y="48" class="sans lbl">%s</text><text x="194" y="48" text-anchor="end" class="mono val" fill="#0284c7">%s</text>
     <text x="0" y="72" class="sans lbl">%s</text><text x="194" y="72" text-anchor="end" class="mono val">%s</text>
-    <polyline fill="none" stroke="#0284c7" stroke-width="2" points="0,115 24,110 48,112 72,104 96,106 120,98 144,101 168,93 194,88"/>
+    <polyline fill="none" stroke="#0284c7" stroke-width="2" points="%s"/>
   </g>
 </svg>`,
 			esc(l.ImpactTitle), im.YoYGrowthPct,
@@ -1227,9 +1230,11 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 			esc(rightSecTitle),
 			esc(rRow1Lbl), esc(rRow1Val),
 			esc(rRow2Lbl), esc(rRow2Val),
-			esc(rRow3Lbl), esc(rRow3Val))
+			esc(rRow3Lbl), esc(rRow3Val),
+			pts)
 
 	case domain.SchoolCairo:
+		pts, lastX, lastY := buildTrendPolyline(im.WeeklyTrend, 0, 2, 416, 32)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -1261,8 +1266,8 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     <text x="0" y="82" class="sans lbl">%s</text><text x="196" y="82" text-anchor="end" class="mono val">%d days</text>
   </g>
   <g transform="translate(12, 166)">
-    <polyline fill="none" stroke="#0284c7" stroke-width="2" points="0,34 38,30 76,32 114,24 152,26 190,18 228,21 266,12 304,15 342,7 380,9 416,2"/>
-    <circle cx="416" cy="2" r="3.5" fill="#059669"/>
+    <polyline fill="none" stroke="#0284c7" stroke-width="2" points="%s"/>
+    <circle cx="%d" cy="%d" r="3.5" fill="#059669"/>
     <text x="0" y="50" class="serif callout">↳ Peak velocity achieved in Q4 with %d-day active engineering streak.</text>
   </g>
 </svg>`,
@@ -1277,6 +1282,7 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 			esc(rRow2Lbl), esc(rRow2Val),
 			esc(rRow3Lbl), esc(rRow3Val),
 			esc(l.ImpactStreak), im.ActiveStreakDays,
+			pts, lastX, lastY,
 			im.ActiveStreakDays)
 
 	default: // SchoolHolmes
@@ -1433,6 +1439,36 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 		esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
 		esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
 		esc(l.ImpactDownloads), formatCompact(im.HFDownloads30d))
+}
+
+func buildTrendPolyline(weekly []int, x0, y0, width, height int) (string, int, int) {
+	if len(weekly) < 2 {
+		weekly = []int{18, 22, 19, 25, 28, 24, 31, 35, 29, 38, 42, 46}
+	}
+	minVal, maxVal := weekly[0], weekly[0]
+	for _, v := range weekly[1:] {
+		if v < minVal {
+			minVal = v
+		}
+		if v > maxVal {
+			maxVal = v
+		}
+	}
+	span := maxVal - minVal
+	if span <= 0 {
+		span = 1
+	}
+
+	pts := make([]string, len(weekly))
+	lastX, lastY := x0, y0
+	n := len(weekly) - 1
+	for i, v := range weekly {
+		x := x0 + (i*width)/n
+		y := (y0 + height) - ((v-minVal)*height)/span
+		pts[i] = fmt.Sprintf("%d,%d", x, y)
+		lastX, lastY = x, y
+	}
+	return strings.Join(pts, " "), lastX, lastY
 }
 
 func max(a, b int) int {

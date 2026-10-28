@@ -238,6 +238,10 @@ func (c *Client) fetchGraphQLContributions(ctx context.Context, username string)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return 0, nil, fmt.Errorf("github graphql status %d", resp.StatusCode)
+	}
+
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return 0, nil, err
