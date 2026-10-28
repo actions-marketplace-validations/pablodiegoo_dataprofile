@@ -114,7 +114,9 @@ High-impact magazine header ribbons, **Pictorial Unit Blocks** (1 block = 10% co
 `dataprofile` is **100% repository-agnostic**. You never need to edit Go source code to use it for your own profile:
 
 ### Step 1: Fork this repository & edit `profile.yaml`
-Open [`profile.yaml`](profile.yaml) in the root of your fork and set your public usernames and preferred locale (`"en"` or `"pt-BR"`):
+1. Click **Fork** at the top-right of this repository.
+2. In your fork, open the **Actions** tab and click **"I understand my workflows, go ahead and enable them"** (GitHub disables scheduled workflows on fresh forks by default).
+3. Edit [`profile.yaml`](profile.yaml) in the root of your fork with your public usernames and preferred locale (`"en"` or `"pt-BR"`):
 
 ```yaml
 subject:
@@ -136,10 +138,12 @@ sources:
     enabled: true
 ```
 
+Committing your change to `profile.yaml` on `main` (or clicking **Run workflow** in **Actions → Generate DataProfile SVGs**) immediately builds, validates, and publishes all 20 SVGs to the orphan `output` branch of your fork using the built-in `GITHUB_TOKEN` (`permissions: contents: write`) — **no manual secrets required**.
+
 ### Step 2: Configure Optional GitHub Secrets
-In your forked repository, go to **Settings → Secrets and variables → Actions** and add (optional, for private repo counts, traffic views, and Kaggle API v1 enrichment):
+Everything works out of the box with zero secrets. However, if you want private repository counts, 14-day traffic views, or Kaggle REST API v1 enrichment, go to **Settings → Secrets and variables → Actions** in your fork and add:
 - `ACCESS_TOKEN`: A GitHub Personal Access Token (`read:user`, `repo`). If omitted, the workflow automatically falls back to the built-in `GITHUB_TOKEN`.
-- `KAGGLE_USERNAME` & `KAGGLE_KEY`: Optional Kaggle API credentials. Even without them, the `hybrid` collector extracts your public Kaggle tiers, ranks, and medals via headless Chrome on the GitHub Actions runner.
+- `KAGGLE_USERNAME` & `KAGGLE_KEY`: Optional Kaggle API credentials (supports both `KGAT_...` Bearer tokens from `~/.kaggle/access_token` and classic `kaggle.json` keys). Even without them, the `hybrid` collector extracts your public Kaggle tiers, ranks, and medals via headless Chrome on the GitHub Actions runner.
 
 > 🔒 **Security Guarantee:** Never commit tokens to `profile.yaml`. Local `.env` files are strictly gitignored via [`.gitignore`](.gitignore); see [`.env.example`](.env.example) for local CLI testing.
 

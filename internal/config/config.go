@@ -52,10 +52,15 @@ func LoadSecrets(dotenvPath string) Secrets {
 		ghToken = get("GITHUB_TOKEN")
 	}
 
+	kgKey := get("KAGGLE_KEY")
+	if kgKey == "" {
+		kgKey = get("KAGGLE_API_TOKEN")
+	}
+
 	return Secrets{
 		GitHubToken:    ghToken,
 		KaggleUsername: get("KAGGLE_USERNAME"),
-		KaggleKey:      get("KAGGLE_KEY"),
+		KaggleKey:      kgKey,
 	}
 }
 

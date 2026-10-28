@@ -60,7 +60,7 @@ func (c *Client) Collect(ctx context.Context, cfg domain.KaggleSourceConfig) (do
 		return ParseKaggleAchievementsText(domText, cfg.Username), nil
 
 	case domain.KaggleModeAPI:
-		if c.APIUsername == "" || c.APIKey == "" {
+		if c.APIKey == "" || (!strings.HasPrefix(c.APIKey, "KGAT_") && c.APIUsername == "") {
 			return domain.KaggleStanding{Available: false, Username: cfg.Username}, fmt.Errorf("kaggle REST API v1 mode requires KAGGLE_USERNAME and KAGGLE_KEY")
 		}
 		return c.fetchAPIStanding(ctx, cfg.Username)
@@ -72,7 +72,7 @@ func (c *Client) Collect(ctx context.Context, cfg domain.KaggleSourceConfig) (do
 			domStanding = ParseKaggleAchievementsText(domText, cfg.Username)
 		}
 
-		if c.APIUsername != "" && c.APIKey != "" {
+		if c.APIKey != "" && (strings.HasPrefix(c.APIKey, "KGAT_") || c.APIUsername != "") {
 			apiStanding, apiErr := c.fetchAPIStanding(ctx, cfg.Username)
 			if apiErr == nil {
 				if domErr != nil {
@@ -151,8 +151,12 @@ func (c *Client) fetchAPIArtifacts(ctx context.Context, endpoint, username strin
 	if err != nil {
 		return nil, err
 	}
-	if c.APIUsername != "" && c.APIKey != "" {
-		req.SetBasicAuth(c.APIUsername, c.APIKey)
+	if c.APIKey != "" {
+		if strings.HasPrefix(c.APIKey, "KGAT_") || c.APIUsername == "" {
+			req.Header.Set("Authorization", "Bearer "+c.APIKey)
+		} else {
+			req.SetBasicAuth(c.APIUsername, c.APIKey)
+		}
 	}
 	req.Header.Set("Accept", "application/json")
 
