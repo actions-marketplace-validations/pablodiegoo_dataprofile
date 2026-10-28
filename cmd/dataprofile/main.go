@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/pablodiegoo/dataprofile/internal/config"
@@ -139,14 +138,21 @@ func runGenerate() {
 }
 
 func runValidate() {
-	var configPath string
+	var (
+		configPath string
+		outputDir  string
+	)
 	flag.StringVar(&configPath, "config", "profile.yaml", "Path to declarative profile.yaml manifest")
+	flag.StringVar(&outputDir, "output", "", "Override output directory from profile.yaml")
 	flag.Parse()
 
 	manifest, err := config.LoadManifest(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "validation failed loading %s: %v\n", configPath, err)
 		os.Exit(1)
+	}
+	if outputDir != "" {
+		manifest.Output.Directory = outputDir
 	}
 
 	checked := 0
@@ -161,12 +167,6 @@ func runValidate() {
 			if err := render.ValidateSVG(string(raw)); err != nil {
 				fmt.Fprintf(os.Stderr, "invalid SVG %s: %v\n", p, err)
 				os.Exit(1)
-			}
-			for _, forbidden := range []string{"Edward Tufte", "Stephen Few", "Alberto Cairo", "Nigel Holmes"} {
-				if strings.Contains(string(raw), forbidden) {
-					fmt.Fprintf(os.Stderr, "SVG %s contains forbidden meta-label %q\n", p, forbidden)
-					os.Exit(1)
-				}
 			}
 			checked++
 		}

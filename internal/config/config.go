@@ -25,14 +25,15 @@ func LoadSecrets(dotenvPath string) Secrets {
 			defer f.Close()
 			scanner := bufio.NewScanner(f)
 			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
+				line := strings.TrimSpace(stripYAMLComment(scanner.Text()))
 				if line == "" || strings.HasPrefix(line, "#") {
 					continue
 				}
+				line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
 				parts := strings.SplitN(line, "=", 2)
 				if len(parts) == 2 {
 					k := strings.TrimSpace(parts[0])
-					v := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+					v := cleanYAMLScalar(parts[1])
 					envMap[k] = v
 				}
 			}
@@ -156,7 +157,8 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 			continue
 		}
 		key := strings.TrimSpace(parts[0])
-		val := cleanYAMLScalar(strings.TrimSpace(parts[1]))
+		rawVal := strings.TrimSpace(parts[1])
+		val := cleanYAMLScalar(rawVal)
 
 		if indent == 0 {
 			section = key
@@ -166,6 +168,24 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 		}
 
 		if indent == 2 {
+			if items, ok := parseInlineYAMLArray(rawVal); ok && section == "output" {
+				listKey = ""
+				switch key {
+				case "schools":
+					manifest.Output.Schools = nil
+					schoolsSet = true
+					for _, it := range items {
+						manifest.Output.Schools = append(manifest.Output.Schools, domain.School(it))
+					}
+				case "panels":
+					manifest.Output.Panels = nil
+					panelsSet = true
+					for _, it := range items {
+						manifest.Output.Panels = append(manifest.Output.Panels, domain.Panel(it))
+					}
+				}
+				continue
+			}
 			if val == "" {
 				if section == "sources" {
 					subsection = key
@@ -202,11 +222,19 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 		}
 
 		if indent >= 4 && section == "sources" {
-			if val == "" || val == "[]" {
-				listKey = key
-				if val == "[]" && subsection == "github" && key == "exclude_repos" {
-					manifest.Sources.GitHub.ExcludeRepos = nil
+			if items, ok := parseInlineYAMLArray(rawVal); ok && subsection == "github" {
+				listKey = ""
+				switch key {
+				case "exclude_repos":
+					manifest.Sources.GitHub.ExcludeRepos = items
+				case "exclude_langs":
+					manifest.Sources.GitHub.ExcludeLangs = items
+					langsSet = true
 				}
+				continue
+			}
+			if val == "" {
+				listKey = key
 				continue
 			}
 			switch subsection {
@@ -273,6 +301,27 @@ func cleanYAMLScalar(s string) string {
 	}
 	return s
 }
+
+func parseInlineYAMLArray(s string) ([]string, bool) {
+	s = strings.TrimSpace(s)
+	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
+		return nil, false
+	}
+	inner := strings.TrimSpace(s[1 : len(s)-1])
+	if inner == "" {
+		return nil, true
+	}
+	parts := strings.Split(inner, ",")
+	var out []string
+	for _, p := range parts {
+		v := cleanYAMLScalar(p)
+		if v != "" {
+			out = append(out, v)
+		}
+	}
+	return out, true
+}
+
 
 func parseBool(s string, fallback bool) bool {
 	switch strings.ToLower(strings.TrimSpace(s)) {

@@ -41,6 +41,30 @@ func TestDeflateNotebookJSON(t *testing.T) {
 	if stats.StrippedBytes < 10000 {
 		t.Errorf("expected >10KB stripped base64 bloat, got %d", stats.StrippedBytes)
 	}
+
+	// R notebook identified via kernelspec.name = "ir" and single-string cell source
+	rNotebook := `{
+		"metadata": {
+			"kernelspec": {"name": "ir"}
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": "library(tidyverse)\ndf <- read_csv('data.csv')\n",
+				"outputs": []
+			}
+		]
+	}`
+	rStats, err := DeflateNotebookJSON([]byte(rNotebook))
+	if err != nil {
+		t.Fatalf("DeflateNotebookJSON (R) returned error: %v", err)
+	}
+	if rStats.Language != "R" {
+		t.Errorf("expected language R for ir kernelspec, got %q", rStats.Language)
+	}
+	if rStats.CodeBytes != int64(len("library(tidyverse)\ndf <- read_csv('data.csv')\n")) {
+		t.Errorf("unexpected R code bytes: %d", rStats.CodeBytes)
+	}
 }
 
 func TestNormalizeLanguageMapDeflatesNotebooks(t *testing.T) {

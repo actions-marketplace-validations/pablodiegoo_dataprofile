@@ -78,3 +78,33 @@ func TestBilingualPtBRRendering(t *testing.T) {
 		t.Errorf("expected Portuguese title in pt-BR locale, got SVG without it")
 	}
 }
+
+func TestValidateSVGInvariants(t *testing.T) {
+	validSVG := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text fill="#526071">Data</text></svg>`
+	if err := ValidateSVG(validSVG); err != nil {
+		t.Fatalf("expected valid SVG to pass ValidateSVG, got %v", err)
+	}
+
+	// 1. Malformed XML must fail
+	malformedSVG := `<svg xmlns="http://www.w3.org/2000/svg"><text fill="#526071">Unclosed</svg>`
+	if err := ValidateSVG(malformedSVG); err == nil {
+		t.Errorf("expected malformed XML to fail ValidateSVG")
+	}
+
+	// 2. Forbidden low-contrast pale hex codes must fail
+	for _, pale := range []string{"#e6edf3", "#e2e8f0", "#f8fafc", "#c9d1d9", "#cbd5e1", "#8b949e", "#94a3b8"} {
+		paleSVG := `<svg xmlns="http://www.w3.org/2000/svg"><text fill="` + pale + `">Washed Out</text></svg>`
+		if err := ValidateSVG(paleSVG); err == nil {
+			t.Errorf("expected pale color %s to fail ValidateSVG", pale)
+		}
+	}
+
+	// 3. Forbidden School meta-labels must fail
+	for _, meta := range []string{"Edward Tufte", "Stephen Few", "Alberto Cairo", "Nigel Holmes"} {
+		metaSVG := `<svg xmlns="http://www.w3.org/2000/svg"><text fill="#526071">Inspired by ` + meta + `</text></svg>`
+		if err := ValidateSVG(metaSVG); err == nil {
+			t.Errorf("expected forbidden School meta-label %q to fail ValidateSVG", meta)
+		}
+	}
+}
+

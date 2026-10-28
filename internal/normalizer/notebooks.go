@@ -32,6 +32,7 @@ type ipynbCell struct {
 
 type ipynbMetadata struct {
 	KernelSpec struct {
+		Name     string `json:"name"`
 		Language string `json:"language"`
 	} `json:"kernelspec"`
 	LanguageInfo struct {
@@ -55,6 +56,9 @@ func DeflateNotebookJSON(raw []byte) (NotebookStats, error) {
 	lang := strings.TrimSpace(root.Metadata.LanguageInfo.Name)
 	if lang == "" {
 		lang = strings.TrimSpace(root.Metadata.KernelSpec.Language)
+	}
+	if lang == "" {
+		lang = strings.TrimSpace(root.Metadata.KernelSpec.Name)
 	}
 	if lang != "" {
 		stats.Language = canonicalLanguageName(lang)

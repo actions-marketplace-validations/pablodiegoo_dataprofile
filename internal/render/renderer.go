@@ -272,7 +272,8 @@ func Render(school domain.School, panel domain.Panel, data domain.PortfolioData)
 	return svg, nil
 }
 
-// ValidateSVG checks that the SVG string is well-formed XML and contains no low-contrast washed-out pale greys.
+// ValidateSVG checks that the SVG string is well-formed XML, contains no low-contrast washed-out pale greys,
+// and contains zero School meta-labels inside the artwork.
 func ValidateSVG(svg string) error {
 	decoder := xml.NewDecoder(strings.NewReader(svg))
 	for {
@@ -289,6 +290,12 @@ func ValidateSVG(svg string) error {
 	for _, pale := range forbiddenPaleGreys {
 		if strings.Contains(lower, pale) {
 			return fmt.Errorf("SVG contains low-contrast pale color %s that is illegible on white backgrounds", pale)
+		}
+	}
+	forbiddenMetaLabels := []string{"Edward Tufte", "Stephen Few", "Alberto Cairo", "Nigel Holmes"}
+	for _, meta := range forbiddenMetaLabels {
+		if strings.Contains(svg, meta) {
+			return fmt.Errorf("SVG contains forbidden School meta-label %q", meta)
 		}
 	}
 	return nil

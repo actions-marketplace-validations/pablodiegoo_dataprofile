@@ -102,7 +102,7 @@ func (c *Client) Collect(ctx context.Context, cfg domain.GitHubSourceConfig, nor
 				for k, v := range lmap {
 					rawLangs[k] += v
 				}
-				if lmap["Jupyter Notebook"] > 0 || lmap["RMarkdown"] > 0 {
+				if lmap["Jupyter Notebook"] > 0 || lmap["RMarkdown"] > 0 || lmap["Quarto"] > 0 {
 					langPanel.ExplorationFiles++
 				} else {
 					langPanel.ProductionFiles++
