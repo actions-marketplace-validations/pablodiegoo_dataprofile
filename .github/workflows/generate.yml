@@ -51,7 +51,10 @@ jobs:
           git checkout --orphan output-temp
           git rm -rf . >/dev/null 2>&1 || true
           cp -r "$TMP_DIR/generated" ./generated
-          git add generated
-          git commit -m "chore(svg): update generated DataProfile panels"
+          if [ -f ./generated/README.md ]; then
+            cp ./generated/README.md ./README.md
+          fi
+          git add generated README.md
+          git commit -m "chore(svg): update generated DataProfile panels and output showcase README"
           git branch -M output-temp output
           git push -f origin output

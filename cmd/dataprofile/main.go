@@ -94,8 +94,14 @@ func runGenerate() {
 		}
 	}
 
-	fmt.Printf("✓ Generated %d SVG panels across %d schools in %s/\n",
-		totalGenerated, len(manifest.Output.Schools), manifest.Output.Directory)
+	readmePath := filepath.Join(manifest.Output.Directory, "README.md")
+	if err := os.WriteFile(readmePath, []byte(render.RenderOutputREADME(manifest)), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "error writing %s: %v\n", readmePath, err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Generated %d SVG panels across %d schools in %s/ (with %s)\n",
+		totalGenerated, len(manifest.Output.Schools), manifest.Output.Directory, readmePath)
 }
 
 func runValidate() {

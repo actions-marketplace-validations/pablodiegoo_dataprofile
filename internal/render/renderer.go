@@ -2039,3 +2039,219 @@ func maxFloat(a, b float64) float64 {
 	}
 	return b
 }
+
+// RenderOutputREADME generates a bilingual (en / pt-BR) showcase README for the orphan output branch,
+// presenting all 4 visualization Schools, explaining their visual differences, and providing ready-to-copy
+// Markdown/HTML embed snippets interpolated with the Subject's GitHub username.
+func RenderOutputREADME(manifest domain.ProfileManifest) string {
+	user := strings.TrimSpace(manifest.Sources.GitHub.Username)
+	if user == "" {
+		user = "your-username"
+	}
+	repoSlug := user + "/dataprofile"
+	name := strings.TrimSpace(manifest.Subject.Name)
+	if name == "" {
+		name = user
+	}
+	isPt := strings.EqualFold(strings.TrimSpace(manifest.Subject.Locale), "pt-BR") ||
+		strings.EqualFold(strings.TrimSpace(manifest.Subject.Locale), "pt")
+
+	var b bytes.Buffer
+	if isPt {
+		fmt.Fprintf(&b, `<div align="center">
+
+# 📊 DataProfile — Catálogo de SVGs (%s)
+
+Painéis de telemetria de portfólio gerados automaticamente na branch `+"`output`"+`.
+Todos os SVGs utilizam a **Paleta Universal Dual-Surface** (fundo transparente `+"`fill=\"none\"`"+` e contraste WCAG AA em **GitHub Light `+"`#ffffff`"+`** e **GitHub Dark `+"`#0d1117`"+`**) e **zero meta-labels** com o nome do autor/escola dentro da arte.
+
+</div>
+
+---
+
+## 🧭 Diferenças entre as 4 Escolas de Visualização (`+"`School`"+`)
+
+| Escola (`+"`generated/<school>/`"+`) | Referência Teórica | Gramática Visual & Quando Escolher |
+| :--- | :--- | :--- |
+| **1. `+"`tufte`"+`** | **Edward Tufte** (*The Visual Display of Quantitative Information*, 1983) | **Máxima razão tinta-dados (*data-ink ratio*).** Sem bordas externas ("sem gaiolas"), tipografia clássica serifada com numerais tabulares, *Dot-Dash Plots*, *Supertables* e *Sparklines* com banda interquartil. Ideal para perfis acadêmicos, pesquisa quantitativa e engenharia rigorosa. |
+| **2. `+"`few`"+`** | **Stephen Few** (*Information Dashboard Design*, 2006) | **Telemetria executiva de leitura em 3 segundos.** Faixas superiores de KPIs, *Bullet Graphs* (faixas qualitativas de fundo + barra de desempenho + marcador vertical de meta) e cor pré-atentiva restrita aos líderes. Ideal para leitura rápida por recrutadores técnicos e gestores. |
+| **3. `+"`cairo`"+`** | **Alberto Cairo** (*The Functional Art*, 2012; *The Truthful Art*, 2016) | **Jornalismo de dados editorial.** Filete superior carmesim (`+"`#e11d48`"+`), manchete serifada orientada a tese, *Waffle Charts 10×5*, *Lollipop Charts* com linha tracejada de benchmark global e camada de anotação (`+"`↳`"+`). Ideal para contar uma história analítica contextualizada. |
+| **4. `+"`holmes`"+`** | **Nigel Holmes** (*Designer's Guide to Creating Charts*, 1984) & ISOTYPE | **Storytelling visual e infografia de impacto.** Faixas de cabeçalho estilo revista, blocos pictóricos (*Isotypes*), pódio em degraus rumo a Kaggle Grandmaster com troféu (`+"`🏆`"+`) e badges visuais de engenharia. Ideal para destaque visual imediato. |
+
+---
+`, name)
+	} else {
+		fmt.Fprintf(&b, `<div align="center">
+
+# 📊 DataProfile — Generated SVG Catalog (%s)
+
+Automated portfolio telemetry panels published to the orphan `+"`output`"+` branch.
+Every SVG uses the **Universal Dual-Surface Palette** (transparent canvas `+"`fill=\"none\"`"+` with WCAG AA legibility on both **GitHub Light `+"`#ffffff`"+`** and **GitHub Dark `+"`#0d1117`"+`**) and contains **zero meta-labels** mentioning the school or author inside the artwork.
+
+</div>
+
+---
+
+## 🧭 Differences Across the 4 Visualization Schools (`+"`School`"+`)
+
+| School (`+"`generated/<school>/`"+`) | Theoretical Foundation | Visual Grammar & When to Choose |
+| :--- | :--- | :--- |
+| **1. `+"`tufte`"+`** | **Edward Tufte** (*The Visual Display of Quantitative Information*, 1983) | **Maximum data-ink ratio.** Zero outer borders ("no cages"), classical serif typography with tabular numerals, *Dot-Dash Plots*, *Supertables*, and inline *Sparklines* with interquartile bands. Ideal for quantitative researchers, academics, and systems-minded engineers. |
+| **2. `+"`few`"+`** | **Stephen Few** (*Information Dashboard Design*, 2006) | **3-second executive telemetry.** Top KPI strips, *Stephen Few Bullet Graphs* (qualitative background range bands + inner performance bar + vertical target threshold marker), and pre-attentive color strictly on category leaders. Ideal for fast scanning by technical recruiters and hiring managers. |
+| **3. `+"`cairo`"+`** | **Alberto Cairo** (*The Functional Art*, 2012; *The Truthful Art*, 2016) | **Editorial data journalism.** Top crimson rule (`+"`#e11d48`"+`), thesis-driven serif headline + lead deck, *10×5 Waffle Charts*, *Lollipop Charts* with dashed global benchmark lines, and explanatory callouts (`+"`↳`"+`). Ideal for narrative, context-rich portfolios. |
+| **4. `+"`holmes`"+`** | **Nigel Holmes** (*Designer's Guide to Creating Charts*, 1984) & ISOTYPE | **High-impact pictorial storytelling.** Bold magazine header ribbons, *Pictorial Unit Blocks (Isotypes)*, stepped podium climb toward Kaggle Grandmaster with trophy iconography (`+"`🏆`"+`), and visual engineering badges. Ideal for memorable visual presence. |
+
+---
+`, name)
+	}
+
+	type schoolDoc struct {
+		code    string
+		titleEN string
+		descEN  string
+		titlePT string
+		descPT  string
+	}
+
+	schools := []schoolDoc{
+		{
+			code:    "tufte",
+			titleEN: "I. `tufte` — Analytical Minimalism & Maximum Data-Ink Ratio (Edward Tufte)",
+			descEN:  "Removes all decorative boxes and grid cages so every drop of ink encodes data: **Dot-Dash Plots** (`languages`), **3-Pillar Dot Plots** (`stack`), **Tabular Supertables** (`kaggle`), and **Inline Sparklines** (`impact`).",
+			titlePT: "I. `tufte` — Minimalismo Analítico & Razão Tinta-Dados Máxima (Edward Tufte)",
+			descPT:  "Elimina caixas e grades decorativas para que cada traço represente dados: **Dot-Dash Plots** (`languages`), **Dot Plots em 3 Pilares** (`stack`), **Supertables Tabulares** (`kaggle`) e **Sparklines Inline** (`impact`).",
+		},
+		{
+			code:    "few",
+			titleEN: "II. `few` — Executive Dashboard Telemetry & Bullet Graphs (Stephen Few)",
+			descEN:  "Designed for 3-second executive scanning: top **KPI Telemetry Strips**, **Stephen Few Bullet Graphs** comparing current standing against vertical target thresholds (`│`), and pre-attentive color highlighting the #1 tool in each stack pillar.",
+			titlePT: "II. `few` — Telemetria Executiva & Bullet Graphs (Stephen Few)",
+			descPT:  "Projetado para leitura executiva em 3 segundos: **Faixas Superiores de KPIs**, **Bullet Graphs de Stephen Few** comparando o desempenho atual contra marcadores verticais de meta (`│`) e destaque pré-atentivo apenas nos líderes de cada pilar.",
+		},
+		{
+			code:    "cairo",
+			titleEN: "III. `cairo` — Functional Art & Editorial Data Journalism (Alberto Cairo)",
+			descEN:  "Frames portfolio telemetry like a data-journalism piece: top **Crimson Editorial Rule (`#e11d48`)**, thesis-driven **Serif Headlines**, **10×5 Waffle Charts**, **Lollipop Charts** with dashed benchmark lines, and **`↳` Callout Annotations**.",
+			titlePT: "III. `cairo` — Arte Funcional & Jornalismo de Dados Editorial (Alberto Cairo)",
+			descPT:  "Estrutura o portfólio como uma reportagem de dados: **Filete Editorial Carmesim (`#e11d48`)**, **Manchetes Serifadas** com tese analítica, **Waffle Charts 10×5**, **Lollipop Charts** com linha tracejada de referência e **Anotações Explicativas (`↳`)**.",
+		},
+		{
+			code:    "holmes",
+			titleEN: "IV. `holmes` — Pictorial Isotypes & Visual Storytelling (Nigel Holmes)",
+			descEN:  "Combines bold **Magazine Header Ribbons** with **10-Block Pictorial Isotypes**, a **Stepped Podium Climb** with dynamic trophy placement (`🏆`) for Kaggle progression, and **Visual Engineering Badges**.",
+			titlePT: "IV. `holmes` — Isotypes Pictóricos & Storytelling Visual (Nigel Holmes)",
+			descPT:  "Combina **Faixas de Cabeçalho de Revista** com **Blocos Pictóricos (Isotypes)**, **Pódio em Degraus** com troféu dinâmico (`🏆`) na progressão do Kaggle e **Badges Visuais de Engenharia**.",
+		},
+	}
+
+	for _, s := range schools {
+		title := s.titleEN
+		desc := s.descEN
+		copyGridLabel := "📋 **Copy & Paste — 4-Panel Grid (2×2) for your Profile `README.md`:**"
+		copySumLabel := "📋 **Copy & Paste — Single Consolidated Card (`summary.svg`):**"
+		sumPreviewLabel := "Consolidated Executive Card (`summary.svg`):"
+		if isPt {
+			title = s.titlePT
+			desc = s.descPT
+			copyGridLabel = "📋 **Copiar e Colar — Grid 2×2 (4 Painéis) para o seu `README.md` de perfil:**"
+			copySumLabel = "📋 **Copiar e Colar — Card Executivo Único (`summary.svg`):**"
+			sumPreviewLabel = "Card Executivo Consolidado (`summary.svg`):"
+		}
+
+		fmt.Fprintf(&b, `
+## %s
+
+%s
+
+<p align="center">
+  <img src="generated/%s/languages.svg" width="48%%" alt="%s languages" />
+  <img src="generated/%s/stack.svg" width="48%%" alt="%s stack" />
+</p>
+<p align="center">
+  <img src="generated/%s/kaggle.svg" width="48%%" alt="%s kaggle" />
+  <img src="generated/%s/impact.svg" width="48%%" alt="%s impact" />
+</p>
+<p align="center">
+  <em>%s</em><br/>
+  <img src="generated/%s/summary.svg" width="65%%" alt="%s summary" />
+</p>
+
+%s
+
+`+"```markdown"+`
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/languages.svg" width="48%%" alt="Languages & Engineering" />
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/stack.svg" width="48%%" alt="Data & ML Stack" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/kaggle.svg" width="48%%" alt="Kaggle Standing" />
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/impact.svg" width="48%%" alt="Community Impact" />
+</p>
+`+"```"+`
+
+%s
+
+`+"```markdown"+`
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/summary.svg" width="100%%" alt="DataProfile Executive Summary" />
+</p>
+`+"```"+`
+
+---
+`,
+			title,
+			desc,
+			s.code, s.code,
+			s.code, s.code,
+			s.code, s.code,
+			s.code, s.code,
+			sumPreviewLabel,
+			s.code, s.code,
+			copyGridLabel,
+			repoSlug, s.code,
+			repoSlug, s.code,
+			repoSlug, s.code,
+			repoSlug, s.code,
+			copySumLabel,
+			repoSlug, s.code,
+		)
+	}
+
+	if isPt {
+		fmt.Fprintf(&b, `
+## 🎛️ Mix & Match (Combinando Escolas Diferentes)
+
+Como nenhum SVG exibe rótulos com o nome da Escola dentro da imagem, você pode combinar livremente painéis de diferentes escolas no seu perfil:
+
+`+"```markdown"+`
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/tufte/languages.svg" width="48%%" alt="Languages (Tufte)" />
+  <img src="https://raw.githubusercontent.com/%s/output/generated/cairo/stack.svg" width="48%%" alt="Stack (Cairo)" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/few/kaggle.svg" width="48%%" alt="Kaggle (Few)" />
+  <img src="https://raw.githubusercontent.com/%s/output/generated/holmes/impact.svg" width="48%%" alt="Impact (Holmes)" />
+</p>
+`+"```"+`
+`, repoSlug, repoSlug, repoSlug, repoSlug)
+	} else {
+		fmt.Fprintf(&b, `
+## 🎛️ Mix & Match Across Schools
+
+Because no SVG contains meta-labels mentioning the School name inside the graphic, you can freely mix and match panels from different schools in your profile `+"`README.md`"+`:
+
+`+"```markdown"+`
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/tufte/languages.svg" width="48%%" alt="Languages (Tufte)" />
+  <img src="https://raw.githubusercontent.com/%s/output/generated/cairo/stack.svg" width="48%%" alt="Stack (Cairo)" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/few/kaggle.svg" width="48%%" alt="Kaggle (Few)" />
+  <img src="https://raw.githubusercontent.com/%s/output/generated/holmes/impact.svg" width="48%%" alt="Impact (Holmes)" />
+</p>
+`+"```"+`
+`, repoSlug, repoSlug, repoSlug, repoSlug)
+	}
+
+	return b.String()
+}

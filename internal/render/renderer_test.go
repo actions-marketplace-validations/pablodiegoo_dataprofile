@@ -576,5 +576,48 @@ func TestDynamicSVGGeometriesAcrossSchools(t *testing.T) {
 	}
 }
 
+func TestRenderOutputREADMEBilingualAndCopyPasteSnippets(t *testing.T) {
+	manifestEN := domain.ProfileManifest{
+		Subject: domain.SubjectConfig{
+			Name:   "Pablo Diego",
+			Locale: "en",
+		},
+		Sources: domain.SourcesConfig{
+			GitHub: domain.GitHubSourceConfig{Username: "pablodiegoo"},
+		},
+	}
+
+	readmeEN := RenderOutputREADME(manifestEN)
+	for _, want := range []string{
+		"Generated SVG Catalog (Pablo Diego)",
+		"Differences Across the 4 Visualization Schools",
+		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/tufte/languages.svg",
+		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/few/summary.svg",
+		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/cairo/stack.svg",
+		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/holmes/impact.svg",
+		"Mix & Match Across Schools",
+	} {
+		if !strings.Contains(readmeEN, want) {
+			t.Errorf("RenderOutputREADME(en) missing %q", want)
+		}
+	}
+
+	manifestPT := manifestEN
+	manifestPT.Subject.Locale = "pt-BR"
+	readmePT := RenderOutputREADME(manifestPT)
+	for _, want := range []string{
+		"Catálogo de SVGs (Pablo Diego)",
+		"Diferenças entre as 4 Escolas de Visualização",
+		"Copiar e Colar — Grid 2×2 (4 Painéis)",
+		"Copiar e Colar — Card Executivo Único (`summary.svg`)",
+		"Mix & Match (Combinando Escolas Diferentes)",
+		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/tufte/summary.svg",
+	} {
+		if !strings.Contains(readmePT, want) {
+			t.Errorf("RenderOutputREADME(pt-BR) missing %q", want)
+		}
+	}
+}
+
 
 
