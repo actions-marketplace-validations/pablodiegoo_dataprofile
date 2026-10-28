@@ -3,6 +3,7 @@ package github
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -89,18 +90,27 @@ func (c *Client) Collect(ctx context.Context, cfg domain.GitHubSourceConfig, nor
 
 	var manifestHints []string
 
-	for _, repo := range filtered {
+	for idx, repo := range filtered {
 		wg.Add(1)
-		go func(r restRepo) {
+		go func(i int, r restRepo) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
 			lmap, err := c.fetchRepoLanguages(ctx, r.FullName)
+			var extraManifestText string
+			if normCfg.DetectDataStack && (c.Token != "" || !strings.HasPrefix(c.BaseURL, "https://api.github.com") || i < 6) {
+				extraManifestText = c.fetchRepoManifests(ctx, r.FullName)
+			}
+
 			mu.Lock()
+			var repoLangNames []string
 			if err == nil && len(lmap) > 0 {
 				for k, v := range lmap {
 					rawLangs[k] += v
+					if v > 0 {
+						repoLangNames = append(repoLangNames, k)
+					}
 				}
 				if lmap["Jupyter Notebook"] > 0 || lmap["RMarkdown"] > 0 || lmap["Quarto"] > 0 {
 					langPanel.ExplorationFiles++
@@ -111,10 +121,10 @@ func (c *Client) Collect(ctx context.Context, cfg domain.GitHubSourceConfig, nor
 				rawLangs[r.Language] += 10000
 				langPanel.ProductionFiles++
 			}
-			hint := r.Name + " " + r.Description + " " + strings.Join(r.Topics, " ") + " " + r.Language
+			hint := r.Name + " " + r.Description + " " + strings.Join(r.Topics, " ") + " " + r.Language + " " + strings.Join(repoLangNames, " ") + "\n" + extraManifestText
 			manifestHints = append(manifestHints, hint)
 			mu.Unlock()
-		}(repo)
+		}(idx, repo)
 	}
 	wg.Wait()
 
@@ -201,6 +211,69 @@ func (c *Client) fetchRepoLanguages(ctx context.Context, fullName string) (map[s
 		return nil, err
 	}
 	return out, nil
+}
+
+var dependencyManifestFiles = []string{
+	"pyproject.toml",
+	"requirements.txt",
+	"environment.yml",
+	"DESCRIPTION",
+}
+
+func (c *Client) fetchRepoManifests(ctx context.Context, fullName string) string {
+	var parts []string
+	for _, filename := range dependencyManifestFiles {
+		if content := c.fetchRepoFileContent(ctx, fullName, filename); content != "" {
+			parts = append(parts, content)
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+func (c *Client) fetchRepoFileContent(ctx context.Context, fullName, filePath string) string {
+	url := fmt.Sprintf("%s/repos/%s/contents/%s", c.BaseURL, fullName, filePath)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Accept", "application/vnd.github.raw+json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
+	if err != nil || len(raw) == 0 {
+		return ""
+	}
+
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) > 0 && trimmed[0] == '{' {
+		var meta struct {
+			Content  string `json:"content"`
+			Encoding string `json:"encoding"`
+		}
+		if err := json.Unmarshal(trimmed, &meta); err == nil && meta.Content != "" {
+			if strings.EqualFold(meta.Encoding, "base64") {
+				cleanB64 := strings.ReplaceAll(meta.Content, "\n", "")
+				if decoded, err := base64.StdEncoding.DecodeString(cleanB64); err == nil {
+					return string(decoded)
+				}
+			}
+			return meta.Content
+		}
+	}
+
+	return string(raw)
 }
 
 func (c *Client) fetchGraphQLContributions(ctx context.Context, username string) (int, []int, error) {
