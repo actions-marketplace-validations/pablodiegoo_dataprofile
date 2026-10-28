@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .impact { font-family: "Arial Black", Impact, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 900; }
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .hdr-title { font-size: 11px; font-weight: 900; fill: #d97706; letter-spacing: 0.4px; }
+    .lbl { font-size: 10.5px; font-weight: 700; fill: #526071; }
+    .sub-lbl { font-size: 9.5px; font-weight: 600; fill: #64748b; }
+    
+    
+  </style>
+
+  <rect x="3" y="3" width="434" height="224" rx="10" fill="none" stroke="#d97706" stroke-width="2"/>
+
+  <!-- Bold Editorial Ribbon Header (No meta-label of Nigel Holmes — pure portfolio showcase) -->
+  <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,36 L 3,36 Z" fill="#dc2626"/>
+  <text x="16" y="24" class="impact" font-size="13" fill="#ffffff" letter-spacing="0.6">DATA SCIENCE &amp; AI IMPACT</text>
+  <rect x="284" y="8" width="142" height="20" rx="4" fill="#111827"/>
+  <text x="355" y="21.5" text-anchor="middle" class="sans" font-size="9.5" font-weight="800" fill="#d97706">★ KAGGLE MASTER</text>
+
+  <!-- Left Visual Story: "The Climb to Kaggle Grandmaster" -->
+  <g transform="translate(16, 48)">
+    <text x="0" y="11" class="impact hdr-title">GLOBAL KAGGLE STANDING</text>
+    <text x="0" y="24" class="sans sub-lbl">39 Medals Across 4 Arenas</text>
+
+    <!-- Illustrated Vector Trophy with Rank -->
+    <g transform="translate(142, 0)">
+      <path d="M 8,6 L 34,6 L 30,25 Q 21,33 12,25 Z" fill="#d97706" stroke="#111827" stroke-width="1.2"/>
+      <path d="M 8,9 Q 1,9 3,17 Q 5,22 10,20" fill="none" stroke="#d97706" stroke-width="2.2"/>
+      <path d="M 34,9 Q 41,9 39,17 Q 37,22 32,20" fill="none" stroke="#d97706" stroke-width="2.2"/>
+      <rect x="18" y="29" width="6" height="7" fill="#d97706"/>
+      <rect x="11" y="36" width="20" height="5" rx="1.5" fill="#d97706"/>
+      <text x="21" y="19" text-anchor="middle" class="impact" font-size="9" fill="#111827">#412</text>
+    </g>
+
+    <!-- Stepped Podium Steps -->
+    <g transform="translate(0, 48)">
+      <rect x="0" y="44" width="40" height="20" rx="2" fill="#0284c7"/>
+      <text x="20" y="57" text-anchor="middle" class="sans" font-size="8" font-weight="800" fill="#ffffff">DISC</text>
+
+      <rect x="42" y="26" width="48" height="38" rx="2" fill="#9333ea"/>
+      <text x="66" y="42" text-anchor="middle" class="sans" font-size="8" font-weight="800" fill="#ffffff">COMP</text>
+      <text x="66" y="54" text-anchor="middle" class="sans" font-size="8" font-weight="800" fill="#ffffff">&amp; DATA</text>
+
+      <rect x="92" y="6" width="52" height="58" rx="2" fill="#d97706"/>
+      <text x="118" y="23" text-anchor="middle" class="impact" font-size="9" fill="#111827">MASTER</text>
+      <text x="118" y="37" text-anchor="middle" class="mono" font-size="8.5" font-weight="800" fill="#111827">2🥇 6🥈</text>
+      <text x="118" y="51" text-anchor="middle" class="mono" font-size="8" font-weight="700" fill="#111827">Notebooks</text>
+
+      <rect x="146" y="-6" width="40" height="70" rx="2" fill="none" stroke="#64748b" stroke-width="1.4" stroke-dasharray="3,2"/>
+      <text x="166" y="26" text-anchor="middle" class="sans" font-size="7.5" font-weight="800" fill="#64748b">NEXT:</text>
+      <text x="166" y="40" text-anchor="middle" class="sans" font-size="9" font-weight="900" fill="#d97706">GM</text>
+    </g>
+
+    <rect x="0" y="120" width="186" height="25" rx="6" fill="#d97706" fill-opacity="0.14" stroke="#d97706" stroke-width="1.2"/>
+    <text x="93" y="136.5" text-anchor="middle" class="mono" font-size="10" font-weight="800" fill="#d97706">🥇 3 Gold   🥈 12 Silv   🥉 24 Brz</text>
+  </g>
+
+  <line x1="216" y1="44" x2="216" y2="202" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+  <!-- Right Visual Story: Isotype Pictorial Stack -->
+  <g transform="translate(228, 48)">
+    <text x="0" y="11" class="impact hdr-title">CORE ENGINEERING STACK</text>
+    <text x="0" y="24" class="sans sub-lbl">32 Repositories · Clean Code Ratio</text>
+
+    <g transform="translate(0, 34)">
+      <text x="0" y="12" class="sans lbl">Python</text>
+      <g transform="translate(50, 0)">
+        <rect x="0" y="0" width="14" height="15" rx="2" fill="#0284c7"/>
+        <rect x="17" y="0" width="14" height="15" rx="2" fill="#0284c7"/>
+        <rect x="34" y="0" width="14" height="15" rx="2" fill="#0284c7"/>
+        <rect x="51" y="0" width="14" height="15" rx="2" fill="#0284c7"/>
+        <rect x="68" y="0" width="14" height="15" rx="2" fill="#0284c7"/>
+        <rect x="85" y="0" width="14" height="15" rx="2" fill="#0284c7"/>
+        <text x="106" y="12" class="impact" font-size="11" fill="#0284c7">58%</text>
+      </g>
+    </g>
+
+    <g transform="translate(0, 56)">
+      <text x="0" y="12" class="sans lbl">SQL</text>
+      <g transform="translate(50, 0)">
+        <rect x="0" y="0" width="14" height="15" rx="2" fill="#d97706"/>
+        <rect x="17" y="0" width="14" height="15" rx="2" fill="#d97706"/>
+        <text x="38" y="12" class="impact" font-size="11" fill="#d97706">19%</text>
+      </g>
+    </g>
+
+    <g transform="translate(0, 78)">
+      <text x="0" y="12" class="sans lbl">Go + R</text>
+      <g transform="translate(50, 0)">
+        <rect x="0" y="0" width="14" height="15" rx="2" fill="#10b981"/>
+        <rect x="17" y="0" width="14" height="15" rx="2" fill="#7c3aed"/>
+        <text x="38" y="12" class="impact" font-size="11" fill="#10b981">23%</text>
+      </g>
+    </g>
+
+    <g transform="translate(0, 102)">
+      <rect x="0" y="0" width="194" height="43" rx="8" fill="#059669"/>
+      <text x="10" y="18" class="impact" font-size="11" fill="#ffffff">⚡ 62% PRODUCTION CODE</text>
+      <text x="10" y="34" class="sans" font-size="9.5" font-weight="700" fill="#d1fae5">Pandas · Sklearn · DuckDB · PyTorch</text>
+    </g>
+  </g>
+
+  <text x="220" y="216" text-anchor="middle" class="mono" font-size="9" font-weight="700" fill="#64748b">★ 2,840 GitHub Contribs  ·  318 Stars  ·  17 HuggingFace Artifacts  ·  18.4k Downloads</text>
+</svg>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
+    .num { font-family: Georgia, serif; font-variant-numeric: tabular-nums; }
+    .h1 { font-size: 13.5px; font-weight: bold; fill: #526071; letter-spacing: 0.2px; }
+    .sub { font-size: 10px; font-style: italic; fill: #64748b; }
+    .sec { font-size: 10px; font-style: italic; font-weight: bold; fill: #0284c7; }
+    .lbl { font-size: 10.5px; fill: #526071; }
+    .val { font-size: 10.5px; font-weight: bold; fill: #526071; }
+    .micro { font-size: 9.2px; fill: #64748b; }
+  </style>
+  <text x="12" y="21" class="serif h1">Code Distribution &amp; Production Engineering</text>
+  <text x="428" y="21" text-anchor="end" class="serif sub">Notebook-Normalized · 32 Repos</text>
+  <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+  <g transform="translate(12, 46)">
+    <text x="0" y="0" class="serif sec">True Source Code Proportions</text>
+    <line x1="58" y1="10" x2="58" y2="96" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.5"/>
+    <line x1="118" y1="10" x2="118" y2="96" stroke="#64748b" stroke-opacity="0.15" stroke-width="0.5" stroke-dasharray="2,2"/>
+    <line x1="178" y1="10" x2="178" y2="96" stroke="#64748b" stroke-opacity="0.15" stroke-width="0.5" stroke-dasharray="2,2"/>
+    <text x="0" y="22" class="serif lbl">Python</text>
+    <line x1="58" y1="18" x2="198" y2="18" stroke="#64748b" stroke-width="1.2"/>
+    <circle cx="198" cy="18" r="2.8" fill="#0284c7"/>
+    <text x="206" y="22" class="num val">58.4%</text>
+    <text x="0" y="40" class="serif lbl">SQL</text>
+    <line x1="58" y1="36" x2="104" y2="36" stroke="#64748b" stroke-width="1.2"/>
+    <circle cx="104" cy="36" r="2.8" fill="#d97706"/>
+    <text x="112" y="40" class="num val">19.2%</text>
+    <text x="0" y="58" class="serif lbl">Go</text>
+    <line x1="58" y1="54" x2="86" y2="54" stroke="#64748b" stroke-width="1.2"/>
+    <circle cx="86" cy="54" r="2.8" fill="#00ADD8"/>
+    <text x="94" y="58" class="num val">11.8%</text>
+    <text x="0" y="76" class="serif lbl">R</text>
+    <line x1="58" y1="72" x2="73" y2="72" stroke="#64748b" stroke-width="1.2"/>
+    <circle cx="73" cy="72" r="2.8" fill="#2563eb"/>
+    <text x="81" y="76" class="num val">6.4%</text>
+    <text x="0" y="94" class="serif lbl">Shell</text>
+    <line x1="58" y1="90" x2="68" y2="90" stroke="#64748b" stroke-width="1.2"/>
+    <circle cx="68" cy="90" r="2.8" fill="#059669"/>
+    <text x="76" y="94" class="num val">4.2%</text>
+  </g>
+  <g transform="translate(248, 46)">
+    <text x="0" y="0" class="serif sec">Exploration vs. Production</text>
+    <text x="0" y="19" class="serif lbl">Production Modules</text>
+    <text x="180" y="19" text-anchor="end" class="num val">62.0% (64 files)</text>
+    <text x="0" y="35" class="serif lbl">EDA Notebooks</text>
+    <text x="180" y="35" text-anchor="end" class="num micro">38.0% (28 files)</text>
+    <line x1="0" y1="43" x2="111" y2="43" stroke="#059669" stroke-width="2.2"/>
+    <line x1="114" y1="43" x2="180" y2="43" stroke="#d97706" stroke-width="2.2"/>
+    <text x="0" y="64" class="serif sec">Engineering Hygiene Signals</text>
+    <line x1="0" y1="69" x2="180" y2="69" stroke="#64748b" stroke-opacity="0.35" stroke-width="0.6"/>
+    <text x="0" y="83" class="serif lbl">Dependency Lockfiles</text>
+    <text x="180" y="83" text-anchor="end" class="num val">26 / 32</text>
+    <text x="0" y="98" class="serif lbl">CI/CD Workflows</text>
+    <text x="180" y="98" text-anchor="end" class="num val">21 / 32</text>
+    <text x="0" y="113" class="serif lbl">Automated Test Suites</text>
+    <text x="180" y="113" text-anchor="end" class="num val">18 / 32</text>
+    <text x="0" y="128" class="serif lbl">Docker / Containers</text>
+    <text x="180" y="128" text-anchor="end" class="num val">14 / 32</text>
+  </g>
+  <line x1="12" y1="196" x2="428" y2="196" stroke="#64748b" stroke-opacity="0.3" stroke-width="0.6"/>
+  <text x="12" y="211" class="serif sub">*Note: 14.2 MB of embedded base64 chart cache stripped from .ipynb files prior to computing proportions.</text>
+  <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+</svg>

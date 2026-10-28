@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .headline { font-size: 12.2px; font-weight: bold; fill: #526071; }
+    .lead { font-size: 10px; fill: #64748b; }
+    .sec { font-size: 9.5px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.4px; }
+    .lbl { font-size: 10.5px; font-weight: 600; fill: #526071; }
+    .val { font-size: 10px; font-weight: 600; fill: #64748b; }
+    .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
+  </style>
+  <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
+  <text x="12" y="25" class="serif headline">Python Leads at 58.4% After Deflating 14.2 MB of Cache</text>
+  <text x="12" y="39" class="sans lead">Notebook-Normalized · 32 Repos · Production modules represent 62% of total codebase</text>
+  <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+  <g transform="translate(12, 62)">
+    <text x="0" y="0" class="sans sec">True Source Code Proportions</text>
+    <text x="0" y="22" class="sans lbl">Python</text>
+    <line x1="54" y1="18" x2="159" y2="18" stroke="#0284c7" stroke-width="2.2"/>
+    <circle cx="159" cy="18" r="4" fill="#0284c7"/>
+    <text x="168" y="22" class="mono val">58.4%</text>
+    <text x="0" y="45" class="sans lbl">SQL</text>
+    <line x1="54" y1="41" x2="88" y2="41" stroke="#d97706" stroke-width="2.2"/>
+    <circle cx="88" cy="41" r="4" fill="#d97706"/>
+    <text x="97" y="45" class="mono val">19.2%</text>
+    <text x="0" y="68" class="sans lbl">Go</text>
+    <line x1="54" y1="64" x2="75" y2="64" stroke="#00ADD8" stroke-width="2.2"/>
+    <circle cx="75" cy="64" r="4" fill="#00ADD8"/>
+    <text x="84" y="68" class="mono val">11.8%</text>
+    <text x="0" y="91" class="sans lbl">R</text>
+    <line x1="54" y1="87" x2="65" y2="87" stroke="#2563eb" stroke-width="2.2"/>
+    <circle cx="65" cy="87" r="4" fill="#2563eb"/>
+    <text x="74" y="91" class="mono val">6.4%</text>
+    <text x="0" y="114" class="sans lbl">Shell</text>
+    <line x1="54" y1="110" x2="61" y2="110" stroke="#059669" stroke-width="2.2"/>
+    <circle cx="61" cy="110" r="4" fill="#059669"/>
+    <text x="70" y="114" class="mono val">4.2%</text>
+    <path d="M 150,24 L 150,32 L 164,32" fill="none" stroke="#0284c7" stroke-width="1"/>
+    <text x="168" y="35" class="serif callout">↳ Stripped .ipynb outputs</text>
+  </g>
+  <g transform="translate(244, 62)">
+    <text x="0" y="0" class="sans sec">Code Structure Waffle (10×5)</text>
+    <g transform="translate(0, 10)">
+      <rect x="0" y="0" width="176" height="8" rx="2" fill="#059669"/>
+      <rect x="0" y="11" width="176" height="8" rx="2" fill="#059669"/>
+      <rect x="0" y="22" width="176" height="8" rx="2" fill="#059669"/>
+      <rect x="0" y="33" width="22" height="8" rx="2" fill="#059669"/>
+      <rect x="26" y="33" width="150" height="8" rx="2" fill="#d97706"/>
+      <rect x="0" y="44" width="176" height="8" rx="2" fill="#d97706"/>
+    </g>
+    <text x="0" y="75" class="sans val"><tspan fill="#059669" font-weight="700">■ 62% Prod</tspan> (64) · <tspan fill="#d97706" font-weight="700">■ 38% EDA</tspan> (28)</text>
+    <text x="0" y="95" class="sans sec">Engineering Hygiene Signals</text>
+    <text x="0" y="112" class="sans lbl">Dependency Lockfiles</text><text x="184" y="112" text-anchor="end" class="mono val">26/32</text>
+    <text x="0" y="128" class="sans lbl">CI/CD Workflows</text><text x="184" y="128" text-anchor="end" class="mono val">21/32</text>
+    <text x="0" y="144" class="sans lbl">Automated Test Suites</text><text x="184" y="144" text-anchor="end" class="mono val">18/32</text>
+  </g>
+</svg>

@@ -1,0 +1,3 @@
+# Single static Go binary for multi-source collection and SVG rendering
+
+We need an automated engine that queries multiple data-professional Sources concurrently, normalizes notebook-heavy repositories, and renders the cartesian product of Panels across multiple visualization Schools inside GitHub Actions. We decided to build the engine in Go as a self-contained static binary with embedded SVG templates instead of Python or Node.js, trading native Python data-science library bindings for zero-dependency CI execution, sub-second startup in GitHub Actions Marketplace workflows, and native concurrency.

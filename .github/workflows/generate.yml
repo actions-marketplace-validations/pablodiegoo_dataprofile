@@ -1,0 +1,57 @@
+name: Generate DataProfile SVGs
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Runs daily at 06:00 UTC
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "profile.yaml"
+      - "cmd/**"
+      - "internal/**"
+      - ".github/workflows/generate.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    name: Build, Test & Render SVGs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Run Automated Test Suite
+        run: go test -v ./...
+
+      - name: Generate SVG Portfolio Panels
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          go run ./cmd/dataprofile generate --config=profile.yaml
+          go run ./cmd/dataprofile validate --config=profile.yaml
+
+      - name: Publish SVGs to orphan output branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TMP_DIR=$(mktemp -d)
+          cp -r generated "$TMP_DIR/generated"
+          git checkout --orphan output-temp
+          git rm -rf . >/dev/null 2>&1 || true
+          cp -r "$TMP_DIR/generated" ./generated
+          git add generated
+          git commit -m "chore(svg): update generated DataProfile panels"
+          git branch -M output-temp output
+          git push -f origin output

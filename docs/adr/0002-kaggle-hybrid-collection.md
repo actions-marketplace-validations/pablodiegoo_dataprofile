@@ -1,0 +1,3 @@
+# Hybrid Kaggle collection using headless CDP and optional official REST API
+
+Kaggle's official REST API v1 exposes endpoints for datasets, notebooks, and competition submissions, but lacks an endpoint for user profile tiers, category rankings, and medal summaries, while direct HTTP requests to public profile pages are blocked by Google reCAPTCHA challenges. We decided to collect Kaggle profile tiers, medals, and rankings via headless Chrome (`chromedp` against the pre-installed browser on GitHub Actions runners) requiring zero credentials, with optional enrichment via the official Kaggle REST API when `KAGGLE_KEY` is provided in GitHub Secrets.

@@ -1,0 +1,47 @@
+# ============================================================================
+# DataProfile — Declarative Profile Manifest (profile.yaml)
+# Safe to commit publicly. Contains ZERO secrets or tokens.
+# ============================================================================
+
+subject:
+  name: "Pablo Diego"
+  role: "Data Scientist & Analytics Engineer"
+  locale: "en" # Supported: "en" | "pt-BR"
+
+sources:
+  github:
+    username: "pablodiegoo"
+    include_forks: false
+    include_private_count: true
+    exclude_repos: []
+    exclude_langs:
+      - "HTML"
+      - "CSS"
+      - "TeX"
+
+  kaggle:
+    username: "pablodiegoo"
+    enabled: true
+    mode: "hybrid" # "hybrid" (Headless Chrome CDP + optional API v1) | "browser" | "api"
+
+  huggingface:
+    username: "pablodiegoo"
+    enabled: true
+
+normalization:
+  deflate_notebooks: true # Strips base64 image blobs & JSON cell outputs from .ipynb
+  detect_data_stack: true # Scans pyproject.toml, requirements.txt, environment.yml, DESCRIPTION, .sql
+
+output:
+  directory: "generated"
+  schools:
+    - "tufte"   # Edward Tufte: Maximal data-ink ratio, Dot-Dash plots, Sparklines, Supertables
+    - "few"     # Stephen Few: Executive telemetry, KPI strips, Bullet Graphs with targets
+    - "cairo"   # Alberto Cairo: Functional Art journalism, Waffle 10x5, Lollipops & Callouts
+    - "holmes"  # Nigel Holmes: Pictorial Isotypes, stepped podium & Trophy storytelling
+  panels:
+    - "summary"   # Consolidated 4-quadrant overview card
+    - "languages" # Panel 1: Code, Notebooks & Production Engineering
+    - "stack"     # Panel 2: Data, ML & Analytics Ecosystem
+    - "kaggle"    # Panel 3: Kaggle Competitive Standing & Medals
+    - "impact"    # Panel 4: Open-Source & AI Community Impact

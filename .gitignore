@@ -1,0 +1,23 @@
+# Secrets and local environment files (NEVER commit)
+.env
+.env.*
+!.env.example
+kaggle.json
+
+# Go build artifacts and binaries
+/dataprofile
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .font { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .title { font-size: 13.5px; font-weight: 700; fill: #0284c7; letter-spacing: 0.2px; }
+    .subtitle { font-size: 10px; font-weight: 500; fill: #64748b; }
+    .label { font-size: 11px; font-weight: 600; fill: #526071; }
+    .pct { font-size: 10.5px; font-weight: 600; fill: #64748b; }
+    .badge-text { font-size: 9.5px; font-weight: 700; fill: #3fb950; }
+    .sec-hdr { font-size: 9.5px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.5px; }
+    .chip-text { font-size: 10px; font-weight: 600; fill: #526071; }
+    
+    
+  </style>
+
+  <!-- Outer Frame (100% Transparent Fill) -->
+  <rect x="2" y="2" width="436" height="226" rx="8" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
+
+  <!-- Header -->
+  <text x="16" y="24" class="font title">Code, Notebooks &amp; Production Index</text>
+  <rect x="294" y="10" width="130" height="19" rx="9.5" fill="#2ea043" fill-opacity="0.14" stroke="#3fb950" stroke-opacity="0.5" stroke-width="1"/>
+  <text x="359" y="23" text-anchor="middle" class="mono badge-text">Jupyter Deflated ✓</text>
+  <text x="16" y="39" class="font subtitle">True code bytes after stripping 14.2 MB of .ipynb base64/JSON outputs</text>
+
+  <!-- Multi-segment Language Bar (Total width = 408px) -->
+  <g transform="translate(16, 48)">
+    <rect x="0" y="0" width="236" height="9" rx="2" fill="#3572A5"/>
+    <rect x="238" y="0" width="77" height="9" fill="#e38c00"/>
+    <rect x="317" y="0" width="47" height="9" fill="#00ADD8"/>
+    <rect x="366" y="0" width="25" height="9" fill="#198CE7"/>
+    <rect x="393" y="0" width="15" height="9" rx="2" fill="#89e051"/>
+  </g>
+
+  <!-- Language Legend Row -->
+  <g transform="translate(16, 72)">
+    <circle cx="5" cy="-4" r="4" fill="#3572A5"/>
+    <text x="13" y="0" class="font label">Python</text>
+    <text x="54" y="0" class="mono pct">58.4%</text>
+
+    <circle cx="104" cy="-4" r="4" fill="#e38c00"/>
+    <text x="112" y="0" class="font label">SQL</text>
+    <text x="137" y="0" class="mono pct">19.2%</text>
+
+    <circle cx="186" cy="-4" r="4" fill="#00ADD8"/>
+    <text x="194" y="0" class="font label">Go</text>
+    <text x="212" y="0" class="mono pct">11.8%</text>
+
+    <circle cx="262" cy="-4" r="4" fill="#198CE7"/>
+    <text x="270" y="0" class="font label">R</text>
+    <text x="282" y="0" class="mono pct">6.4%</text>
+
+    <circle cx="326" cy="-4" r="4" fill="#89e051"/>
+    <text x="334" y="0" class="font label">Shell</text>
+    <text x="364" y="0" class="mono pct">4.2%</text>
+  </g>
+
+  <line x1="16" y1="86" x2="424" y2="86" stroke="#64748b" stroke-opacity="0.22" stroke-width="1"/>
+
+  <!-- Section 2: Exploration vs Production Split -->
+  <text x="16" y="104" class="font sec-hdr">Exploration (EDA) vs. Production Engineering</text>
+  <text x="424" y="104" text-anchor="end" class="mono pct">38% EDA · 62% Prod</text>
+
+  <g transform="translate(16, 112)">
+    <rect x="0" y="0" width="154" height="14" rx="3" fill="#d29922"/>
+    <rect x="158" y="0" width="250" height="14" rx="3" fill="#2ea043"/>
+    <text x="8" y="10.5" class="mono" font-size="9" fill="#ffffff" font-weight="700">28 Notebooks (.ipynb)</text>
+    <text x="400" y="10.5" text-anchor="end" class="mono" font-size="9" fill="#ffffff" font-weight="700">64 Prod Modules (.py/.go/.sql)</text>
+  </g>
+
+  <line x1="16" y1="138" x2="424" y2="138" stroke="#64748b" stroke-opacity="0.22" stroke-width="1"/>
+
+  <!-- Section 3: Software Engineering Hygiene Signals -->
+  <text x="16" y="155" class="font sec-hdr">Production Readiness Signals (32 Active Repos)</text>
+
+  <g transform="translate(16, 164)">
+    <rect x="0" y="0" width="198" height="24" rx="4" fill="#64748b" fill-opacity="0.10" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.8"/>
+    <circle cx="12" cy="12" r="3.5" fill="#3fb950"/>
+    <text x="22" y="15.5" class="font chip-text">Automated Tests</text>
+    <text x="188" y="15.5" text-anchor="end" class="mono pct">18 repos</text>
+
+    <rect x="210" y="0" width="198" height="24" rx="4" fill="#64748b" fill-opacity="0.10" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.8"/>
+    <circle cx="222" cy="12" r="3.5" fill="#3fb950"/>
+    <text x="232" y="15.5" class="font chip-text">CI/CD Workflows</text>
+    <text x="398" y="15.5" text-anchor="end" class="mono pct">21 repos</text>
+
+    <rect x="0" y="30" width="198" height="24" rx="4" fill="#64748b" fill-opacity="0.10" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.8"/>
+    <circle cx="12" cy="42" r="3.5" fill="#0284c7"/>
+    <text x="22" y="45.5" class="font chip-text">Docker / Containers</text>
+    <text x="188" y="45.5" text-anchor="end" class="mono pct">14 repos</text>
+
+    <rect x="210" y="30" width="198" height="24" rx="4" fill="#64748b" fill-opacity="0.10" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.8"/>
+    <circle cx="222" cy="42" r="3.5" fill="#0284c7"/>
+    <text x="232" y="45.5" class="font chip-text">Typed / Lockfiles</text>
+    <text x="398" y="45.5" text-anchor="end" class="mono pct">26 repos</text>
+  </g>
+</svg>

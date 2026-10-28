@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .headline { font-size: 12.2px; font-weight: bold; fill: #526071; }
+    .lead { font-size: 10px; fill: #64748b; }
+    .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
+    .lbl { font-size: 10px; font-weight: 600; fill: #526071; }
+    .val { font-size: 9.5px; font-weight: 600; fill: #64748b; }
+  </style>
+  <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
+  <text x="12" y="25" class="serif headline">Full-Cycle Data &amp; ML Stack Anchored by Pandas / Polars and Scikit-Learn</text>
+  <text x="12" y="39" class="sans lead">Verified Manifests · 32 Repos · End-to-end coverage from ingestion to interactive apps</text>
+  <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+  <g transform="translate(12, 60)">
+    <text x="0" y="0" class="sans sec" fill="#0284c7">Data &amp; Analytics</text>
+    <text x="0" y="18" class="sans lbl">Pandas / Polars</text>
+    <text x="126" y="18" text-anchor="end" class="mono val">28</text>
+    <line x1="0" y1="25" x2="126" y2="25" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="25" x2="116" y2="25" stroke="#0284c7" stroke-width="2.2"/>
+    <circle cx="116" cy="25" r="3.5" fill="#0284c7"/>
+    <text x="0" y="55" class="sans lbl">SQL / DuckDB</text>
+    <text x="126" y="55" text-anchor="end" class="mono val">19</text>
+    <line x1="0" y1="62" x2="126" y2="62" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="62" x2="78" y2="62" stroke="#0284c7" stroke-width="2.2"/>
+    <circle cx="78" cy="62" r="3.5" fill="#0284c7"/>
+    <text x="0" y="92" class="sans lbl">Apache Spark</text>
+    <text x="126" y="92" text-anchor="end" class="mono val">9</text>
+    <line x1="0" y1="99" x2="126" y2="99" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="99" x2="37" y2="99" stroke="#0284c7" stroke-width="2.2"/>
+    <circle cx="37" cy="99" r="3.5" fill="#0284c7"/>
+    <text x="0" y="129" class="sans lbl">dbt / Airflow</text>
+    <text x="126" y="129" text-anchor="end" class="mono val">7</text>
+    <line x1="0" y1="136" x2="126" y2="136" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="136" x2="29" y2="136" stroke="#0284c7" stroke-width="2.2"/>
+    <circle cx="29" cy="136" r="3.5" fill="#0284c7"/>
+  </g>
+  <g transform="translate(156, 60)">
+    <text x="0" y="0" class="sans sec" fill="#7c3aed">Machine Learning &amp; AI</text>
+    <text x="0" y="18" class="sans lbl">Scikit-Learn</text>
+    <text x="126" y="18" text-anchor="end" class="mono val">22</text>
+    <line x1="0" y1="25" x2="126" y2="25" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="25" x2="116" y2="25" stroke="#7c3aed" stroke-width="2.2"/>
+    <circle cx="116" cy="25" r="3.5" fill="#7c3aed"/>
+    <text x="0" y="55" class="sans lbl">PyTorch</text>
+    <text x="126" y="55" text-anchor="end" class="mono val">14</text>
+    <line x1="0" y1="62" x2="126" y2="62" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="62" x2="74" y2="62" stroke="#7c3aed" stroke-width="2.2"/>
+    <circle cx="74" cy="62" r="3.5" fill="#7c3aed"/>
+    <text x="0" y="92" class="sans lbl">XGBoost / LightGBM</text>
+    <text x="126" y="92" text-anchor="end" class="mono val">11</text>
+    <line x1="0" y1="99" x2="126" y2="99" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="99" x2="58" y2="99" stroke="#7c3aed" stroke-width="2.2"/>
+    <circle cx="58" cy="99" r="3.5" fill="#7c3aed"/>
+    <text x="0" y="129" class="sans lbl">Hugging Face</text>
+    <text x="126" y="129" text-anchor="end" class="mono val">8</text>
+    <line x1="0" y1="136" x2="126" y2="136" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="136" x2="41" y2="136" stroke="#7c3aed" stroke-width="2.2"/>
+    <circle cx="41" cy="136" r="3.5" fill="#7c3aed"/>
+  </g>
+  <g transform="translate(300, 60)">
+    <text x="0" y="0" class="sans sec" fill="#059669">Visualization &amp; Data Apps</text>
+    <text x="0" y="18" class="sans lbl">Plotly / Dash</text>
+    <text x="126" y="18" text-anchor="end" class="mono val">16</text>
+    <line x1="0" y1="25" x2="126" y2="25" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="25" x2="116" y2="25" stroke="#059669" stroke-width="2.2"/>
+    <circle cx="116" cy="25" r="3.5" fill="#059669"/>
+    <text x="0" y="55" class="sans lbl">Streamlit</text>
+    <text x="126" y="55" text-anchor="end" class="mono val">12</text>
+    <line x1="0" y1="62" x2="126" y2="62" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="62" x2="87" y2="62" stroke="#059669" stroke-width="2.2"/>
+    <circle cx="87" cy="62" r="3.5" fill="#059669"/>
+    <text x="0" y="92" class="sans lbl">Matplotlib / Seaborn</text>
+    <text x="126" y="92" text-anchor="end" class="mono val">15</text>
+    <line x1="0" y1="99" x2="126" y2="99" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="99" x2="109" y2="99" stroke="#059669" stroke-width="2.2"/>
+    <circle cx="109" cy="99" r="3.5" fill="#059669"/>
+    <text x="0" y="129" class="sans lbl">ggplot2 / Tidyverse</text>
+    <text x="126" y="129" text-anchor="end" class="mono val">6</text>
+    <line x1="0" y1="136" x2="126" y2="136" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="0" y1="136" x2="44" y2="136" stroke="#059669" stroke-width="2.2"/>
+    <circle cx="44" cy="136" r="3.5" fill="#059669"/>
+  </g>
+</svg>

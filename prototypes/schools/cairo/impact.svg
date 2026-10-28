@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .headline { font-size: 13.5px; font-weight: bold; fill: #526071; }
+    .lead { font-size: 10px; fill: #64748b; }
+    .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
+    .lbl { font-size: 10.5px; font-weight: 600; fill: #526071; }
+    .val { font-size: 10.5px; font-weight: 700; fill: #526071; }
+    .callout { font-size: 9px; font-style: italic; fill: #059669; }
+  </style>
+  <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
+  <text x="12" y="25" class="serif headline">1,428 Annual Contributions (+34% YoY) &amp; Growing Open-Source Reach</text>
+  <text x="12" y="39" class="sans lead">Sustained engineering output across 32 public repositories and community artifacts</text>
+  <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+  <g transform="translate(12, 62)">
+    <text x="0" y="0" class="sans sec">GitHub Open-Source Reach</text>
+    <text x="0" y="22" class="sans lbl">Total Stars Earned</text><text x="190" y="22" text-anchor="end" class="mono val" fill="#d97706">★ 342</text>
+    <text x="0" y="42" class="sans lbl">Public Repositories</text><text x="190" y="42" text-anchor="end" class="mono val">32</text>
+    <text x="0" y="62" class="sans lbl">Forks &amp; Citations</text><text x="190" y="62" text-anchor="end" class="mono val">78</text>
+    <text x="0" y="82" class="sans lbl">Repo Views (14d)</text><text x="190" y="82" text-anchor="end" class="mono val">1.8k</text>
+  </g>
+  <g transform="translate(232, 62)">
+    <text x="0" y="0" class="sans sec">Hugging Face &amp; AI Hub</text>
+    <text x="0" y="22" class="sans lbl">Models &amp; Datasets</text><text x="196" y="22" text-anchor="end" class="mono val">4 / 6 / 3</text>
+    <text x="0" y="42" class="sans lbl">Downloads (30d)</text><text x="196" y="42" text-anchor="end" class="mono val" fill="#059669">18.4k</text>
+    <text x="0" y="62" class="sans lbl">Community Likes</text><text x="196" y="62" text-anchor="end" class="mono val">♥ 94</text>
+    <text x="0" y="82" class="sans lbl">Active Streak</text><text x="196" y="82" text-anchor="end" class="mono val">42 days</text>
+  </g>
+  <g transform="translate(12, 166)">
+    <polyline fill="none" stroke="#0284c7" stroke-width="2" points="0,34 38,30 76,32 114,24 152,26 190,18 228,21 266,12 304,15 342,7 380,9 416,2"/>
+    <circle cx="416" cy="2" r="3.5" fill="#059669"/>
+    <text x="0" y="50" class="serif callout">↳ Peak velocity achieved in Q4 with 42-day active engineering streak.</text>
+  </g>
+</svg>

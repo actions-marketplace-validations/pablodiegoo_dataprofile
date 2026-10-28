@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .hdr { font-size: 12px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.5px; }
+    .sub-tag { font-size: 10px; font-weight: 600; fill: #0284c7; }
+    .kpi-num { font-size: 15.5px; font-weight: 700; fill: #526071; }
+    .kpi-lbl { font-size: 8.5px; font-weight: 600; fill: #64748b; text-transform: uppercase; letter-spacing: 0.3px; }
+    .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
+    .row-lbl { font-size: 10px; font-weight: 600; fill: #526071; }
+    .row-val { font-size: 9.5px; font-weight: 600; fill: #64748b; }
+    
+    
+  </style>
+
+  <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
+
+  <!-- Executive Header (Zero mention of Stephen Few — pure executive portfolio telemetry) -->
+  <text x="14" y="20" class="sans hdr">Data Science &amp; ML Summary</text>
+  <text x="426" y="20" text-anchor="end" class="mono sub-tag">@pablodiegoo · Top 0.2% Kaggle</text>
+  <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+
+  <!-- Top KPI Strip -->
+  <g transform="translate(14, 35)">
+    <text x="0" y="13" class="mono kpi-num" fill="#d97706">MASTER</text>
+    <text x="0" y="25" class="sans kpi-lbl">Kaggle (#412)</text>
+
+    <line x1="104" y1="0" x2="104" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="114" y="13" class="mono kpi-num">62% Prod</text>
+    <text x="114" y="25" class="sans kpi-lbl">Prod vs. EDA Code</text>
+
+    <line x1="226" y1="0" x2="226" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="236" y="13" class="mono kpi-num">39 <tspan font-size="10" fill="#d97706">(3🥇 12🥈)</tspan></text>
+    <text x="236" y="25" class="sans kpi-lbl">Verified Medals</text>
+
+    <line x1="336" y1="0" x2="336" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="346" y="13" class="mono kpi-num">18.4k</text>
+    <text x="346" y="25" class="sans kpi-lbl">Artifact Reach</text>
+  </g>
+
+  <line x1="2" y1="69" x2="438" y2="69" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+
+  <!-- Left Quadrant: Bullet Graphs for Kaggle & Engineering Maturity -->
+  <g transform="translate(14, 85)">
+    <text x="0" y="0" class="sans sec">Global Percentile &amp; Tier Progression</text>
+
+    <g transform="translate(0, 12)">
+      <text x="0" y="10" class="sans row-lbl">Notebooks</text>
+      <rect x="74" y="2" width="114" height="12" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
+      <rect x="74" y="2" width="84" height="12" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
+      <rect x="74" y="2" width="52" height="12" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
+      <rect x="74" y="5" width="94" height="6" rx="1" fill="#d97706"/>
+      <line x1="162" y1="0" x2="162" y2="16" stroke="#0284c7" stroke-width="2"/>
+      <text x="194" y="10" class="mono row-val">#412</text>
+    </g>
+
+    <g transform="translate(0, 35)">
+      <text x="0" y="10" class="sans row-lbl">Datasets</text>
+      <rect x="74" y="2" width="114" height="12" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
+      <rect x="74" y="2" width="84" height="12" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
+      <rect x="74" y="2" width="52" height="12" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
+      <rect x="74" y="5" width="72" height="6" rx="1" fill="#64748b"/>
+      <line x1="162" y1="0" x2="162" y2="16" stroke="#0284c7" stroke-width="2"/>
+      <text x="194" y="10" class="mono row-val">#910</text>
+    </g>
+
+    <g transform="translate(0, 58)">
+      <text x="0" y="10" class="sans row-lbl">Competitions</text>
+      <rect x="74" y="2" width="114" height="12" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
+      <rect x="74" y="2" width="84" height="12" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
+      <rect x="74" y="2" width="52" height="12" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
+      <rect x="74" y="5" width="62" height="6" rx="1" fill="#64748b"/>
+      <line x1="162" y1="0" x2="162" y2="16" stroke="#0284c7" stroke-width="2"/>
+      <text x="194" y="10" class="mono row-val">#1.8k</text>
+    </g>
+
+    <g transform="translate(0, 81)">
+      <text x="0" y="10" class="sans row-lbl">CI / Test Cov</text>
+      <rect x="74" y="2" width="114" height="12" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
+      <rect x="74" y="2" width="84" height="12" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
+      <rect x="74" y="2" width="52" height="12" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
+      <rect x="74" y="5" width="88" height="6" rx="1" fill="#0284c7"/>
+      <line x1="148" y1="0" x2="148" y2="16" stroke="#0284c7" stroke-width="2"/>
+      <text x="194" y="10" class="mono row-val">66%</text>
+    </g>
+
+    <text x="0" y="116" class="sans" font-size="8.5" fill="#64748b"><tspan fill="#0284c7" font-weight="700">│</tspan> Marker = Grandmaster / Senior Benchmark</text>
+  </g>
+
+  <line x1="246" y1="69" x2="246" y2="228" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+
+  <!-- Right Quadrant: Languages & Stack -->
+  <g transform="translate(258, 85)">
+    <text x="0" y="0" class="sans sec">Code Languages (Clean)</text>
+
+    <text x="0" y="20" class="sans row-lbl">Python</text>
+    <rect x="52" y="12" width="76" height="8" rx="1.5" fill="#0284c7"/>
+    <text x="168" y="20" text-anchor="end" class="mono row-val" fill="#0284c7">58.4%</text>
+
+    <text x="0" y="37" class="sans row-lbl">SQL</text>
+    <rect x="52" y="29" width="26" height="8" rx="1.5" fill="#64748b"/>
+    <text x="168" y="37" text-anchor="end" class="mono row-val">19.2%</text>
+
+    <text x="0" y="54" class="sans row-lbl">Go</text>
+    <rect x="52" y="46" width="16" height="8" rx="1.5" fill="#64748b"/>
+    <text x="168" y="54" text-anchor="end" class="mono row-val">11.8%</text>
+
+    <text x="0" y="71" class="sans row-lbl">R / Shell</text>
+    <rect x="52" y="63" width="14" height="8" rx="1.5" fill="#64748b"/>
+    <text x="168" y="71" text-anchor="end" class="mono row-val">10.6%</text>
+
+    <line x1="0" y1="82" x2="168" y2="82" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.8"/>
+
+    <text x="0" y="96" class="sans sec">Primary Ecosystem</text>
+    <text x="0" y="111" class="sans row-lbl">Pandas · Sklearn · SQL</text>
+    <text x="168" y="111" text-anchor="end" class="mono row-val" fill="#d97706">18 Repos</text>
+    <text x="0" y="126" class="sans row-lbl">XGBoost · DuckDB · PyTorch</text>
+    <text x="168" y="126" text-anchor="end" class="mono row-val">11 Repos</text>
+  </g>
+</svg>

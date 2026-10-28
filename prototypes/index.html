@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DataProfile — Os 4 Painéis em Cada uma das 4 Escolas (16 SVGs)</title>
+  <style>
+    :root {
+      --gh-bg: #0d1117;
+      --gh-canvas: #161b22;
+      --gh-border: #30363d;
+      --gh-text: #e6edf3;
+      --gh-muted: #8b949e;
+      --accent: #58a6ff;
+    }
+    body.light-mode {
+      --gh-bg: #ffffff;
+      --gh-canvas: #f6f8fa;
+      --gh-border: #d0d7de;
+      --gh-text: #1f2328;
+      --gh-muted: #59636e;
+      --accent: #0969da;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 20px 100px;
+      background: var(--gh-bg);
+      color: var(--gh-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      border: 1px solid var(--gh-border);
+      border-radius: 10px;
+      padding: 24px 28px;
+      background: var(--gh-bg);
+    }
+    .readme-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--gh-border);
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .readme-header h1 {
+      font-size: 19px;
+      margin: 0;
+    }
+    .pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--accent);
+      font-weight: 700;
+      border: 1px solid rgba(88, 166, 255, 0.3);
+    }
+    .intro {
+      font-size: 13.5px;
+      color: var(--gh-muted);
+      line-height: 1.45;
+      margin-bottom: 18px;
+    }
+    .grid-2x2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .panel-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .panel-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .panel-tag {
+      font-size: 11px;
+      color: var(--gh-muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      text-align: right;
+    }
+    .floating-bar {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #1f242d;
+      color: #ffffff;
+      padding: 9px 16px;
+      border-radius: 999px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.16);
+      z-index: 9999;
+      font-size: 12.5px;
+    }
+    .floating-bar button {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 999px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .variant-label {
+      min-width: 280px;
+      text-align: center;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="readme-header">
+      <h1 id="view-title"></h1>
+      <span class="pill" id="view-badge"></span>
+    </div>
+    <div class="intro" id="view-desc"></div>
+    <div id="view-content"></div>
+  </div>
+
+  <div class="floating-bar">
+    <button onclick="cycle(-1)">← Anterior</button>
+    <div class="variant-label" id="switcher-label"></div>
+    <button onclick="cycle(1)">Próximo →</button>
+    <button onclick="toggleTheme()" id="theme-btn">🌙 Dark GitHub</button>
+  </div>
+
+  <script>
+    const VARIANTS = [
+      {
+        key: 'tufte',
+        name: 'Escola I: Edward Tufte — Os 4 Painéis (generated/tufte/*.svg)',
+        badge: 'TUFTE · 4 PAINÉIS',
+        desc: '<strong>Gramática Visual (Edward Tufte):</strong> Zero caixas externas ("sem jaulas"), tipografia serifada clássica com numerais tabulares, <em>Dot-Dash Plots</em> para linguagens e stack, <em>Supertabela</em> para o Kaggle e <em>Sparkline</em> de 52 semanas com banda interquartil para o impacto.',
+        dir: 'schools/tufte'
+      },
+      {
+        key: 'few',
+        name: 'Escola II: Stephen Few — Os 4 Painéis (generated/few/*.svg)',
+        badge: 'STEPHEN FEW · 4 PAINÉIS',
+        desc: '<strong>Gramática Visual (Stephen Few):</strong> Telemetria executiva de leitura em 3 segundos, <em>Bullet Graphs</em> (com faixas qualitativas de fundo e marcador vertical de meta) e destaque pré-atentivo apenas nos líderes de cada dimensão.',
+        dir: 'schools/few'
+      },
+      {
+        key: 'cairo',
+        name: 'Escola III: Alberto Cairo — Os 4 Painéis (generated/cairo/*.svg)',
+        badge: 'ALBERTO CAIRO · 4 PAINÉIS',
+        desc: '<strong>Gramática Visual (Alberto Cairo — The Functional Art):</strong> Manchetes editoriais que resumem a tese do painel, gráficos <em>Waffle 10×5</em>, <em>Lollipops</em> com linha tracejada de referência (Top 1% / Benchmark) e camada de <strong>anotações explicativas (↳)</strong>.',
+        dir: 'schools/cairo'
+      },
+      {
+        key: 'holmes',
+        name: 'Escola IV: Nigel Holmes — Os 4 Painéis (generated/holmes/*.svg)',
+        badge: 'NIGEL HOLMES · 4 PAINÉIS',
+        desc: '<strong>Gramática Visual (Nigel Holmes — Storytelling Ilustrativo):</strong> Faixas de revista de alto impacto, barras pictóricas em blocos (<em>Isotypes</em>), selos de engenharia, pódio em degraus rumo a Grandmaster com troféu vetorial e placares vibrantes.',
+        dir: 'schools/holmes'
+      }
+    ];
+
+    const PANELS = ['languages.svg', 'stack.svg', 'kaggle.svg', 'impact.svg'];
+
+    function getVariantIndex() {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get('variant');
+      const idx = VARIANTS.findIndex(x => x.key === v);
+      return idx >= 0 ? idx : 0;
+    }
+
+    function render() {
+      const idx = getVariantIndex();
+      const v = VARIANTS[idx];
+      document.getElementById('view-title').textContent = v.name;
+      document.getElementById('view-badge').textContent = v.badge;
+      document.getElementById('view-desc').innerHTML = v.desc;
+      document.getElementById('switcher-label').textContent = `${idx + 1}/${VARIANTS.length}: ${v.name}`;
+
+      const grid = document.createElement('div');
+      grid.className = 'grid-2x2';
+      PANELS.forEach(p => {
+        const box = document.createElement('div');
+        box.className = 'panel-box';
+        box.innerHTML = `<img src="${v.dir}/${p}" alt="${p}" /><div class="panel-tag">generated/${v.key}/${p}</div>`;
+        grid.appendChild(box);
+      });
+      const container = document.getElementById('view-content');
+      container.innerHTML = '';
+      container.appendChild(grid);
+    }
+
+    function cycle(delta) {
+      const idx = (getVariantIndex() + delta + VARIANTS.length) % VARIANTS.length;
+      const url = new URL(window.location);
+      url.searchParams.set('variant', VARIANTS[idx].key);
+      window.history.replaceState({}, '', url);
+      render();
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light-mode');
+      const isLight = document.body.classList.contains('light-mode');
+      document.getElementById('theme-btn').textContent = isLight ? '☀️ Light GitHub' : '🌙 Dark GitHub';
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      if (e.key === 'ArrowRight') cycle(1);
+      if (e.key === 'ArrowLeft') cycle(-1);
+    });
+
+    render();
+  </script>
+</body>
+</html>

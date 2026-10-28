@@ -1,0 +1,38 @@
+name: "DataProfile — Data Science & ML Portfolio SVG Generator"
+description: "Generates Notebook-Normalized GitHub, Kaggle & Hugging Face SVG panels across 4 classic Visualization Schools (Tufte, Few, Cairo, Holmes)."
+author: "Pablo Diego"
+branding:
+  icon: "bar-chart-2"
+  color: "blue"
+
+inputs:
+  config:
+    description: "Path to declarative profile.yaml manifest"
+    required: false
+    default: "profile.yaml"
+  output:
+    description: "Output directory for generated SVGs"
+    required: false
+    default: "generated"
+  locale:
+    description: "Override locale (en | pt-BR)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.23"
+
+    - name: Run DataProfile Generator
+      shell: bash
+      run: |
+        ARGS="--config=${{ inputs.config }} --output=${{ inputs.output }}"
+        if [ -n "${{ inputs.locale }}" ]; then
+          ARGS="$ARGS --locale=${{ inputs.locale }}"
+        fi
+        go run ./cmd/dataprofile generate $ARGS
+        go run ./cmd/dataprofile validate --config="${{ inputs.config }}"

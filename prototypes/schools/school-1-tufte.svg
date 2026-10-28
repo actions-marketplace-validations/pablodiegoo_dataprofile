@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
+    .num { font-family: Georgia, serif; font-variant-numeric: tabular-nums; }
+    .h1 { font-size: 14px; font-weight: bold; fill: #526071; letter-spacing: 0.2px; }
+    .italic-sub { font-size: 10.5px; font-style: italic; fill: #64748b; }
+    .sec { font-size: 10px; font-style: italic; font-weight: bold; fill: #0284c7; }
+    .lbl { font-size: 10.5px; fill: #526071; }
+    .val { font-size: 10.5px; font-weight: bold; fill: #526071; }
+    .micro { font-size: 9.2px; fill: #64748b; }
+    
+    
+  </style>
+
+  <!-- Minimalist Classical Portfolio Header (No School Meta-Label!) -->
+  <text x="12" y="21" class="serif h1">Data Science &amp; Engineering Portfolio</text>
+  <text x="428" y="21" text-anchor="end" class="serif italic-sub">@pablodiegoo · Verified Metrics</text>
+  <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+
+  <!-- Inline Sparkline Row -->
+  <g transform="translate(12, 45)">
+    <text x="0" y="0" class="serif lbl">52-Week Activity</text>
+    <rect x="96" y="-10" width="114" height="8" fill="#64748b" fill-opacity="0.16"/>
+    <polyline fill="none" stroke="#64748b" stroke-width="1.3"
+      points="96,-3 101,-5 106,-4 111,-8 116,-6 121,-3 126,-7 131,-9 136,-5 141,-6 146,-11 151,-8 156,-4 161,-7 166,-10 171,-12 176,-7 181,-9 186,-6 191,-10 196,-13 201,-9 208,-14"/>
+    <circle cx="208" cy="-14" r="2.5" fill="#f85149"/>
+    <circle cx="146" cy="-11" r="1.8" fill="#0284c7"/>
+    <text x="216" y="0" class="num val">2,840</text>
+    <text x="250" y="0" class="serif micro">contribs</text>
+    <text x="416" y="0" text-anchor="end" class="num val">62% Production · 38% EDA</text>
+  </g>
+
+  <line x1="12" y1="54" x2="428" y2="54" stroke="#64748b" stroke-opacity="0.3" stroke-width="0.6"/>
+
+  <!-- Left Column: Dot-Dash Plot for Languages & Stack -->
+  <g transform="translate(12, 72)">
+    <text x="0" y="0" class="serif sec">Core Languages (Notebook-Normalized)</text>
+
+    <text x="0" y="20" class="serif lbl">Python</text>
+    <line x1="56" y1="16" x2="150" y2="16" stroke="#64748b" stroke-width="1.1"/>
+    <circle cx="150" cy="16" r="2.8" fill="#0284c7"/>
+    <text x="158" y="20" class="num val">58.4%</text>
+
+    <text x="0" y="38" class="serif lbl">SQL</text>
+    <line x1="56" y1="34" x2="88" y2="34" stroke="#64748b" stroke-width="1.1"/>
+    <circle cx="88" cy="34" r="2.8" fill="#e38c00"/>
+    <text x="96" y="38" class="num val">19.2%</text>
+
+    <text x="0" y="56" class="serif lbl">Go</text>
+    <line x1="56" y1="52" x2="76" y2="52" stroke="#64748b" stroke-width="1.1"/>
+    <circle cx="76" cy="52" r="2.8" fill="#00ADD8"/>
+    <text x="84" y="56" class="num val">11.8%</text>
+
+    <text x="0" y="74" class="serif lbl">R / Shell</text>
+    <line x1="56" y1="70" x2="73" y2="70" stroke="#64748b" stroke-width="1.1"/>
+    <circle cx="73" cy="70" r="2.8" fill="#89e051"/>
+    <text x="81" y="74" class="num val">10.6%</text>
+
+    <text x="0" y="98" class="serif sec">Verified Data &amp; ML Stack (32 Repos)</text>
+    <text x="0" y="114" class="serif micro">Pandas (18) · Scikit-Learn (16) · PostgreSQL (14)</text>
+    <text x="0" y="128" class="serif micro">Plotly (12) · XGBoost (11) · DuckDB (9) · PyTorch (8)</text>
+    <text x="0" y="143" class="serif italic-sub">*Filtered 14.2 MB of notebook output metadata.</text>
+  </g>
+
+  <!-- Right Column: Kaggle & Open-Source Impact -->
+  <g transform="translate(226, 72)">
+    <text x="0" y="0" class="serif sec">Kaggle Rankings &amp; Achievements</text>
+    <text x="0" y="16" class="serif micro">Arena</text>
+    <text x="68" y="16" class="serif micro">Standing</text>
+    <text x="142" y="16" text-anchor="end" class="serif micro">Rank</text>
+    <text x="202" y="16" text-anchor="end" class="serif micro">Medals (G·S·B)</text>
+    <line x1="0" y1="20" x2="202" y2="20" stroke="#64748b" stroke-opacity="0.35" stroke-width="0.6"/>
+
+    <text x="0" y="35" class="serif lbl">Notebooks</text>
+    <text x="68" y="35" class="serif italic-sub" fill="#f96517">Master</text>
+    <text x="142" y="35" text-anchor="end" class="num val">#412</text>
+    <text x="202" y="35" text-anchor="end" class="num val">2 · 6 · 9</text>
+
+    <text x="0" y="52" class="serif lbl">Datasets</text>
+    <text x="68" y="52" class="serif italic-sub">Expert</text>
+    <text x="142" y="52" text-anchor="end" class="num val">#910</text>
+    <text x="202" y="52" text-anchor="end" class="num val">1 · 3 · 4</text>
+
+    <text x="0" y="69" class="serif lbl">Competitions</text>
+    <text x="68" y="69" class="serif italic-sub">Expert</text>
+    <text x="142" y="69" text-anchor="end" class="num val">#1,842</text>
+    <text x="202" y="69" text-anchor="end" class="num val">0 · 2 · 5</text>
+
+    <text x="0" y="86" class="serif lbl">Discussions</text>
+    <text x="68" y="86" class="serif italic-sub">Contrib.</text>
+    <text x="142" y="86" text-anchor="end" class="num val">#6,210</text>
+    <text x="202" y="86" text-anchor="end" class="num val">0 · 1 · 6</text>
+
+    <line x1="0" y1="94" x2="202" y2="94" stroke="#64748b" stroke-opacity="0.35" stroke-width="0.6"/>
+
+    <text x="0" y="111" class="serif sec">Open-Source &amp; AI Hub Reach</text>
+    <text x="0" y="127" class="num micro">318 GitHub Stars · 6 HF Models · 11 Datasets</text>
+    <text x="0" y="141" class="num micro">18.4k Monthly Downloads · 4 Interactive Apps</text>
+  </g>
+
+  <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+</svg>

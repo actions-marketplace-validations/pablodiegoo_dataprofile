@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
+  <style>
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .headline { font-size: 13.5px; font-weight: 700; fill: #526071; }
+    .lead { font-size: 9.8px; fill: #64748b; }
+    .sec { font-size: 9.5px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
+    .callout { font-size: 9.5px; font-style: italic; fill: #e11d48; font-weight: 700; }
+    .lbl { font-size: 10px; font-weight: 600; fill: #526071; }
+    .val { font-size: 9.5px; fill: #64748b; }
+    
+    
+  </style>
+
+  <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
+  <rect x="2" y="2" width="436" height="4" rx="2" fill="#e11d48"/>
+
+  <!-- Editorial Portfolio Headline (Zero meta-mention of Alberto Cairo) -->
+  <text x="14" y="23" class="serif headline">Beyond Notebooks: A Production-Ready Data Profile</text>
+  <text x="14" y="36" class="sans lead">62% of repository code lives in tested production modules, backed by 39 Kaggle medals</text>
+  <line x1="14" y1="44" x2="426" y2="44" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+
+  <!-- Left Column: 10x5 Waffle Grid -->
+  <g transform="translate(14, 58)">
+    <text x="0" y="0" class="sans sec">Code Footprint (1 block = 2%)</text>
+
+    <g transform="translate(0, 8)">
+      <!-- Row 1 (10 Python) -->
+      <rect x="0" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="15" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="30" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="45" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="60" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="75" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="90" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="105" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="120" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="135" y="0" width="12" height="11" rx="2" fill="#3b82f6"/>
+
+      <!-- Row 2 (10 Python) -->
+      <rect x="0" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="15" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="30" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="45" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="60" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="75" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="90" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="105" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="120" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="135" y="14" width="12" height="11" rx="2" fill="#3b82f6"/>
+
+      <!-- Row 3 (9 Python + 1 SQL) -->
+      <rect x="0" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="15" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="30" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="45" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="60" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="75" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="90" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="105" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="120" y="28" width="12" height="11" rx="2" fill="#3b82f6"/>
+      <rect x="135" y="28" width="12" height="11" rx="2" fill="#d97706"/>
+
+      <!-- Row 4 (9 SQL + 1 Go) -->
+      <rect x="0" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="15" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="30" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="45" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="60" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="75" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="90" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="105" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="120" y="42" width="12" height="11" rx="2" fill="#d97706"/>
+      <rect x="135" y="42" width="12" height="11" rx="2" fill="#06b6d4"/>
+
+      <!-- Row 5 (5 Go + 5 R/Shell) -->
+      <rect x="0" y="56" width="12" height="11" rx="2" fill="#06b6d4"/>
+      <rect x="15" y="56" width="12" height="11" rx="2" fill="#06b6d4"/>
+      <rect x="30" y="56" width="12" height="11" rx="2" fill="#06b6d4"/>
+      <rect x="45" y="56" width="12" height="11" rx="2" fill="#06b6d4"/>
+      <rect x="60" y="56" width="12" height="11" rx="2" fill="#06b6d4"/>
+      <rect x="75" y="56" width="12" height="11" rx="2" fill="#7c3aed"/>
+      <rect x="90" y="56" width="12" height="11" rx="2" fill="#7c3aed"/>
+      <rect x="105" y="56" width="12" height="11" rx="2" fill="#7c3aed"/>
+      <rect x="120" y="56" width="12" height="11" rx="2" fill="#7c3aed"/>
+      <rect x="135" y="56" width="12" height="11" rx="2" fill="#7c3aed"/>
+    </g>
+
+    <text x="0" y="91" class="sans val"><tspan fill="#3b82f6" font-weight="700">■</tspan> Py 58%  <tspan fill="#d97706" font-weight="700">■</tspan> SQL 19%  <tspan fill="#06b6d4" font-weight="700">■</tspan> Go 12%  <tspan fill="#7c3aed" font-weight="700">■</tspan> R/Sh 11%</text>
+
+    <rect x="0" y="100" width="188" height="39" rx="4" fill="#e11d48" fill-opacity="0.12" stroke="#e11d48" stroke-opacity="0.35" stroke-width="0.8"/>
+    <text x="8" y="113" class="serif callout">↳ Clean Notebook Normalization</text>
+    <text x="8" y="125" class="sans" font-size="8.5" fill="#64748b">14.2 MB of .ipynb chart cache removed to</text>
+    <text x="8" y="135" class="sans" font-size="8.5" fill="#64748b">measure actual Python &amp; SQL logic.</text>
+  </g>
+
+  <!-- Right Column: Annotated Lollipop Chart -->
+  <g transform="translate(218, 58)">
+    <text x="0" y="0" class="sans sec">Kaggle &amp; Engineering Benchmarks</text>
+
+    <line x1="154" y1="14" x2="154" y2="92" stroke="#e11d48" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="154" y="11" text-anchor="middle" class="mono" font-size="7.5" font-weight="700" fill="#e11d48">TOP 1% GLOBAL</text>
+
+    <text x="0" y="27" class="sans lbl">Notebooks</text>
+    <line x1="72" y1="23" x2="174" y2="23" stroke="#3b82f6" stroke-width="2"/>
+    <circle cx="174" cy="23" r="4.5" fill="#e11d48"/>
+    <text x="182" y="26" class="mono" font-size="9.5" font-weight="700" fill="#e11d48">#412</text>
+
+    <text x="0" y="47" class="sans lbl">Datasets</text>
+    <line x1="72" y1="43" x2="148" y2="43" stroke="#3b82f6" stroke-width="2"/>
+    <circle cx="148" cy="43" r="4" fill="#3b82f6"/>
+    <text x="158" y="46" class="mono val">#910</text>
+
+    <text x="0" y="67" class="sans lbl">Competitions</text>
+    <line x1="72" y1="63" x2="156" y2="63" stroke="#3b82f6" stroke-width="2"/>
+    <circle cx="156" cy="63" r="4" fill="#3b82f6"/>
+    <text x="164" y="66" class="mono val">#1.8k</text>
+
+    <text x="0" y="87" class="sans lbl">CI / Tested</text>
+    <line x1="72" y1="83" x2="142" y2="83" stroke="#06b6d4" stroke-width="2"/>
+    <circle cx="142" cy="83" r="4" fill="#06b6d4"/>
+    <text x="150" y="86" class="mono val">66%</text>
+
+    <path d="M 174,29 Q 174,104 144,108" fill="none" stroke="#e11d48" stroke-width="1.2"/>
+    <text x="0" y="111" class="serif callout">↳ Kaggle Master Highlight</text>
+    <text x="0" y="124" class="sans" font-size="8.5" fill="#64748b">39 total medals (3 Gold, 12 Silver, 24 Brz)</text>
+    <text x="0" y="135" class="sans" font-size="8.5" fill="#64748b">across Pandas, Scikit-Learn &amp; DuckDB repos.</text>
+  </g>
+
+  <line x1="14" y1="205" x2="426" y2="205" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.8"/>
+  <text x="14" y="219" class="sans" font-size="8.5" fill="#64748b">Verified from GitHub Repositories, Kaggle Profile &amp; Hugging Face Hub · @pablodiegoo</text>
+</svg>
