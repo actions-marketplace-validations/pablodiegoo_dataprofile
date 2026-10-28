@@ -158,6 +158,118 @@ func TestCollectRepositoriesLanguagesAndHygiene(t *testing.T) {
 	}
 }
 
+func TestCollectScansDependencyManifestsAndSQLArtifactsForStack(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users/adalovelace/repos", func(w http.ResponseWriter, r *http.Request) {
+		repos := []restRepo{
+			{
+				Name:       "lakehouse-etl",
+				FullName:   "adalovelace/lakehouse-etl",
+				Language:   "Python",
+				Stargazers: 50,
+			},
+			{
+				Name:       "vision-trainer",
+				FullName:   "adalovelace/vision-trainer",
+				Language:   "Python",
+				Stargazers: 80,
+			},
+			{
+				Name:       "biostat-models",
+				FullName:   "adalovelace/biostat-models",
+				Language:   "R",
+				Stargazers: 35,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(repos)
+	})
+
+	// Repo 1 has Python + SQL in its language map and a pyproject.toml + requirements.txt
+	mux.HandleFunc("/repos/adalovelace/lakehouse-etl/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Python": 120000, "SQL": 45000})
+	})
+	mux.HandleFunc("/repos/adalovelace/lakehouse-etl/contents/pyproject.toml", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[project]
+dependencies = ["polars>=0.20", "dbt-core>=1.7", "scikit-learn>=1.4", "plotly>=5.18", "streamlit>=1.31"]`))
+	})
+
+	// Repo 2 has environment.yml and requirements.txt
+	mux.HandleFunc("/repos/adalovelace/vision-trainer/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Python": 200000})
+	})
+	mux.HandleFunc("/repos/adalovelace/vision-trainer/contents/environment.yml", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`name: vision
+dependencies:
+  - pandas
+  - pytorch
+  - transformers
+  - xgboost
+  - matplotlib
+  - plotly`))
+	})
+	mux.HandleFunc("/repos/adalovelace/vision-trainer/contents/requirements.txt", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("scikit-learn==1.4.0\nduckdb==0.10.0\n"))
+	})
+
+	// Repo 3 has R DESCRIPTION file
+	mux.HandleFunc("/repos/adalovelace/biostat-models/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"R": 95000})
+	})
+	mux.HandleFunc("/repos/adalovelace/biostat-models/contents/DESCRIPTION", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`Package: biostat
+Imports:
+    ggplot2,
+    tidyverse,
+    dplyr`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := NewClient("")
+	client.BaseURL = srv.URL
+
+	ghCfg := domain.GitHubSourceConfig{Username: "adalovelace"}
+	normCfg := domain.NormalizationConfig{DeflateNotebooks: true, DetectDataStack: true}
+
+	_, stack, _, err := client.Collect(context.Background(), ghCfg, normCfg)
+	if err != nil {
+		t.Fatalf("Collect failed: %v", err)
+	}
+
+	if stack.TotalSources != 3 {
+		t.Errorf("expected TotalSources=3, got %d", stack.TotalSources)
+	}
+
+	// Data & Analytics: Pandas/Polars (2 repos), SQL/DuckDB (2 repos: SQL lang in repo 1 + duckdb in repo 2), dbt/Airflow (1 repo)
+	if len(stack.DataAnalytics) != 4 {
+		t.Fatalf("expected 4 items in DataAnalytics, got %d", len(stack.DataAnalytics))
+	}
+	if stack.DataAnalytics[0].Name != "Pandas / Polars" || stack.DataAnalytics[0].RepoCount != 2 || !stack.DataAnalytics[0].IsLeader {
+		t.Errorf("unexpected DataAnalytics[0]: %+v", stack.DataAnalytics[0])
+	}
+	if stack.DataAnalytics[1].Name != "SQL / DuckDB" || stack.DataAnalytics[1].RepoCount != 2 || stack.DataAnalytics[1].IsLeader {
+		t.Errorf("unexpected DataAnalytics[1]: %+v", stack.DataAnalytics[1])
+	}
+
+	// ML & AI: Scikit-Learn (2 repos -> leader), PyTorch (1), XGBoost/LightGBM (1), Hugging Face (1)
+	if len(stack.MLAndAI) != 4 {
+		t.Fatalf("expected 4 items in MLAndAI, got %d", len(stack.MLAndAI))
+	}
+	if stack.MLAndAI[0].Name != "Scikit-Learn" || stack.MLAndAI[0].RepoCount != 2 || !stack.MLAndAI[0].IsLeader {
+		t.Errorf("unexpected MLAndAI[0]: %+v", stack.MLAndAI[0])
+	}
+
+	// Viz & Data Apps: Plotly/Dash (2 repos -> leader), Streamlit (1), Matplotlib/Seaborn (1), ggplot2/Tidyverse (1)
+	if len(stack.VizAndApps) != 4 {
+		t.Fatalf("expected 4 items in VizAndApps, got %d", len(stack.VizAndApps))
+	}
+	if stack.VizAndApps[0].Name != "Plotly / Dash" || stack.VizAndApps[0].RepoCount != 2 || !stack.VizAndApps[0].IsLeader {
+		t.Errorf("unexpected VizAndApps[0]: %+v", stack.VizAndApps[0])
+	}
+}
+
 func TestCollectEnrichesGraphQLContributionsAnd52WeekTrend(t *testing.T) {
 	var gotAuthHeader string
 	var gotLoginVar string
@@ -273,4 +385,3 @@ func TestCollectEnrichesGraphQLContributionsAnd52WeekTrend(t *testing.T) {
 		t.Errorf("expected fetchGraphQLContributions to fail on HTTP 401 status")
 	}
 }
-

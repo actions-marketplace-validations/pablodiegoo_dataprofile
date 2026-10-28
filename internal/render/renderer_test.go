@@ -36,17 +36,27 @@ func TestRecruiterFirstGracefulDegradation(t *testing.T) {
 	manifest := config.DefaultManifest()
 	data := DefaultPortfolioData(manifest)
 
-	// Case 1: 0 Gold medals -> should show "4 Tracks" instead of "0 Gold" in KPI
+	// Case 1: 0 Gold medals -> should show "4 Tracks" instead of "0 Gold" across all 4 Schools
 	data.Kaggle.TotalGold = 0
-	svgKaggle, err := Render(domain.SchoolFew, domain.PanelKaggle, data)
-	if err != nil {
-		t.Fatalf("Render failed: %v", err)
-	}
-	if strings.Contains(svgKaggle, ">0 Gold<") {
-		t.Errorf("expected Recruiter-First degradation to avoid highlighting '0 Gold' in KPI")
-	}
-	if !strings.Contains(svgKaggle, "4 Tracks") {
-		t.Errorf("expected '4 Tracks' fallback KPI when TotalGold == 0")
+	for _, school := range domain.AllSchools() {
+		svgKaggle, err := Render(school, domain.PanelKaggle, data)
+		if err != nil {
+			t.Fatalf("Render(%s, kaggle) failed: %v", school, err)
+		}
+		if err := ValidateSVG(svgKaggle); err != nil {
+			t.Errorf("ValidateSVG(%s, kaggle) failed: %v", school, err)
+		}
+		if strings.Contains(svgKaggle, "0 Gold") {
+			t.Errorf("Render(%s, kaggle): expected Recruiter-First degradation to avoid highlighting '0 Gold'", school)
+		}
+		if !strings.Contains(svgKaggle, "4 Tracks") {
+			t.Errorf("Render(%s, kaggle): expected '4 Tracks' fallback KPI when TotalGold == 0", school)
+		}
+		for _, cat := range []string{"Notebooks", "Datasets", "Competitions", "Discussions"} {
+			if !strings.Contains(svgKaggle, cat) {
+				t.Errorf("Render(%s, kaggle): expected category track %q in SVG", school, cat)
+			}
+		}
 	}
 
 	// Case 2: 0 Hugging Face models/datasets/spaces -> should pivot to Engineering Velocity across all 4 Schools
@@ -140,6 +150,59 @@ func TestValidateSVGInvariants(t *testing.T) {
 		if err := ValidateSVG(metaSVG); err == nil {
 			t.Errorf("expected forbidden School meta-label %q to fail ValidateSVG", meta)
 		}
+	}
+}
+
+func TestRenderStackPanelAllSchoolsAndLeaderHighlighting(t *testing.T) {
+	manifest := config.DefaultManifest()
+	data := DefaultPortfolioData(manifest)
+
+	canonicalPillars := []string{
+		"Data &amp; Analytics",
+		"Machine Learning &amp; AI",
+		"Visualization &amp; Data Apps",
+	}
+	canonicalTools := []string{
+		"Pandas / Polars", "SQL / DuckDB", "Apache Spark", "dbt / Airflow",
+		"Scikit-Learn", "PyTorch", "XGBoost / LightGBM", "Hugging Face",
+		"Plotly / Dash", "Streamlit", "Matplotlib / Seaborn", "ggplot2 / Tidyverse",
+	}
+
+	for _, school := range domain.AllSchools() {
+		svg, err := Render(school, domain.PanelStack, data)
+		if err != nil {
+			t.Fatalf("Render(%s, stack) failed: %v", school, err)
+		}
+		if err := ValidateSVG(svg); err != nil {
+			t.Errorf("ValidateSVG(%s, stack) failed: %v", school, err)
+		}
+		for _, pillar := range canonicalPillars {
+			if !strings.Contains(svg, pillar) {
+				t.Errorf("Render(%s, stack) missing pillar %q", school, pillar)
+			}
+		}
+		for _, tool := range canonicalTools {
+			if !strings.Contains(svg, tool) {
+				t.Errorf("Render(%s, stack) missing canonical tool %q", school, tool)
+			}
+		}
+	}
+
+	// Verify IsLeader flag controls pre-attentive leader highlighting in Few stack panel:
+	// When all items in DataAnalytics have RepoCount == 0 and IsLeader == false, none should get the #0284c7 bar fill.
+	zeroData := DefaultPortfolioData(manifest)
+	zeroData.Stack.DataAnalytics = []domain.StackItem{
+		{Name: "Pandas / Polars", RepoCount: 0, WeightPct: 0, IsLeader: false},
+		{Name: "SQL / DuckDB", RepoCount: 0, WeightPct: 0, IsLeader: false},
+		{Name: "Apache Spark", RepoCount: 0, WeightPct: 0, IsLeader: false},
+		{Name: "dbt / Airflow", RepoCount: 0, WeightPct: 0, IsLeader: false},
+	}
+	svgFewZero, err := Render(domain.SchoolFew, domain.PanelStack, zeroData)
+	if err != nil {
+		t.Fatalf("Render(few, stack) failed: %v", err)
+	}
+	if strings.Contains(svgFewZero, `height="6" rx="1.5" fill="#0284c7"`) {
+		t.Errorf("expected zero-count non-leader items not to receive leader accent bar fill #0284c7")
 	}
 }
 

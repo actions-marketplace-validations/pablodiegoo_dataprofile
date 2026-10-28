@@ -742,11 +742,18 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 44)">
     <text x="0" y="0" class="sans sec" fill="%s">%s</text>
 `, col.x, col.color, esc(col.title))
+			hasLeader := false
+			for _, it := range col.items {
+				if it.IsLeader {
+					hasLeader = true
+					break
+				}
+			}
 			for i, it := range col.items {
 				y := 18 + i*38
 				barW := int((it.WeightPct / 100.0) * 124.0)
 				fill := "#64748b"
-				if i == 0 {
+				if it.IsLeader || (!hasLeader && i == 0 && it.RepoCount > 0) {
 					fill = col.color
 				}
 				fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>
