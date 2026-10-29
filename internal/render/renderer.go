@@ -2421,12 +2421,19 @@ func renderBioLinesSVG(wrapped [][]string, x, startY, lineHeight, paraGap int, t
 	return b.String()
 }
 
+const (
+	bioCompactMaxChars = 62
+	bioFullMaxChars    = 126
+	bioLineHeight      = 17
+	bioParaGap         = 8
+)
+
 func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth bool) string {
 	width := 440
-	maxChars := 62
+	maxChars := bioCompactMaxChars
 	if fullWidth {
 		width = 900
-		maxChars = 126
+		maxChars = bioFullMaxChars
 	}
 
 	rawParas := d.Subject.Bio
@@ -2438,11 +2445,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 		wrapped = wrapBioParagraphs(fallbackBioParagraphs(d, l), maxChars)
 	}
 
-	const (
-		lineHeight = 17
-		paraGap    = 8
-	)
-	_, bodyHeight := computeBioLayout(wrapped, lineHeight, paraGap)
+	_, bodyHeight := computeBioLayout(wrapped, bioLineHeight, bioParaGap)
 
 	name := nonEmptyStr(d.Subject.Name, "Data Practitioner")
 	role := nonEmptyStr(d.Subject.Role, "Data Scientist & Analytics Engineer")
@@ -2455,7 +2458,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 	case domain.SchoolTufte:
 		startY := 48
 		totalHeight := startY + bodyHeight + 16
-		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "serif body")
+		linesSVG := renderBioLinesSVG(wrapped, 14, startY, bioLineHeight, bioParaGap, "serif body")
 		headerTitle := fmt.Sprintf("%s — %s", name, role)
 		if !fullWidth && utf8.RuneCountInString(headerTitle) > 42 {
 			headerTitle = name
@@ -2477,7 +2480,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 	case domain.SchoolFew:
 		startY := 82
 		totalHeight := startY + bodyHeight + 14
-		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "sans body")
+		linesSVG := renderBioLinesSVG(wrapped, 14, startY, bioLineHeight, bioParaGap, "sans body")
 		prodBar := clampInt(int(math.Round((d.Languages.ProductionPct/100.0)*84.0)), 14, 84)
 		tierKPI := esc(nonEmptyStr(k.OverallTier, domain.KaggleTierContributor))
 		if k.PeakRank > 0 {
@@ -2524,7 +2527,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 	case domain.SchoolCairo:
 		startY := 66
 		totalHeight := startY + bodyHeight + 28
-		linesSVG := renderBioLinesSVG(wrapped, 20, startY, lineHeight, paraGap, "serif body")
+		linesSVG := renderBioLinesSVG(wrapped, 20, startY, bioLineHeight, bioParaGap, "serif body")
 		callout := fmt.Sprintf(l.BioCairoCalloutFmt, d.Languages.TotalRepos, d.Languages.StrippedBase64MB)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
@@ -2549,7 +2552,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 	default: // SchoolHolmes
 		startY := 54
 		totalHeight := startY + bodyHeight + 16
-		linesSVG := renderBioLinesSVG(wrapped, 16, startY, lineHeight, paraGap, "sans body")
+		linesSVG := renderBioLinesSVG(wrapped, 16, startY, bioLineHeight, bioParaGap, "sans body")
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2567,7 +2570,13 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 	}
 }
 
-func extractInnerPanelBody(svgStr string, tagColorOverride, calloutColorOverride, secColorOverride string) string {
+type panelStyleOverrides struct {
+	tagColor     string
+	calloutColor string
+	secColor     string
+}
+
+func extractInnerPanelBody(svgStr string, ov panelStyleOverrides) string {
 	start := strings.Index(svgStr, "</style>")
 	if start != -1 {
 		svgStr = svgStr[start+len("</style>"):]
@@ -2577,14 +2586,14 @@ func extractInnerPanelBody(svgStr string, tagColorOverride, calloutColorOverride
 	if end := strings.LastIndex(svgStr, "</svg>"); end != -1 {
 		svgStr = svgStr[:end]
 	}
-	if tagColorOverride != "" {
-		svgStr = strings.ReplaceAll(svgStr, `class="mono tag"`, fmt.Sprintf(`class="mono tag" fill="%s"`, tagColorOverride))
+	if ov.tagColor != "" {
+		svgStr = strings.ReplaceAll(svgStr, `class="mono tag"`, fmt.Sprintf(`class="mono tag" fill="%s"`, ov.tagColor))
 	}
-	if calloutColorOverride != "" {
-		svgStr = strings.ReplaceAll(svgStr, `class="serif callout"`, fmt.Sprintf(`class="serif callout" fill="%s"`, calloutColorOverride))
+	if ov.calloutColor != "" {
+		svgStr = strings.ReplaceAll(svgStr, `class="serif callout"`, fmt.Sprintf(`class="serif callout" fill="%s"`, ov.calloutColor))
 	}
-	if secColorOverride != "" {
-		svgStr = strings.ReplaceAll(svgStr, `class="sans sec"`, fmt.Sprintf(`class="sans sec" fill="%s"`, secColorOverride))
+	if ov.secColor != "" {
+		svgStr = strings.ReplaceAll(svgStr, `class="sans sec"`, fmt.Sprintf(`class="sans sec" fill="%s"`, ov.secColor))
 	}
 	// Add subtle SMIL entrance animation on sparkline polylines inside the full composite view
 	svgStr = strings.ReplaceAll(svgStr, `<polyline fill="none"`, `<polyline stroke-dasharray="450" fill="none"`)
@@ -2595,13 +2604,11 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
 	const (
 		width        = 900
 		headerHeight = 115
-		lineHeight   = 17
-		paraGap      = 8
 	)
 
 	// 1. Dynamic Bio section: collapses to height 0 when Subject.Bio is empty; expands to exact line count when present
-	wrappedBio := wrapBioParagraphs(d.Subject.Bio, 124)
-	_, bioBodyHeight := computeBioLayout(wrappedBio, lineHeight, paraGap)
+	wrappedBio := wrapBioParagraphs(d.Subject.Bio, bioFullMaxChars)
+	_, bioBodyHeight := computeBioLayout(wrappedBio, bioLineHeight, bioParaGap)
 	bioSectionHeight := 0
 	if bioBodyHeight > 0 {
 		bioSectionHeight = bioBodyHeight + 18
@@ -2615,7 +2622,7 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
 	var bioInner string
 	if bioSectionHeight > 0 {
 		bioStartY := headerHeight + 18
-		bioLines := renderBioLinesSVG(wrappedBio, 18, bioStartY, lineHeight, paraGap, "body-txt")
+		bioLines := renderBioLinesSVG(wrappedBio, 18, bioStartY, bioLineHeight, bioParaGap, "body-txt")
 		bioSepY := headerHeight + bioSectionHeight
 		switch school {
 		case domain.SchoolTufte:
@@ -2629,10 +2636,10 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
 		}
 	}
 
-	p1 := extractInnerPanelBody(renderLanguages(school, d, l), "#0284c7", "#0284c7", "")
-	p2 := extractInnerPanelBody(renderStack(school, d, l), "#64748b", "#0284c7", "")
-	p3 := extractInnerPanelBody(renderKaggle(school, d, l), "#d97706", "#d97706", "")
-	p4 := extractInnerPanelBody(renderImpact(school, d, l), "#059669", "#059669", "#059669")
+	p1 := extractInnerPanelBody(renderLanguages(school, d, l), panelStyleOverrides{tagColor: "#0284c7", calloutColor: "#0284c7"})
+	p2 := extractInnerPanelBody(renderStack(school, d, l), panelStyleOverrides{tagColor: "#64748b", calloutColor: "#0284c7"})
+	p3 := extractInnerPanelBody(renderKaggle(school, d, l), panelStyleOverrides{tagColor: "#d97706", calloutColor: "#d97706"})
+	p4 := extractInnerPanelBody(renderImpact(school, d, l), panelStyleOverrides{tagColor: "#059669", calloutColor: "#059669", secColor: "#059669"})
 
 	quadrants := fmt.Sprintf(`  <g transform="translate(8, %d)">%s  </g>
   <g transform="translate(452, %d)">%s  </g>
@@ -2719,14 +2726,14 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
 // presenting all 4 visualization Schools, explaining their visual differences, and providing ready-to-copy
 // Markdown/HTML embed snippets interpolated with the Subject's GitHub username.
 func RenderOutputREADME(manifest domain.ProfileManifest) string {
-	user := strings.TrimSpace(manifest.Sources.GitHub.Username)
-	if user == "" {
-		user = "your-username"
+	subjectHandle := strings.TrimSpace(manifest.Sources.GitHub.Username)
+	if subjectHandle == "" {
+		subjectHandle = "your-username"
 	}
-	repoSlug := user + "/dataprofile"
+	repoSlug := subjectHandle + "/dataprofile"
 	name := strings.TrimSpace(manifest.Subject.Name)
 	if name == "" {
-		name = user
+		name = subjectHandle
 	}
 	isPt := strings.EqualFold(strings.TrimSpace(manifest.Subject.Locale), "pt-BR") ||
 		strings.EqualFold(strings.TrimSpace(manifest.Subject.Locale), "pt")

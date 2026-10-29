@@ -41,7 +41,7 @@ normalization:
 output:
   directory: "default-ignored-dir"
   schools: ["tufte", "few", "cairo", "holmes"]
-  panels: ["languages", "header", "bio", "bio-full"]
+  panels: ["languages", "header", "bio", "bio-full", "full"]
 `
 	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
@@ -106,6 +106,43 @@ output:
 				t.Errorf("expected %s and fallback bio narrative in %s", bc.wantWidth, p)
 			}
 		}
+
+		fullPath := filepath.Join(outDir, school, "full.svg")
+		fullBytes, err := os.ReadFile(fullPath)
+		if err != nil {
+			t.Fatalf("expected generated full.svg at %s: %v", fullPath, err)
+		}
+		fullStr := string(fullBytes)
+		for _, tok := range []string{
+			`viewBox="0 0 900 595" width="900" height="595"`,
+			`<textPath xlink:href="#full-hdr-path0">Welcome! I&#39;m Ada Lovelace 👋</textPath>`,
+			`<g transform="translate(8, 121)">`,
+			`<g transform="translate(452, 121)">`,
+			`<g transform="translate(8, 359)">`,
+			`<g transform="translate(452, 359)">`,
+			"Pandas / Polars",
+			"Notebooks",
+		} {
+			if !strings.Contains(fullStr, tok) {
+				t.Errorf("expected %s in %s", tok, fullPath)
+			}
+		}
+	}
+
+	outReadme, err := os.ReadFile(filepath.Join(outDir, "README.md"))
+	if err != nil {
+		t.Fatalf("expected generated README.md in %s: %v", outDir, err)
+	}
+	for _, tok := range []string{
+		"generated/tufte/header.svg",
+		"generated/tufte/bio.svg",
+		"generated/tufte/bio-full.svg",
+		"generated/tufte/full.svg",
+		"https://raw.githubusercontent.com/adalovelace/dataprofile/output/generated/tufte/full.svg",
+	} {
+		if !strings.Contains(string(outReadme), tok) {
+			t.Errorf("expected %s in generated README.md", tok)
+		}
 	}
 
 	// 2. Run validate with --config and --output
@@ -140,6 +177,13 @@ output:
 	}
 	if !strings.Contains(string(ptBioSVG), "Ada Lovelace atua como Data Scientist") || !strings.Contains(string(ptBioSVG), "Trajetória Profissional &amp; Resumo Executivo") {
 		t.Errorf("expected --locale=pt-BR CLI flag to localize fallback bio and title in cairo/bio.svg")
+	}
+	ptFullSVG, err := os.ReadFile(filepath.Join(ptOutDir, "cairo", "full.svg"))
+	if err != nil {
+		t.Fatalf("expected pt-BR generated cairo/full.svg: %v", err)
+	}
+	if !strings.Contains(string(ptFullSVG), "Olá! Eu sou Ada Lovelace 👋") || !strings.Contains(string(ptFullSVG), "Ecossistema Completo de Dados &amp; ML Ancorado por") {
+		t.Errorf("expected --locale=pt-BR CLI flag to localize header and analytical panels in cairo/full.svg")
 	}
 }
 

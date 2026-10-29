@@ -604,6 +604,7 @@ func TestRenderOutputREADMEBilingualAndCopyPasteSnippets(t *testing.T) {
 	for _, want := range []string{
 		"Generated SVG Catalog (Pablo Diego)",
 		"Differences Across the 4 Visualization Schools",
+		"Copy & Paste — Full Portfolio Suite (`full.svg` / `header.svg` / `bio.svg` / `bio-full.svg`):",
 		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/tufte/languages.svg",
 		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/few/summary.svg",
 		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/cairo/stack.svg",
@@ -623,11 +624,27 @@ func TestRenderOutputREADMEBilingualAndCopyPasteSnippets(t *testing.T) {
 		"Diferenças entre as 4 Escolas de Visualização",
 		"Copiar e Colar — Grid 2×2 (4 Painéis)",
 		"Copiar e Colar — Card Executivo Único (`summary.svg`)",
+		"Copiar e Colar — Portfólio Completo (`full.svg` / `header.svg` / `bio.svg` / `bio-full.svg`):",
 		"Mix & Match (Combinando Escolas Diferentes)",
 		"https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/tufte/summary.svg",
 	} {
 		if !strings.Contains(readmePT, want) {
 			t.Errorf("RenderOutputREADME(pt-BR) missing %q", want)
+		}
+	}
+
+	for _, school := range []string{"tufte", "few", "cairo", "holmes"} {
+		for _, panelFile := range []string{"header.svg", "bio.svg", "bio-full.svg", "full.svg"} {
+			previewAttr := `src="generated/` + school + `/` + panelFile + `"`
+			embedURL := `https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/` + school + `/` + panelFile
+			for name, doc := range map[string]string{"en": readmeEN, "pt-BR": readmePT} {
+				if !strings.Contains(doc, previewAttr) {
+					t.Errorf("RenderOutputREADME(%s) missing preview %s", name, previewAttr)
+				}
+				if !strings.Contains(doc, embedURL) {
+					t.Errorf("RenderOutputREADME(%s) missing copy-paste snippet URL %s", name, embedURL)
+				}
+			}
 		}
 	}
 }
@@ -1025,6 +1042,122 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 		}
 	}
 }
+
+func TestFullPanelCompositionCoordinateReflowAndLocalization(t *testing.T) {
+	manifestEN := config.DefaultManifest()
+	manifestEN.Subject.Name = "Ada Lovelace"
+	manifestEN.Subject.Role = "Quantitative Researcher"
+	manifestEN.Subject.Locale = "en"
+	manifestEN.Subject.Headlines = nil // omitted -> fallback headlines inside full.svg
+
+	// 125-rune line must stay on 1 line at 900px in full.svg (matching bio-full.svg's 126-rune wrap limit)
+	line125 := strings.Repeat("a", 120) + " data" // 125 runes
+
+	for _, school := range domain.AllSchools() {
+		// 1. Omitted/empty bio: bioSectionHeight collapses to 0 (gridY = 121, row2Y = 359, height = 595),
+		// zero body-txt elements, zero fallback bio narrative, and zero repeated BioTitle header.
+		emptyData := DefaultPortfolioData(manifestEN)
+		emptyData.Subject.Bio = nil
+		svgEmpty, err := Render(school, domain.PanelFull, emptyData)
+		if err != nil {
+			t.Fatalf("Render(%s, full) empty bio failed: %v", school, err)
+		}
+		for _, want := range []string{
+			`viewBox="0 0 900 595" width="900" height="595"`,
+			`<textPath xlink:href="#full-hdr-path0">Welcome! I&#39;m Ada Lovelace 👋</textPath>`,
+			`<g transform="translate(8, 121)">`,
+			`<g transform="translate(452, 121)">`,
+			`<g transform="translate(8, 359)">`,
+			`<g transform="translate(452, 359)">`,
+		} {
+			if !strings.Contains(svgEmpty, want) {
+				t.Errorf("Render(%s, full) empty bio missing %q", school, want)
+			}
+		}
+		if strings.Contains(svgEmpty, `class="body-txt">`) || strings.Contains(svgEmpty, "Career Narrative") || strings.Contains(svgEmpty, "combining reproducible software engineering") {
+			t.Errorf("Render(%s, full) empty bio should collapse bio section to 0 without fallback bio text or BioTitle", school)
+		}
+
+		// 2. 1-line 125-rune bio: stays on 1 line at 900px; bioSectionHeight = 17 + 18 = 35px,
+		// shifting gridY (121 -> 156), row2Y (359 -> 394), and height (595 -> 630) by exactly 35px.
+		oneLineData := DefaultPortfolioData(manifestEN)
+		oneLineData.Subject.Bio = []string{line125}
+		svgOneLine, err := Render(school, domain.PanelFull, oneLineData)
+		if err != nil {
+			t.Fatalf("Render(%s, full) 1-line bio failed: %v", school, err)
+		}
+		for _, want := range []string{
+			`viewBox="0 0 900 630" width="900" height="630"`,
+			`<text x="18" y="133" class="body-txt">` + line125 + `</text>`,
+			`<g transform="translate(8, 156)">`,
+			`<g transform="translate(452, 156)">`,
+			`<g transform="translate(8, 394)">`,
+			`<g transform="translate(452, 394)">`,
+		} {
+			if !strings.Contains(svgOneLine, want) {
+				t.Errorf("Render(%s, full) 1-line 125-rune bio missing %q", school, want)
+			}
+		}
+		if strings.Contains(svgOneLine, "Career Narrative") {
+			t.Errorf("Render(%s, full) should not repeat BioTitle header inside full composite panel", school)
+		}
+
+		// 3. Multi-paragraph bio: verify exact coordinate reflow and that all 4 complete analytical panels are preserved.
+		multiParaData := DefaultPortfolioData(manifestEN)
+		multiParaData.Subject.Bio = []string{
+			"First paragraph line one.",
+			"Second paragraph line one.\nThird paragraph from explicit break.",
+		}
+		// 3 paragraphs, 1 line each -> totalLines=3, bodyHeight = 3*17 + 2*8 = 67 -> bioSectionHeight = 67 + 18 = 85
+		// gridY = 121 + 85 = 206, row2Y = 359 + 85 = 444, totalHeight = 595 + 85 = 680
+		svgMulti, err := Render(school, domain.PanelFull, multiParaData)
+		if err != nil {
+			t.Fatalf("Render(%s, full) multi-para bio failed: %v", school, err)
+		}
+		for _, want := range []string{
+			`viewBox="0 0 900 680" width="900" height="680"`,
+			`<text x="18" y="133" class="body-txt">First paragraph line one.</text>`,
+			`<text x="18" y="158" class="body-txt">Second paragraph line one.</text>`,
+			`<text x="18" y="183" class="body-txt">Third paragraph from explicit break.</text>`,
+			`<g transform="translate(8, 206)">`,
+			`<g transform="translate(452, 206)">`,
+			`<g transform="translate(8, 444)">`,
+			`<g transform="translate(452, 444)">`,
+			// All 4 complete panels preserved:
+			"Python", "58.4%", // Panel 1: Languages
+			"Pandas / Polars", "Scikit-Learn", "Plotly / Dash", // Panel 2: Stack
+			"Notebooks", "Datasets", "Competitions", "Discussions", // Panel 3: Kaggle
+			"1,428", "342", // Panel 4: Impact
+		} {
+			if !strings.Contains(svgMulti, want) {
+				t.Errorf("Render(%s, full) multi-para bio missing %q", school, want)
+			}
+		}
+
+		// 4. Portuguese (pt-BR) localization in full.svg across Header + all 4 analytical Panels
+		manifestPT := manifestEN
+		manifestPT.Subject.Locale = "pt-BR"
+		ptData := DefaultPortfolioData(manifestPT)
+		ptData.Subject.Bio = []string{"Economista e Cientista de Dados."}
+		svgPT, err := Render(school, domain.PanelFull, ptData)
+		if err != nil {
+			t.Fatalf("Render(%s, full) pt-BR failed: %v", school, err)
+		}
+		for _, want := range []string{
+			`<textPath xlink:href="#full-hdr-path0">Olá! Eu sou Ada Lovelace 👋</textPath>`,
+			`<text x="18" y="133" class="body-txt">Economista e Cientista de Dados.</text>`,
+			"Proporção Real de Código-Fonte",
+			"Dados &amp; Engenharia",
+			"Machine Learning &amp; IA",
+			"Alcance no GitHub",
+		} {
+			if !strings.Contains(svgPT, want) {
+				t.Errorf("Render(%s, full) pt-BR missing %q", school, want)
+			}
+		}
+	}
+}
+
 
 
 
