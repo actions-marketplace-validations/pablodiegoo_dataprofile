@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: GitHub Discussions & Q&A
+    url: https://github.com/pablodiegoo/dataprofile/discussions
+    about: Ask setup questions, share your generated profile panels, or discuss information design grammars.
+  - name: Security Vulnerability Report
+    url: https://github.com/pablodiegoo/dataprofile/security/advisories/new
+    about: Report credential or security issues privately under our Security Policy.

@@ -1,0 +1,43 @@
+name: New Source or Ecosystem Library Request
+description: Request detection for a data/ML library in stack.svg or propose a new upstream Source.
+title: "[Ecosystem]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Request Type
+      options:
+        - "Add library/package to Stack Scanner (stack.svg)"
+        - "Add new dependency manifest format"
+        - "Add or enrich an upstream Source collector"
+    validations:
+      required: true
+
+  - type: input
+    id: package_or_source
+    attributes:
+      label: Package Name or Upstream Source
+      placeholder: "e.g. Polars, DuckDB, vLLM, Weights & Biases, Google Scholar"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stack_pillar
+    attributes:
+      label: Stack Pillar (if library request)
+      options:
+        - "Data & Analytics"
+        - "Machine Learning & AI"
+        - "Visualization & Data Apps"
+        - "Not applicable (Upstream Source)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Detection Rules or API Details
+      description: List the package identifiers as they appear in `pyproject.toml`, `requirements.txt`, `environment.yml`, or `DESCRIPTION`, or link the public API documentation for a new `Source`.
+    validations:
+      required: true

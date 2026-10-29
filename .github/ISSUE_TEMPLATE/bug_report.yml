@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a broken collector, SVG rendering defect, or GitHub Action issue.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the details below so we can reproduce and fix the issue quickly.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Area
+      description: Which part of DataProfile is affected?
+      options:
+        - "SVG Renderer (internal/render)"
+        - "Jupyter Deflator / Stack Scanner (internal/normalizer)"
+        - "GitHub Collector (internal/sources/github)"
+        - "Kaggle Collector (internal/sources/kaggle)"
+        - "Hugging Face Collector (internal/sources/huggingface)"
+        - "GitHub Action / CI Workflow (action.yml / generate.yml)"
+        - "CLI / Profile Manifest (cmd/dataprofile / profile.yaml)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the actual behavior versus what you expected.
+      placeholder: "When running `dataprofile generate`, the `kaggle.svg` panel in the `few` school..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps or profile.yaml to reproduce
+      description: Share the relevant `profile.yaml` configuration or CLI command (never include secret tokens).
+      render: yaml
+      placeholder: |
+        subject:
+          name: "Example"
+          locale: "en"
+        sources:
+          github:
+            username: "example"
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: Execution Environment
+      description: Did this happen inside GitHub Actions (`ubuntu-latest`) or locally (OS and Go version)?
+      placeholder: "GitHub Actions ubuntu-latest / Linux Go 1.23"
+    validations:
+      required: false

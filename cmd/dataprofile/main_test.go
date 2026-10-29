@@ -451,6 +451,31 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 			t.Errorf("README.md missing required section or reference %q", tok)
 		}
 	}
+
+	// 5. Verify Open Source Guide & GitHub Community Standards files
+	communityFiles := map[string][]string{
+		"LICENSE":                           {"Apache License", "Version 2.0"},
+		"NOTICE":                            {"https://github.com/pablodiegoo/dataprofile", "Pablo Diego", "Apache License, Version 2.0"},
+		"CODE_OF_CONDUCT.md":                {"Contributor Covenant Code of Conduct", "Our pledge"},
+		"CONTRIBUTING.md":                   {"GLOSSARY.md", "go test -v ./...", "Apache License 2.0"},
+		"SECURITY.md":                       {"Security Policy", "Reporting a vulnerability", "ACCESS_TOKEN"},
+		"CITATION.cff":                      {"cff-version: 1.2.0", "Apache-2.0", "https://github.com/pablodiegoo/dataprofile"},
+		"CHANGELOG.md":                      {"v1.0.0", "Apache License 2.0"},
+		".github/PULL_REQUEST_TEMPLATE.md":  {"GLOSSARY.md", "NOTICE", "go test -v ./..."},
+		".github/ISSUE_TEMPLATE/config.yml": {"https://github.com/pablodiegoo/dataprofile/discussions"},
+	}
+	for relPath, requiredTokens := range communityFiles {
+		raw, err := os.ReadFile(filepath.Join(root, relPath))
+		if err != nil {
+			t.Fatalf("missing community standard file %s: %v", relPath, err)
+		}
+		content := string(raw)
+		for _, tok := range requiredTokens {
+			if !strings.Contains(content, tok) {
+				t.Errorf("%s missing expected token %q", relPath, tok)
+			}
+		}
+	}
 }
 
 

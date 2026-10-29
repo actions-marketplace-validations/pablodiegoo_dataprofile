@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "DataProfile: Notebook-Normalized Portfolio Telemetry for Data Science and ML"
+message: "If you use DataProfile in your portfolio, research group, or teaching materials, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: "Diego"
+    given-names: "Pablo"
+    alias: "pablodiegoo"
+repository-code: "https://github.com/pablodiegoo/dataprofile"
+url: "https://github.com/pablodiegoo/dataprofile"
+license: Apache-2.0
+version: "1.0.0"
+date-released: "2026-10-28"
+keywords:
+  - data-science
+  - machine-learning
+  - data-visualization
+  - edward-tufte
+  - stephen-few
+  - alberto-cairo
+  - nigel-holmes
+  - github-actions
+  - svg
+  - kaggle
+  - huggingface
+  - jupyter-notebook

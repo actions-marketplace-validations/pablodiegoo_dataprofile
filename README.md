@@ -1,13 +1,13 @@
 <div align="center">
 
-# 📊 DataProfile
+# DataProfile
 
-**Publication-Grade, Notebook-Normalized Portfolio Telemetry for Data Scientists, ML Engineers, Analysts & Researchers**
+**Notebook-normalized portfolio telemetry for data scientists, ML engineers, analysts, and researchers**
 
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white)](go.mod)
-[![Zero External Dependencies](https://img.shields.io/badge/Dependencies-Zero%20Stdlib-059669)](#architecture--engineering)
-[![Visualization Schools](https://img.shields.io/badge/Schools-Tufte%20%7C%20Few%20%7C%20Cairo%20%7C%20Holmes-0284c7)](#-the-4-visualization-schools-of-thought)
-[![Sources](https://img.shields.io/badge/Sources-GitHub%20%7C%20Kaggle%20%7C%20Hugging%20Face-d97706)](#tri-source-telemetry)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Visualization Schools](https://img.shields.io/badge/Schools-Tufte%20%7C%20Few%20%7C%20Cairo%20%7C%20Holmes-0284c7)](#the-four-visualization-schools-school)
+[![Sources](https://img.shields.io/badge/Sources-GitHub%20%7C%20Kaggle%20%7C%20Hugging%20Face-d97706)](#the-four-analytical-panels-panel)
 
 <p align="center">
   <img src="generated/few/summary.svg" width="48%" alt="Executive Summary (Stephen Few Grammar)" />
@@ -16,42 +16,36 @@
 
 </div>
 
----
+## Why DataProfile exists
 
-## Why `dataprofile` Exists
+Standard GitHub profile generators were built for general software engineers. When applied to someone who works with data, machine learning, or quantitative research, those generators misrepresent the portfolio for three concrete reasons.
 
-Traditional GitHub profile stat generators were built for general web developers. When applied to a **Data Scientist, Machine Learning Engineer, Data Analyst, or Quantitative Researcher**, they fail in three critical ways:
+First, GitHub Linguist measures language share by raw file bytes, which includes embedded base64 PNG plots, HTML table dumps, and execution metadata stored inside `.ipynb` files. Because a single Jupyter notebook with three `matplotlib` charts can weigh 4 MB while 15,000 lines of `.py`, `.sql`, and `.go` modules weigh less than 500 KB, the profile ends up labeled as 94% Jupyter Notebook. DataProfile parses `.ipynb` JSON trees and strips cell output payloads before counting bytes, separating exploratory notebooks (EDA) from production modules.
 
-1. **The Jupyter `.ipynb` Base64 Distortion:** GitHub Linguist counts the raw byte size of `.ipynb` files—including embedded base64 PNG plots, HTML DataFrame dumps, and JSON cell metadata. A single notebook with three `matplotlib` charts easily outweighs 15,000 lines of production `.py`, `.sql`, or `.go` code, falsely branding the practitioner's profile as `"94% Jupyter Notebook"`.
-2. **Invisible Data & ML Ecosystem:** Knowing someone writes `"Python"` or `"R"` tells a recruiter or fellow researcher almost nothing. What matters is the verified ecosystem inside `pyproject.toml`, `requirements.txt`, `environment.yml`, and `DESCRIPTION` (**Polars, DuckDB, PyTorch, Scikit-Learn, dbt, Spark, Hugging Face, Streamlit**), alongside production engineering hygiene (**Lockfiles, CI/CD, Automated Tests, Docker**).
-3. **Fragmented Career Proof & Generic Aesthetics:** A data practitioner's real impact spans **GitHub** (code & open-source), **Kaggle** (competitions, datasets, notebooks, global ranks & medals), and **Hugging Face Hub** (models, datasets, spaces & downloads)—and someone who works with data deserves visuals rooted in the **classic schools of information design**, not neon gamer cards.
+Second, knowing that a practitioner writes Python or R says very little about their actual work. What distinguishes a data engineer from a computer vision researcher is the set of libraries declared inside `pyproject.toml`, `requirements.txt`, `environment.yml`, and `DESCRIPTION` (such as Polars, DuckDB, PyTorch, Scikit-Learn, dbt, or Streamlit), together with engineering habits like dependency lockfiles, CI workflows, automated tests, and Dockerfiles.
 
----
+Third, a data professional's public work rarely lives on GitHub alone. Competition rankings, datasets, and notebooks often sit on Kaggle, while pretrained weights and demos live on Hugging Face Hub. Instead of displaying those signals in generic cards, DataProfile renders them using four classic schools of information design (`tufte`, `few`, `cairo`, and `holmes`).
 
-## 🧩 The 4 Analytical Panels (`Panel`)
+## The four analytical panels (`Panel`)
 
-`dataprofile` synthesizes your portfolio into **4 modular 2×2 panels** (plus an optional `summary.svg`), all rendered with a **Universal Dual-Surface Palette** (`fill="none"`) engineered for crisp WCAG AA contrast on **both White (`#ffffff`) and Dark (`#0d1117`) GitHub themes**:
+DataProfile compiles metrics from GitHub, Kaggle, and Hugging Face Hub into four modular panels (plus a consolidated `summary.svg`). Every file uses a transparent canvas (`fill="none"`) and a dual-surface palette calibrated for WCAG AA contrast on both GitHub Light (`#ffffff`) and GitHub Dark (`#0d1117`):
 
 | Panel File | Domain Focus | Key Engineering & Data Signals |
 | :--- | :--- | :--- |
-| **`languages.svg`** | **Code, Notebooks & Production Engineering** | **Jupyter Deflator** (strips embedded base64 chart bloat to reveal true language proportions), **Exploration (EDA) vs. Production** split, and **Engineering Hygiene** (`Lockfiles`, `CI/CD`, `Test Suites`, `Docker`). |
-| **`stack.svg`** | **Data, ML & Analytics Ecosystem** | Automated dependency scanner across **3 Pillars**: *Data & Analytics* (`Pandas/Polars`, `SQL/DuckDB`, `Spark`, `dbt`), *Machine Learning & AI* (`Scikit-Learn`, `PyTorch`, `XGBoost`, `Hugging Face`), and *Viz & Apps* (`Plotly`, `Streamlit`, `Matplotlib`, `ggplot2`). |
-| **`kaggle.svg`** | **Kaggle Competitive Standing & Medals** | Hybrid Headless Chrome CDP + API v1 collector displaying Overall Tier (*Novice* → *Grandmaster*), global peak rank, cumulative medals (**Gold, Silver, Bronze**), and progression across *Notebooks, Datasets, Competitions, and Discussions*. |
-| **`impact.svg`** | **Open-Source & AI Community Impact** | Unifies **GitHub Reach** (Annual Contributions, YoY velocity, Stars, Public Repos, Forks, 14d Views) with **Hugging Face Hub Reach** (Published Models, Datasets, Spaces, 30d Downloads, Community Likes). |
+| **`languages.svg`** | Code, Notebooks & Engineering Hygiene | Strips embedded base64 chart bloat from `.ipynb` files to recover true source code proportions, measures the Exploration (EDA) vs. Production split, and counts repositories with lockfiles, CI/CD, test suites, and Docker. |
+| **`stack.svg`** | Data, ML & Analytics Ecosystem | Scans dependency manifests across three pillars: Data & Analytics (`Pandas/Polars`, `SQL/DuckDB`, `Apache Spark`, `dbt/Airflow`), Machine Learning & AI (`Scikit-Learn`, `PyTorch`, `XGBoost/LightGBM`, `Hugging Face`), and Visualization & Data Apps (`Plotly/Dash`, `Streamlit`, `Matplotlib/Seaborn`, `ggplot2`). |
+| **`kaggle.svg`** | Kaggle Standing & Medals | Combines headless Chrome CDP extraction with optional Kaggle REST API v1 calls to display Overall Tier (`Novice` to `Grandmaster`), global peak rank, cumulative medals (Gold, Silver, Bronze), and percentile standing across Notebooks, Datasets, Competitions, and Discussions. |
+| **`impact.svg`** | Open-Source & AI Community Impact | Joins GitHub reach (annual contributions, 52-week trend, stars, public repos, forks, 14-day views) with Hugging Face Hub metrics (published models, datasets, spaces, 30-day downloads, and community likes). |
 
-> **Recruiter-First Graceful Degradation:** `dataprofile` never embarrasses the user by highlighting zeros. If a practitioner has `0 Gold` medals on Kaggle or `0` Hugging Face models, the layout automatically pivots its KPIs to highlight active progression tracks, total medals, or GitHub engineering velocity.
+If a metric is zero, the renderer adapts the layout rather than printing rows of zeros. For instance, when a practitioner has zero Gold medals on Kaggle or no published models on Hugging Face Hub, the panel shifts that space to active progression tracks or GitHub engineering velocity.
 
----
+## The four visualization schools (`School`)
 
-## 🎨 The 4 Visualization Schools of Thought (`School`)
+Each run generates all five panels across four visualization schools under `generated/<school>/<panel>.svg`. None of the generated SVGs print the name of the school or its author inside the image, which allows you to adopt a single visual grammar or mix panels from different schools in the same profile.
 
-Every run generates all panels across **4 classic Data Visualization Schools** in dedicated directories (`generated/<school>/<panel>.svg`). Notably, **none of the generated SVGs contain meta-labels mentioning the school's name**—the aesthetic speaks entirely for itself. You can adopt a single school or mix-and-match across panels.
+### I. `generated/tufte/` (Edward Tufte)
 
----
-
-### I. `generated/tufte/` — Analytical Minimalism & Maximum Data-Ink Ratio
-*Inspired by **Edward Tufte** (The Visual Display of Quantitative Information, 1983).*
-Zero outer borders or "cages", classical serif typography with tabular numerals, **Dot-Dash Plots** for language proportions, **Supertables** for Kaggle standing, and inline **Sparklines** with interquartile bands.
+Inspired by **Edward Tufte** (*The Visual Display of Quantitative Information*, 1983), this grammar removes outer boxes and grid cages so that every line serves the data. It uses serif typography with tabular numerals, dot-dash plots for language share, supertables for Kaggle percentiles, and inline sparklines with interquartile shading.
 
 <p align="center">
   <img src="generated/tufte/languages.svg" width="48%" alt="Tufte Languages Panel" />
@@ -62,11 +56,9 @@ Zero outer borders or "cages", classical serif typography with tabular numerals,
   <img src="generated/tufte/impact.svg" width="48%" alt="Tufte Impact Panel" />
 </p>
 
----
+### II. `generated/few/` (Stephen Few)
 
-### II. `generated/few/` — Executive Telemetry & Bullet Graphs
-*Inspired by **Stephen Few** (Information Dashboard Design, 2006).*
-Built for 3-second executive scanning by technical recruiters and engineering managers. Features top **KPI telemetry strips**, **Stephen Few Bullet Graphs** (qualitative background range bands + inner performance bar + vertical target threshold marker), and pre-attentive color highlighting strictly on category leaders.
+Inspired by **Stephen Few** (*Information Dashboard Design*, 2006), this layout is organized for three-second scanning by technical recruiters and engineering managers. It pairs top KPI strips with bullet graphs (qualitative background bands, an inner performance bar, and a vertical target threshold marker) and reserves accent color for category leaders.
 
 <p align="center">
   <img src="generated/few/languages.svg" width="48%" alt="Few Languages Panel" />
@@ -77,11 +69,9 @@ Built for 3-second executive scanning by technical recruiters and engineering ma
   <img src="generated/few/impact.svg" width="48%" alt="Few Impact Panel" />
 </p>
 
----
+### III. `generated/cairo/` (Alberto Cairo)
 
-### III. `generated/cairo/` — Functional Art & Editorial Data Journalism
-*Inspired by **Alberto Cairo** (The Functional Art, 2012; The Truthful Art, 2016).*
-Combines a bold crimson editorial header rule with a **thesis-driven serif headline**, **10×5 Waffle Charts** for Exploration vs. Production structure, **Lollipop Charts** with global benchmark reference lines, and an explicit **Annotation Layer (`↳`)** explaining context to non-specialist readers.
+Inspired by **Alberto Cairo** (*The Functional Art*, 2012; *The Truthful Art*, 2016), this school treats the portfolio like an editorial data-journalism piece. It combines a crimson top rule with a thesis-driven serif headline, a 10x5 waffle chart for code structure, lollipop charts with dashed benchmark lines, and an annotation layer (`↳`) that explains what the numbers mean in context.
 
 <p align="center">
   <img src="generated/cairo/languages.svg" width="48%" alt="Cairo Languages Panel" />
@@ -92,11 +82,9 @@ Combines a bold crimson editorial header rule with a **thesis-driven serif headl
   <img src="generated/cairo/impact.svg" width="48%" alt="Cairo Impact Panel" />
 </p>
 
----
+### IV. `generated/holmes/` (Nigel Holmes & ISOTYPE)
 
-### IV. `generated/holmes/` — Pictorial Isotypes & Visual Storytelling
-*Inspired by **Nigel Holmes** (Designer's Guide to Creating Charts and Diagrams, 1984) & Otto Neurath's ISOTYPE.*
-High-impact magazine header ribbons, **Pictorial Unit Blocks** (1 block = 10% codebase share), **Stepped Podium Climb** toward Kaggle Grandmaster with trophy iconography, and visual engineering badges.
+Inspired by **Nigel Holmes** (*Designer's Guide to Creating Charts and Diagrams*, 1984) and Otto Neurath's ISOTYPE system, this grammar uses magazine header ribbons, 10-block pictorial unit charts (where each block equals 10% of the codebase), a stepped podium showing progression toward Kaggle Grandmaster, and visual badges for engineering practices.
 
 <p align="center">
   <img src="generated/holmes/languages.svg" width="48%" alt="Holmes Languages Panel" />
@@ -107,16 +95,13 @@ High-impact magazine header ribbons, **Pictorial Unit Blocks** (1 block = 10% co
   <img src="generated/holmes/impact.svg" width="48%" alt="Holmes Impact Panel" />
 </p>
 
----
+## 2-Minute Setup Guide
 
-## ⚡ 2-Minute Setup Guide (Zero Code Changes Needed)
+You can run DataProfile either by adding the **GitHub Marketplace Action** directly to your `<username>/<username>` profile repository or by **forking** this repository. Neither option requires editing Go code.
 
-`dataprofile` is **100% repository-agnostic**. You never need to edit Go source code to use it for your own profile:
+### Option A: Use the GitHub Marketplace Action (no fork required)
 
-### Step 1: Fork this repository & edit `profile.yaml`
-1. Click **Fork** at the top-right of this repository.
-2. In your fork, open the **Actions** tab and click **"I understand my workflows, go ahead and enable them"** (GitHub disables scheduled workflows on fresh forks by default).
-3. Edit [`profile.yaml`](profile.yaml) in the root of your fork with your public usernames and preferred locale (`"en"` or `"pt-BR"`):
+1. Create a [`profile.yaml`](profile.yaml) file in your `<username>/<username>` profile repository with your public usernames and preferred locale (`"en"` or `"pt-BR"`):
 
 ```yaml
 subject:
@@ -138,75 +123,108 @@ sources:
     enabled: true
 ```
 
-Committing your change to `profile.yaml` on `main` (or clicking **Run workflow** in **Actions → Generate DataProfile SVGs**) immediately builds, validates, and publishes all 20 SVGs to the orphan `output` branch of your fork using the built-in `GITHUB_TOKEN` (`permissions: contents: write`) — **no manual secrets required**.
+2. Add `.github/workflows/dataprofile.yml` to your repository:
 
-### Step 2: Configure Optional GitHub Secrets
-Everything works out of the box with zero secrets. However, if you want private repository counts, 14-day traffic views, or Kaggle REST API v1 enrichment, go to **Settings → Secrets and variables → Actions** in your fork and add:
-- `ACCESS_TOKEN`: A GitHub Personal Access Token (`read:user`, `repo`). If omitted, the workflow automatically falls back to the built-in `GITHUB_TOKEN`.
-- `KAGGLE_USERNAME` & `KAGGLE_KEY`: Optional Kaggle API credentials (supports both `KGAT_...` Bearer tokens from `~/.kaggle/access_token` and classic `kaggle.json` keys). Even without them, the `hybrid` collector extracts your public Kaggle tiers, ranks, and medals via headless Chrome on the GitHub Actions runner.
+```yaml
+name: Generate DataProfile SVGs
 
-> 🔒 **Security Guarantee:** Never commit tokens to `profile.yaml`. Local `.env` files are strictly gitignored via [`.gitignore`](.gitignore); see [`.env.example`](.env.example) for local CLI testing.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["profile.yaml"]
 
-### Step 3: Embed in your Profile `README.md`
-The GitHub Action ([`.github/workflows/generate.yml`](.github/workflows/generate.yml)) runs daily and pushes fresh SVGs to the orphan `output` branch. Copy the snippet for your favorite school into your `<username>/<username>` profile `README.md`:
+permissions:
+  contents: write
+
+jobs:
+  dataprofile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate and validate DataProfile SVGs
+        uses: pablodiegoo/dataprofile@v1
+        with:
+          config: "profile.yaml"
+          output: "generated"
+          github-token: ${{ secrets.ACCESS_TOKEN || github.token }}
+          kaggle-username: ${{ secrets.KAGGLE_USERNAME }}
+          kaggle-key: ${{ secrets.KAGGLE_KEY }}
+```
+
+### Option B: Fork this repository
+
+1. Click **Fork** at the top-right of this page.
+2. Open the **Actions** tab in your fork and click **"I understand my workflows, go ahead and enable them"** (GitHub disables scheduled workflows on fresh forks by default).
+3. Edit [`profile.yaml`](profile.yaml) on `main` with your usernames and commit. The bundled workflow ([`.github/workflows/generate.yml`](.github/workflows/generate.yml)) will compile the engine, validate all 20 SVGs, and publish them (along with a ready-to-copy catalog `README.md`) to the orphan `output` branch of your fork using the built-in `GITHUB_TOKEN`.
+
+### Optional secrets for private metrics and Kaggle REST API v1
+
+The default setup works without manual secrets. If you also want private repository counts, 14-day traffic views, or Kaggle REST API v1 enrichment, open **Settings -> Secrets and variables -> Actions** and add:
+
+- `ACCESS_TOKEN`: A GitHub Personal Access Token (`read:user`, `repo`). When omitted, the workflow falls back to the automatic `GITHUB_TOKEN`.
+- `KAGGLE_USERNAME` and `KAGGLE_KEY`: Optional Kaggle credentials (accepts both `KGAT_...` Bearer tokens and classic `kaggle.json` keys). Even without them, the `hybrid` collector extracts public tiers, ranks, and medals via headless Chrome on the GitHub Actions runner.
+
+Never commit tokens to `profile.yaml`. Local `.env` files are excluded via [`.gitignore`](.gitignore); see [`.env.example`](.env.example) for local runs.
+
+### Embed the panels in your profile `README.md`
+
+Once the workflow publishes to the `output` branch, paste the snippet for your preferred school into your `<username>/<username>` profile `README.md` (replace `/few/` with `/tufte/`, `/cairo/`, or `/holmes/`, or mix schools across panels):
 
 ```markdown
 <p align="center">
-  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/languages.svg" width="48%" />
-  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/stack.svg" width="48%" />
+  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/languages.svg" width="48%" alt="Languages & Engineering" />
+  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/stack.svg" width="48%" alt="Data & ML Stack" />
 </p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/kaggle.svg" width="48%" />
-  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/impact.svg" width="48%" />
+  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/kaggle.svg" width="48%" alt="Kaggle Standing" />
+  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/impact.svg" width="48%" alt="Community Impact" />
+</p>
+<p align="center">
+  <sub>Generated with <a href="https://github.com/pablodiegoo/dataprofile">DataProfile</a></sub>
 </p>
 ```
-*(Replace `/few/` with `/tufte/`, `/cairo/`, or `/holmes/`—or mix different schools across panels!)*
 
----
+## Local CLI usage and repository layout
 
-## 🛠️ Local CLI Usage & Architecture
-
-Built as a fast, zero-external-dependency Go static binary:
+Because the engine uses only the Go 1.23+ standard library, you can run and test everything locally without installing external dependencies:
 
 ```bash
-# Generate all 20 SVGs (4 Schools × 5 Panels) using live APIs + profile.yaml
+# Generate all 20 SVGs (4 Schools x 5 Panels) using live APIs and profile.yaml
 go run ./cmd/dataprofile generate --config=profile.yaml
 
-# Generate deterministic showcase SVGs in offline/demo mode
+# Generate deterministic showcase SVGs in offline demo mode
 go run ./cmd/dataprofile generate --demo
 
-# Render in Brazilian Portuguese (pt-BR)
+# Render all panels in Brazilian Portuguese (pt-BR)
 go run ./cmd/dataprofile generate --demo --locale=pt-BR
 
-# Validate XML well-formedness, WCAG contrast rules & absence of meta-labels
+# Validate XML well-formedness, dual-surface contrast, and absence of school meta-labels
 go run ./cmd/dataprofile validate
 
-# Run the automated unit & integration test suite
+# Run the automated unit and integration test suite
 go test -v ./...
 ```
 
-### Project Layout & Domain Documentation
-
 ```text
 dataprofile/
-├── cmd/dataprofile/main.go            # CLI entrypoint (generate & validate subcommands)
+├── cmd/dataprofile/main.go                  # CLI entrypoint (generate and validate subcommands)
 ├── internal/
-│   ├── domain/model.go                # Canonical domain model (School, Panel, Palette, PortfolioData)
-│   ├── config/                        # Declarative profile.yaml & .env secret loader
-│   ├── normalizer/                    # Jupyter .ipynb base64 deflator & 3-pillar Stack detector
-│   ├── sources/{github,kaggle,huggingface}/ # Concurrent Tri-Source collectors
-│   └── render/                        # Parameterized SVG engine (4 Schools × 5 Panels, EN/PT-BR)
-├── prototypes/                        # Interactive HTML/SVG design prototypes (prototypes/index.html)
-├── generated/{tufte,few,cairo,holmes}/# Output SVG panels ready for README embedding
-├── GLOSSARY.md                        # Ubiquitous domain language definitions
-└── docs/adr/                          # Architectural Decision Records (ADR-0001 Go, ADR-0002 Kaggle)
+│   ├── domain/model.go                      # Canonical domain types (School, Panel, Palette, PortfolioData)
+│   ├── config/                              # Declarative profile.yaml and .env loader
+│   ├── normalizer/                          # Jupyter .ipynb base64 deflator and 3-pillar Stack scanner
+│   ├── sources/{github,kaggle,huggingface}/ # Concurrent upstream Source collectors
+│   └── render/                              # Parameterized SVG engine (4 Schools x 5 Panels, en and pt-BR)
+├── prototypes/                              # Interactive HTML/SVG viewer (prototypes/index.html)
+├── generated/{tufte,few,cairo,holmes}/      # Rendered SVG panels and output branch README
+├── GLOSSARY.md                              # Domain vocabulary definitions
+└── docs/adr/                                # Architectural Decision Records (ADR-0001, ADR-0002)
 ```
 
----
+## Contributing, security, and license
 
-## 🤝 Contributing
+Please read [`CONTRIBUTING.md`](CONTRIBUTING.md), [`GLOSSARY.md`](GLOSSARY.md), and [`docs/adr/`](docs/adr/) before opening a pull request. Community interactions follow our [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), and credential or vulnerability concerns should be reported privately according to [`SECURITY.md`](SECURITY.md).
 
-Contributions from data practitioners, information designers, and Go engineers are warmly welcomed!
-1. Read [`GLOSSARY.md`](GLOSSARY.md) and [`docs/adr/`](docs/adr/) to familiarize yourself with our canonical domain terms (`Subject`, `Source`, `Panel`, `School`, `Palette`, `Profile Manifest`).
-2. **Adding a new Visualization School (`School`):** Add the constant in [`internal/domain/model.go`](internal/domain/model.go) and implement its 5 panel renderers in [`internal/render/renderer.go`](internal/render/renderer.go). All generated SVGs must pass `go run ./cmd/dataprofile validate` (well-formed XML, zero meta-labels, and high-contrast legibility on both `#ffffff` and `#0d1117`).
-3. **Adding a new Ecosystem Library:** Extend `canonicalStackRules` in [`internal/normalizer/notebooks.go`](internal/normalizer/notebooks.go) and add a test case in [`internal/normalizer/notebooks_test.go`](internal/normalizer/notebooks_test.go).
+DataProfile is licensed under the [Apache License, Version 2.0](LICENSE). Under Section 4(d) of the license, any redistribution or derivative work must preserve the attribution notice in [`NOTICE`](NOTICE) referencing the original repository (`https://github.com/pablodiegoo/dataprofile`) and author (Pablo Diego). The serverless GitHub Actions SVG workflow pattern was inspired by prior open-source projects [`jstrieb/github-stats`](https://github.com/jstrieb/github-stats) and [`rahul-jha98/github-stats-transparent`](https://github.com/rahul-jha98/github-stats-transparent); DataProfile is an independent implementation written from scratch in Go.

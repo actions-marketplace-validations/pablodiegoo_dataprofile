@@ -1,0 +1,23 @@
+DataProfile
+Copyright 2026 Pablo Diego (https://github.com/pablodiegoo)
+
+This product includes software developed by Pablo Diego for the DataProfile
+project (https://github.com/pablodiegoo/dataprofile).
+
+Under Section 4(d) of the Apache License, Version 2.0, any redistribution or
+Derivative Work must retain this attribution notice referencing the original
+DataProfile repository (https://github.com/pablodiegoo/dataprofile) and author.
+
+Conceptual Acknowledgments:
+- The pattern of rendering transparent SVG statistics inside scheduled GitHub
+  Actions workflows without external servers was inspired by prior open-source
+  work in jstrieb/github-stats and rahul-jha98/github-stats-transparent.
+  DataProfile is an independent, clean-room implementation written from scratch
+  in Go with its own domain model, notebook normalizer, multi-source collectors,
+  and visualization grammars.
+- The four visualization schools implemented in this engine draw on the
+  published works of Edward Tufte (The Visual Display of Quantitative
+  Information, 1983), Stephen Few (Information Dashboard Design, 2006),
+  Alberto Cairo (The Functional Art, 2012; The Truthful Art, 2016), and
+  Nigel Holmes (Designer's Guide to Creating Charts and Diagrams, 1984)
+  alongside Otto Neurath's ISOTYPE system.

@@ -1,0 +1,45 @@
+name: Visualization School or Panel Proposal
+description: Propose a new Visualization School, Panel layout refinement, or dual-surface contrast improvement.
+title: "[Design]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DataProfile translates classic schools of information design (`School`) into standalone SVG modules (`Panel`). Before proposing a change, check [`GLOSSARY.md`](https://github.com/pablodiegoo/dataprofile/blob/main/GLOSSARY.md).
+
+  - type: dropdown
+    id: target_school
+    attributes:
+      label: Target Visualization School
+      options:
+        - "tufte (Edward Tufte)"
+        - "few (Stephen Few)"
+        - "cairo (Alberto Cairo)"
+        - "holmes (Nigel Holmes / ISOTYPE)"
+        - "New School Proposal"
+        - "All Schools"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target_panel
+    attributes:
+      label: Target Panel
+      options:
+        - "languages.svg (Code, Notebooks & Engineering Hygiene)"
+        - "stack.svg (Data, ML & Analytics Ecosystem)"
+        - "kaggle.svg (Kaggle Competitive Standing)"
+        - "impact.svg (Open-Source & AI Community Impact)"
+        - "summary.svg (Consolidated Executive Card)"
+        - "All Panels / New Panel"
+    validations:
+      required: true
+
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Visual Grammar & Analytical Rationale
+      description: Explain the design improvement, theoretical reference, and how it remains legible on both `#ffffff` (GitHub Light) and `#0d1117` (GitHub Dark) without adding school meta-labels.
+    validations:
+      required: true

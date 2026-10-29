@@ -1,5 +1,5 @@
-name: "DataProfile — Data Science & ML Portfolio SVG Generator"
-description: "Generates Notebook-Normalized GitHub, Kaggle & Hugging Face SVG panels across 4 classic Visualization Schools (Tufte, Few, Cairo, Holmes)."
+name: "DataProfile Portfolio SVG Generator"
+description: "Generate notebook-normalized GitHub, Kaggle, and Hugging Face SVG portfolio panels across four visualization schools."
 author: "Pablo Diego"
 branding:
   icon: "bar-chart-2"
@@ -18,6 +18,22 @@ inputs:
     description: "Override locale (en | pt-BR)"
     required: false
     default: ""
+  demo:
+    description: "Render deterministic showcase metrics without live API queries (true | false)"
+    required: false
+    default: "false"
+  github-token:
+    description: "GitHub token for repository and contribution queries"
+    required: false
+    default: ${{ github.token }}
+  kaggle-username:
+    description: "Optional Kaggle username for official REST API v1 enrichment"
+    required: false
+    default: ""
+  kaggle-key:
+    description: "Optional Kaggle API key or KGAT_ Bearer token"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -29,10 +45,32 @@ runs:
 
     - name: Run DataProfile Generator
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ACCESS_TOKEN: ${{ inputs.github-token }}
+        KAGGLE_USERNAME: ${{ inputs.kaggle-username }}
+        KAGGLE_KEY: ${{ inputs.kaggle-key }}
       run: |
         ARGS="--config=${{ inputs.config }} --output=${{ inputs.output }}"
         if [ -n "${{ inputs.locale }}" ]; then
           ARGS="$ARGS --locale=${{ inputs.locale }}"
         fi
-        go run ./cmd/dataprofile generate $ARGS
-        go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}"
+        if [ "${{ inputs.demo }}" = "true" ]; then
+          ARGS="$ARGS --demo"
+        fi
+        if [ -d ./cmd/dataprofile ]; then
+          go run ./cmd/dataprofile generate $ARGS
+          go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}"
+        else
+          CONFIG_ABS="$(realpath -m "${{ inputs.config }}")"
+          OUTPUT_ABS="$(realpath -m "${{ inputs.output }}")"
+          EXTRA_ARGS=""
+          if [ -n "${{ inputs.locale }}" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --locale=${{ inputs.locale }}"
+          fi
+          if [ "${{ inputs.demo }}" = "true" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --demo"
+          fi
+          (cd "${{ github.action_path }}" && go run ./cmd/dataprofile generate --config="$CONFIG_ABS" --output="$OUTPUT_ABS" $EXTRA_ARGS)
+          (cd "${{ github.action_path }}" && go run ./cmd/dataprofile validate --config="$CONFIG_ABS" --output="$OUTPUT_ABS")
+        fi
