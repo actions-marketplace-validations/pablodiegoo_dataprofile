@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/pablodiegoo/dataprofile/internal/domain"
@@ -17,29 +18,46 @@ type Secrets struct {
 	HFToken        string
 }
 
+// SyncTarget represents a GitHub Actions Secret or Repository Variable synced by `dataprofile sync`.
+type SyncTarget struct {
+	Name     string
+	Value    string
+	IsSecret bool
+}
+
+// LoadDotenvMap parses a .env file into a key-value map.
+func LoadDotenvMap(dotenvPath string) map[string]string {
+	envMap := make(map[string]string)
+	if dotenvPath == "" {
+		return envMap
+	}
+	f, err := os.Open(dotenvPath)
+	if err != nil {
+		return envMap
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(stripEnvComment(scanner.Text()))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			k := strings.TrimSpace(parts[0])
+			v := cleanYAMLScalar(parts[1])
+			envMap[k] = v
+		}
+	}
+	return envMap
+}
+
 // LoadSecrets reads optional .env file if present and resolves environment variables.
 // Precedence: explicit environment variables > .env file values.
 func LoadSecrets(dotenvPath string) Secrets {
-	envMap := make(map[string]string)
-	if dotenvPath != "" {
-		if f, err := os.Open(dotenvPath); err == nil {
-			defer f.Close()
-			scanner := bufio.NewScanner(f)
-			for scanner.Scan() {
-				line := strings.TrimSpace(stripYAMLComment(scanner.Text()))
-				if line == "" || strings.HasPrefix(line, "#") {
-					continue
-				}
-				line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
-				parts := strings.SplitN(line, "=", 2)
-				if len(parts) == 2 {
-					k := strings.TrimSpace(parts[0])
-					v := cleanYAMLScalar(parts[1])
-					envMap[k] = v
-				}
-			}
-		}
-	}
+	envMap := LoadDotenvMap(dotenvPath)
 
 	get := func(key string) string {
 		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
@@ -69,6 +87,235 @@ func LoadSecrets(dotenvPath string) Secrets {
 		KaggleKey:      kgKey,
 		HFToken:        hfTok,
 	}
+}
+
+// ParseEnvList parses a bracketed semicolon-delimited list `[item 1; item 2]`
+// from an environment variable or .env file. Literal semicolons can be escaped as `\;`.
+func ParseEnvList(raw string) ([]string, bool) {
+	s := cleanYAMLScalar(strings.TrimSpace(raw))
+	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
+		return nil, false
+	}
+	inner := strings.TrimSpace(s[1 : len(s)-1])
+	if inner == "" {
+		return []string{}, true
+	}
+
+	var (
+		out []string
+		cur strings.Builder
+	)
+	for i := 0; i < len(inner); i++ {
+		if inner[i] == '\\' && i+1 < len(inner) && inner[i+1] == ';' {
+			cur.WriteByte(';')
+			i++
+			continue
+		}
+		if inner[i] == ';' {
+			if item := cleanYAMLScalar(cur.String()); item != "" {
+				out = append(out, item)
+			}
+			cur.Reset()
+			continue
+		}
+		cur.WriteByte(inner[i])
+	}
+	if item := cleanYAMLScalar(cur.String()); item != "" {
+		out = append(out, item)
+	}
+	return out, true
+}
+
+// ApplyEnvOverrides layers process environment variables and optional .env file values
+// on top of a loaded ProfileManifest. Precedence: process env > .env file > profile.yaml.
+func ApplyEnvOverrides(manifest *domain.ProfileManifest, dotenvPath string) {
+	if manifest == nil {
+		return
+	}
+	envMap := LoadDotenvMap(dotenvPath)
+
+	get := func(keys ...string) (string, bool) {
+		for _, k := range keys {
+			if v := strings.TrimSpace(os.Getenv(k)); v != "" {
+				return cleanYAMLScalar(v), true
+			}
+		}
+		for _, k := range keys {
+			if v := strings.TrimSpace(envMap[k]); v != "" {
+				return v, true
+			}
+		}
+		return "", false
+	}
+
+	if v, ok := get("SUBJECT_NAME"); ok {
+		manifest.Subject.Name = v
+	}
+	if v, ok := get("SUBJECT_ROLE"); ok {
+		manifest.Subject.Role = v
+	}
+	if v, ok := get("SUBJECT_LOCALE"); ok {
+		manifest.Subject.Locale = v
+	}
+	if v, ok := get("SUBJECT_HEADLINES"); ok {
+		if list, isList := ParseEnvList(v); isList {
+			manifest.Subject.Headlines = list
+		} else {
+			manifest.Subject.Headlines = splitMultilineScalar(v)
+		}
+	}
+	if v, ok := get("SUBJECT_BIO"); ok {
+		if list, isList := ParseEnvList(v); isList {
+			manifest.Subject.Bio = list
+		} else {
+			manifest.Subject.Bio = splitMultilineScalar(v)
+		}
+	}
+
+	if v, ok := get("GITHUB_USERNAME", "GH_USERNAME"); ok {
+		manifest.Sources.GitHub.Username = v
+	}
+	if v, ok := get("GITHUB_INCLUDE_FORKS", "GH_INCLUDE_FORKS"); ok {
+		manifest.Sources.GitHub.IncludeForks = parseBool(v, manifest.Sources.GitHub.IncludeForks)
+	}
+	if v, ok := get("GITHUB_INCLUDE_PRIVATE_COUNT", "GITHUB_INCLUDE_PRIVATE", "GH_INCLUDE_PRIVATE_COUNT", "GH_INCLUDE_PRIVATE"); ok {
+		manifest.Sources.GitHub.IncludePrivateCount = parseBool(v, manifest.Sources.GitHub.IncludePrivateCount)
+	}
+	if v, ok := get("GITHUB_EXCLUDE_REPOS", "GH_EXCLUDE_REPOS"); ok {
+		if list, isList := ParseEnvList(v); isList {
+			manifest.Sources.GitHub.ExcludeRepos = list
+		}
+	}
+	if v, ok := get("GITHUB_EXCLUDE_LANGS", "GH_EXCLUDE_LANGS"); ok {
+		if list, isList := ParseEnvList(v); isList {
+			manifest.Sources.GitHub.ExcludeLangs = list
+		}
+	}
+
+	if v, ok := get("KAGGLE_USERNAME"); ok {
+		manifest.Sources.Kaggle.Username = v
+	}
+	if v, ok := get("KAGGLE_ENABLED"); ok {
+		manifest.Sources.Kaggle.Enabled = parseBool(v, manifest.Sources.Kaggle.Enabled)
+	}
+	if v, ok := get("KAGGLE_MODE"); ok {
+		manifest.Sources.Kaggle.Mode = v
+	}
+
+	if v, ok := get("HF_USERNAME", "HUGGINGFACE_USERNAME"); ok {
+		manifest.Sources.HuggingFace.Username = v
+	}
+	if v, ok := get("HF_ENABLED", "HUGGINGFACE_ENABLED"); ok {
+		manifest.Sources.HuggingFace.Enabled = parseBool(v, manifest.Sources.HuggingFace.Enabled)
+	}
+
+	if v, ok := get("DEFLATE_NOTEBOOKS"); ok {
+		manifest.Normalization.DeflateNotebooks = parseBool(v, manifest.Normalization.DeflateNotebooks)
+	}
+	if v, ok := get("DETECT_DATA_STACK"); ok {
+		manifest.Normalization.DetectDataStack = parseBool(v, manifest.Normalization.DetectDataStack)
+	}
+
+	if v, ok := get("OUTPUT_DIRECTORY"); ok {
+		manifest.Output.Directory = v
+	}
+	if v, ok := get("OUTPUT_SCHOOLS"); ok {
+		if list, isList := ParseEnvList(v); isList && len(list) > 0 {
+			manifest.Output.Schools = nil
+			for _, it := range list {
+				manifest.Output.Schools = append(manifest.Output.Schools, domain.School(it))
+			}
+		}
+	}
+	if v, ok := get("OUTPUT_PANELS"); ok {
+		if list, isList := ParseEnvList(v); isList && len(list) > 0 {
+			manifest.Output.Panels = nil
+			for _, it := range list {
+				manifest.Output.Panels = append(manifest.Output.Panels, domain.Panel(it))
+			}
+		}
+	}
+}
+
+// PlanGitHubSync converts a parsed .env map into sorted GitHub Actions Secret and Variable targets.
+// Note: GitHub Actions forbids user-defined variables or secrets prefixed with `GITHUB_`, so
+// `GITHUB_USERNAME` etc. are automatically mapped to `GH_USERNAME` etc. for GitHub Actions Variables,
+// and `GITHUB_TOKEN` is omitted (as GitHub Actions provides `secrets.GITHUB_TOKEN` natively).
+func PlanGitHubSync(envMap map[string]string) []SyncTarget {
+	secretKeys := map[string]string{
+		"ACCESS_TOKEN":      "ACCESS_TOKEN",
+		"KAGGLE_KEY":        "KAGGLE_KEY",
+		"KAGGLE_API_TOKEN":  "KAGGLE_KEY",
+		"HF_TOKEN":          "HF_TOKEN",
+		"HUGGINGFACE_TOKEN": "HF_TOKEN",
+	}
+
+	varKeys := map[string]string{
+		"SUBJECT_NAME":                 "SUBJECT_NAME",
+		"SUBJECT_ROLE":                 "SUBJECT_ROLE",
+		"SUBJECT_LOCALE":               "SUBJECT_LOCALE",
+		"SUBJECT_HEADLINES":            "SUBJECT_HEADLINES",
+		"SUBJECT_BIO":                  "SUBJECT_BIO",
+		"GITHUB_USERNAME":              "GH_USERNAME",
+		"GH_USERNAME":                  "GH_USERNAME",
+		"GITHUB_INCLUDE_FORKS":         "GH_INCLUDE_FORKS",
+		"GH_INCLUDE_FORKS":             "GH_INCLUDE_FORKS",
+		"GITHUB_INCLUDE_PRIVATE_COUNT": "GH_INCLUDE_PRIVATE_COUNT",
+		"GITHUB_INCLUDE_PRIVATE":       "GH_INCLUDE_PRIVATE_COUNT",
+		"GH_INCLUDE_PRIVATE_COUNT":     "GH_INCLUDE_PRIVATE_COUNT",
+		"GH_INCLUDE_PRIVATE":           "GH_INCLUDE_PRIVATE_COUNT",
+		"GITHUB_EXCLUDE_REPOS":         "GH_EXCLUDE_REPOS",
+		"GH_EXCLUDE_REPOS":             "GH_EXCLUDE_REPOS",
+		"GITHUB_EXCLUDE_LANGS":         "GH_EXCLUDE_LANGS",
+		"GH_EXCLUDE_LANGS":             "GH_EXCLUDE_LANGS",
+		"KAGGLE_USERNAME":              "KAGGLE_USERNAME",
+		"KAGGLE_ENABLED":               "KAGGLE_ENABLED",
+		"KAGGLE_MODE":                  "KAGGLE_MODE",
+		"HF_USERNAME":                  "HF_USERNAME",
+		"HUGGINGFACE_USERNAME":         "HF_USERNAME",
+		"HF_ENABLED":                   "HF_ENABLED",
+		"HUGGINGFACE_ENABLED":          "HF_ENABLED",
+		"DEFLATE_NOTEBOOKS":            "DEFLATE_NOTEBOOKS",
+		"DETECT_DATA_STACK":            "DETECT_DATA_STACK",
+		"OUTPUT_DIRECTORY":             "OUTPUT_DIRECTORY",
+		"OUTPUT_SCHOOLS":               "OUTPUT_SCHOOLS",
+		"OUTPUT_PANELS":                "OUTPUT_PANELS",
+	}
+
+	resolved := make(map[string]SyncTarget)
+	for rawKey, rawVal := range envMap {
+		val := strings.TrimSpace(rawVal)
+		if val == "" {
+			continue
+		}
+		if targetName, ok := secretKeys[rawKey]; ok {
+			resolved["secret:"+targetName] = SyncTarget{
+				Name:     targetName,
+				Value:    val,
+				IsSecret: true,
+			}
+			continue
+		}
+		if targetName, ok := varKeys[rawKey]; ok {
+			resolved["var:"+targetName] = SyncTarget{
+				Name:     targetName,
+				Value:    val,
+				IsSecret: false,
+			}
+		}
+	}
+
+	out := make([]SyncTarget, 0, len(resolved))
+	for _, t := range resolved {
+		out = append(out, t)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].IsSecret != out[j].IsSecret {
+			return !out[i].IsSecret // variables first, then secrets
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
 
 // DefaultManifest returns sensible defaults when fields are omitted from profile.yaml.
@@ -371,6 +618,33 @@ func stripYAMLComment(s string) string {
 	return s
 }
 
+func stripEnvComment(s string) string {
+	var (
+		inSingle, inDouble bool
+		bracketDepth       int
+	)
+	for i := 0; i < len(s); i++ {
+		if bracketDepth == 0 {
+			updateQuoteState(s[i], &inSingle, &inDouble)
+		}
+		if !inSingle && !inDouble {
+			switch s[i] {
+			case '[':
+				bracketDepth++
+			case ']':
+				if bracketDepth > 0 {
+					bracketDepth--
+				}
+			case '#':
+				if bracketDepth == 0 && (i == 0 || s[i-1] == ' ' || s[i-1] == '\t') {
+					return s[:i]
+				}
+			}
+		}
+	}
+	return s
+}
+
 func cleanYAMLScalar(s string) string {
 	s = strings.TrimSpace(s)
 	if len(s) >= 2 {
@@ -419,7 +693,6 @@ func parseInlineYAMLArray(s string) ([]string, bool) {
 	}
 	return out, true
 }
-
 
 func isYAMLBlockScalarIndicator(s string) bool {
 	switch strings.TrimSpace(s) {

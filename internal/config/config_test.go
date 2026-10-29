@@ -377,5 +377,127 @@ subject:
 	}
 }
 
+func TestParseEnvListAndApplyEnvOverrides(t *testing.T) {
+	items, ok := ParseEnvList(`[Welcome people and mystical beings.; I'm Pablo! 👋; Working with data 10+ years\; and counting]`)
+	if !ok || len(items) != 3 {
+		t.Fatalf("expected 3 items from ParseEnvList, got ok=%v items=%+v", ok, items)
+	}
+	if items[1] != "I'm Pablo! 👋" || items[2] != "Working with data 10+ years; and counting" {
+		t.Errorf("unexpected parsed items: %+v", items)
+	}
+
+	emptyItems, okEmpty := ParseEnvList("[]")
+	if !okEmpty || len(emptyItems) != 0 {
+		t.Errorf("expected empty slice for [], got ok=%v items=%+v", okEmpty, emptyItems)
+	}
+
+	if _, okScalar := ParseEnvList("plain string without brackets"); okScalar {
+		t.Errorf("expected ParseEnvList to return false for plain scalar")
+	}
+
+	dir := t.TempDir()
+	dotenvPath := filepath.Join(dir, ".env")
+	dotenvContent := `
+SUBJECT_NAME="Pablo Diego"
+SUBJECT_ROLE="Data Scientist & Analytics Engineer"
+SUBJECT_LOCALE="pt-BR"
+SUBJECT_HEADLINES=[Welcome people and mystical beings.; I'm Pablo! 👋; Kaggle Master (#412)] # inline comment
+SUBJECT_BIO=[Economist and Data Scientist with 10+ years.; Focused on Python, SQL, Go, and R.]
+GITHUB_USERNAME="pablodiegoo"
+GITHUB_INCLUDE_FORKS=true
+GITHUB_INCLUDE_PRIVATE_COUNT=false
+GITHUB_EXCLUDE_REPOS=[old-fork; scratch-repo]
+GITHUB_EXCLUDE_LANGS=[HTML; CSS]
+KAGGLE_USERNAME="pablodiegoo"
+KAGGLE_ENABLED=false
+KAGGLE_MODE="api"
+HF_USERNAME="pablodiegoo-hf"
+HF_ENABLED=false
+DEFLATE_NOTEBOOKS=false
+DETECT_DATA_STACK=false
+OUTPUT_DIRECTORY="custom-generated"
+OUTPUT_SCHOOLS=[tufte; cairo]
+OUTPUT_PANELS=[summary; full]
+ACCESS_TOKEN="ghp_secret_pat"
+GITHUB_TOKEN="ghp_ignored_by_sync"
+`
+	if err := os.WriteFile(dotenvPath, []byte(dotenvContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure process env doesn't interfere
+	for _, k := range []string{
+		"SUBJECT_NAME", "SUBJECT_ROLE", "SUBJECT_LOCALE", "SUBJECT_HEADLINES", "SUBJECT_BIO",
+		"GITHUB_USERNAME", "GH_USERNAME", "GITHUB_INCLUDE_FORKS", "GH_INCLUDE_FORKS",
+		"GITHUB_INCLUDE_PRIVATE_COUNT", "GH_INCLUDE_PRIVATE_COUNT",
+		"GITHUB_EXCLUDE_REPOS", "GH_EXCLUDE_REPOS", "GITHUB_EXCLUDE_LANGS", "GH_EXCLUDE_LANGS",
+		"KAGGLE_USERNAME", "KAGGLE_ENABLED", "KAGGLE_MODE", "HF_USERNAME", "HF_ENABLED",
+		"DEFLATE_NOTEBOOKS", "DETECT_DATA_STACK", "OUTPUT_DIRECTORY", "OUTPUT_SCHOOLS", "OUTPUT_PANELS",
+	} {
+		t.Setenv(k, "")
+	}
+
+	m := DefaultManifest()
+	ApplyEnvOverrides(&m, dotenvPath)
+
+	if m.Subject.Name != "Pablo Diego" || m.Subject.Locale != "pt-BR" {
+		t.Errorf("unexpected Subject after .env override: %+v", m.Subject)
+	}
+	if len(m.Subject.Headlines) != 3 || m.Subject.Headlines[2] != "Kaggle Master (#412)" {
+		t.Errorf("unexpected Headlines after .env override: %+v", m.Subject.Headlines)
+	}
+	if len(m.Subject.Bio) != 2 || m.Subject.Bio[1] != "Focused on Python, SQL, Go, and R." {
+		t.Errorf("unexpected Bio after .env override: %+v", m.Subject.Bio)
+	}
+	if m.Sources.GitHub.Username != "pablodiegoo" || !m.Sources.GitHub.IncludeForks || m.Sources.GitHub.IncludePrivateCount {
+		t.Errorf("unexpected GitHub config after .env override: %+v", m.Sources.GitHub)
+	}
+	if len(m.Sources.GitHub.ExcludeRepos) != 2 || m.Sources.GitHub.ExcludeRepos[1] != "scratch-repo" {
+		t.Errorf("unexpected ExcludeRepos after .env override: %+v", m.Sources.GitHub.ExcludeRepos)
+	}
+	if len(m.Sources.GitHub.ExcludeLangs) != 2 || m.Sources.GitHub.ExcludeLangs[0] != "HTML" {
+		t.Errorf("unexpected ExcludeLangs after .env override: %+v", m.Sources.GitHub.ExcludeLangs)
+	}
+	if m.Sources.Kaggle.Username != "pablodiegoo" || m.Sources.Kaggle.Enabled || m.Sources.Kaggle.Mode != "api" {
+		t.Errorf("unexpected Kaggle config after .env override: %+v", m.Sources.Kaggle)
+	}
+	if m.Sources.HuggingFace.Username != "pablodiegoo-hf" || m.Sources.HuggingFace.Enabled {
+		t.Errorf("unexpected HuggingFace config after .env override: %+v", m.Sources.HuggingFace)
+	}
+	if m.Normalization.DeflateNotebooks || m.Normalization.DetectDataStack {
+		t.Errorf("unexpected Normalization config after .env override: %+v", m.Normalization)
+	}
+	if m.Output.Directory != "custom-generated" || len(m.Output.Schools) != 2 || len(m.Output.Panels) != 2 {
+		t.Errorf("unexpected Output config after .env override: %+v", m.Output)
+	}
+
+	// Verify GH_USERNAME process env alias overrides .env GITHUB_USERNAME
+	t.Setenv("GH_USERNAME", "ci-variable-user")
+	ApplyEnvOverrides(&m, dotenvPath)
+	if m.Sources.GitHub.Username != "ci-variable-user" {
+		t.Errorf("expected GH_USERNAME process env to override .env, got %q", m.Sources.GitHub.Username)
+	}
+
+	// Verify PlanGitHubSync maps GITHUB_* to GH_* and classifies secrets vs variables
+	targets := PlanGitHubSync(LoadDotenvMap(dotenvPath))
+	foundGHUser := false
+	foundSecret := false
+	for _, tgt := range targets {
+		if tgt.Name == "GITHUB_TOKEN" || tgt.Name == "GITHUB_USERNAME" {
+			t.Errorf("unexpected reserved GITHUB_ target name in PlanGitHubSync: %+v", tgt)
+		}
+		if tgt.Name == "GH_USERNAME" && !tgt.IsSecret && tgt.Value == "pablodiegoo" {
+			foundGHUser = true
+		}
+		if tgt.Name == "ACCESS_TOKEN" && tgt.IsSecret && tgt.Value == "ghp_secret_pat" {
+			foundSecret = true
+		}
+	}
+	if !foundGHUser || !foundSecret {
+		t.Errorf("expected GH_USERNAME variable and ACCESS_TOKEN secret in sync plan, got %+v", targets)
+	}
+}
+
+
 
 

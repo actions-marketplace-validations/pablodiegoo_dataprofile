@@ -4,6 +4,10 @@
 !.env.example
 kaggle.json
 
+# Generated SVG output directories (published to the orphan `output` branch only)
+/generated/
+/showcase/
+
 # Go build artifacts and binaries
 /dataprofile
 /bin/

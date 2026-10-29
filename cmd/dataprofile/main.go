@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -17,12 +18,18 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "validate" || os.Args[1] == "generate") {
-		sub := os.Args[1]
-		os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
-		if sub == "validate" {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "validate":
+			os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
 			runValidate()
 			return
+		case "sync":
+			os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
+			runSync()
+			return
+		case "generate":
+			os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
 		}
 	}
 	runGenerate()
@@ -35,6 +42,7 @@ func runGenerate() {
 		outputDir    string
 		locale       string
 		demoMode     bool
+		noEnv        bool
 	)
 
 	flag.StringVar(&manifestPath, "config", "profile.yaml", "Path to declarative profile.yaml manifest")
@@ -42,12 +50,17 @@ func runGenerate() {
 	flag.StringVar(&outputDir, "output", "", "Override output directory from profile.yaml")
 	flag.StringVar(&locale, "locale", "", "Override subject locale (en | pt-BR)")
 	flag.BoolVar(&demoMode, "demo", false, "Render deterministic reference metrics without querying live network APIs")
+	flag.BoolVar(&noEnv, "no-env", false, "Ignore .env and environment variable overrides (use pure profile.yaml)")
 	flag.Parse()
 
 	manifest, err := config.LoadManifest(manifestPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not read %s (%v), using default manifest\n", manifestPath, err)
 		manifest = config.DefaultManifest()
+	}
+
+	if !noEnv {
+		config.ApplyEnvOverrides(&manifest, envPath)
 	}
 
 	if outputDir != "" {
@@ -57,7 +70,10 @@ func runGenerate() {
 		manifest.Subject.Locale = locale
 	}
 
-	secrets := config.LoadSecrets(envPath)
+	var secrets config.Secrets
+	if !noEnv {
+		secrets = config.LoadSecrets(envPath)
+	}
 	data := render.DefaultPortfolioData(manifest)
 
 	if !demoMode {
@@ -107,16 +123,23 @@ func runGenerate() {
 func runValidate() {
 	var (
 		manifestPath string
+		envPath      string
 		outputDir    string
+		noEnv        bool
 	)
 	flag.StringVar(&manifestPath, "config", "profile.yaml", "Path to declarative profile.yaml manifest")
+	flag.StringVar(&envPath, "env", ".env", "Path to optional local .env file")
 	flag.StringVar(&outputDir, "output", "", "Override output directory from profile.yaml")
+	flag.BoolVar(&noEnv, "no-env", false, "Ignore .env and environment variable overrides (use pure profile.yaml)")
 	flag.Parse()
 
 	manifest, err := config.LoadManifest(manifestPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "validation failed loading %s: %v\n", manifestPath, err)
 		os.Exit(1)
+	}
+	if !noEnv {
+		config.ApplyEnvOverrides(&manifest, envPath)
 	}
 	if outputDir != "" {
 		manifest.Output.Directory = outputDir
@@ -139,6 +162,77 @@ func runValidate() {
 		}
 	}
 	fmt.Printf("✓ Validated %d SVG files in %s/ (XML well-formed, high-contrast, zero meta-labels)\n", checked, manifest.Output.Directory)
+}
+
+func runSync() {
+	var (
+		envPath  string
+		repo     string
+		workflow string
+		trigger  bool
+		dryRun   bool
+	)
+	flag.StringVar(&envPath, "env", ".env", "Path to local .env file to sync with GitHub Actions")
+	flag.StringVar(&repo, "repo", "", "Optional target GitHub repository (owner/repo)")
+	flag.StringVar(&workflow, "workflow", "generate.yml", "GitHub Actions workflow file to trigger after syncing")
+	flag.BoolVar(&trigger, "trigger", true, "Trigger workflow_dispatch after syncing secrets and variables")
+	flag.BoolVar(&dryRun, "dry-run", false, "Print planned gh CLI commands without executing them")
+	flag.Parse()
+
+	envMap := config.LoadDotenvMap(envPath)
+	targets := config.PlanGitHubSync(envMap)
+	if len(targets) == 0 {
+		fmt.Fprintf(os.Stderr, "error: no non-empty variables or secrets found in %s\n", envPath)
+		os.Exit(1)
+	}
+
+	varsSynced, secretsSynced := 0, 0
+	for _, t := range targets {
+		kind := "variable"
+		displayVal := t.Value
+		if t.IsSecret {
+			kind = "secret"
+			displayVal = "***"
+		}
+		args := []string{kind, "set", t.Name, "--body", t.Value}
+		if repo != "" {
+			args = append(args, "--repo", repo)
+		}
+		if dryRun {
+			fmt.Printf("[dry-run] gh %s set %s --body %q\n", kind, t.Name, displayVal)
+		} else {
+			cmd := exec.Command("gh", args...)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				fmt.Fprintf(os.Stderr, "error syncing %s %s: %v\n%s", kind, t.Name, err, string(out))
+				os.Exit(1)
+			}
+			fmt.Printf("✓ Synced GitHub %s: %s\n", kind, t.Name)
+		}
+		if t.IsSecret {
+			secretsSynced++
+		} else {
+			varsSynced++
+		}
+	}
+
+	if trigger {
+		wfArgs := []string{"workflow", "run", workflow}
+		if repo != "" {
+			wfArgs = append(wfArgs, "--repo", repo)
+		}
+		if dryRun {
+			fmt.Printf("[dry-run] gh workflow run %s\n", workflow)
+		} else {
+			cmd := exec.Command("gh", wfArgs...)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				fmt.Fprintf(os.Stderr, "error triggering workflow %s: %v\n%s", workflow, err, string(out))
+				os.Exit(1)
+			}
+			fmt.Printf("✓ Triggered GitHub Actions workflow: %s\n", workflow)
+		}
+	}
+
+	fmt.Printf("✓ Sync complete (%d variables, %d secrets from %s)\n", varsSynced, secretsSynced, envPath)
 }
 
 func collectLiveSources(
@@ -198,4 +292,3 @@ func collectLiveSources(
 		}
 	}
 }
-

@@ -32,16 +32,37 @@ jobs:
       - name: Run Automated Test Suite
         run: go test -v ./...
 
-      - name: Generate SVG Portfolio Panels
+      - name: Generate SVG Portfolio Panels & Reference Showcase
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME || vars.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SUBJECT_NAME: ${{ vars.SUBJECT_NAME }}
+          SUBJECT_ROLE: ${{ vars.SUBJECT_ROLE }}
+          SUBJECT_LOCALE: ${{ vars.SUBJECT_LOCALE }}
+          SUBJECT_HEADLINES: ${{ vars.SUBJECT_HEADLINES }}
+          SUBJECT_BIO: ${{ vars.SUBJECT_BIO }}
+          GH_USERNAME: ${{ vars.GH_USERNAME }}
+          GH_INCLUDE_FORKS: ${{ vars.GH_INCLUDE_FORKS }}
+          GH_INCLUDE_PRIVATE_COUNT: ${{ vars.GH_INCLUDE_PRIVATE_COUNT }}
+          GH_EXCLUDE_REPOS: ${{ vars.GH_EXCLUDE_REPOS }}
+          GH_EXCLUDE_LANGS: ${{ vars.GH_EXCLUDE_LANGS }}
+          KAGGLE_ENABLED: ${{ vars.KAGGLE_ENABLED }}
+          KAGGLE_MODE: ${{ vars.KAGGLE_MODE }}
+          HF_USERNAME: ${{ vars.HF_USERNAME }}
+          HF_ENABLED: ${{ vars.HF_ENABLED }}
+          DEFLATE_NOTEBOOKS: ${{ vars.DEFLATE_NOTEBOOKS }}
+          DETECT_DATA_STACK: ${{ vars.DETECT_DATA_STACK }}
+          OUTPUT_DIRECTORY: ${{ vars.OUTPUT_DIRECTORY }}
+          OUTPUT_SCHOOLS: ${{ vars.OUTPUT_SCHOOLS }}
+          OUTPUT_PANELS: ${{ vars.OUTPUT_PANELS }}
         run: |
-          go run ./cmd/dataprofile generate --config=profile.yaml
-          go run ./cmd/dataprofile validate --config=profile.yaml
+          go run ./cmd/dataprofile generate --config=profile.yaml --output=generated
+          go run ./cmd/dataprofile validate --config=profile.yaml --output=generated
+          go run ./cmd/dataprofile generate --config=profile.yaml --output=showcase --demo --no-env
+          go run ./cmd/dataprofile validate --config=profile.yaml --output=showcase --no-env
 
       - name: Publish SVGs to orphan output branch
         run: |
@@ -49,13 +70,15 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           TMP_DIR=$(mktemp -d)
           cp -r generated "$TMP_DIR/generated"
+          cp -r showcase "$TMP_DIR/showcase"
           git checkout --orphan output-temp
           git rm -rf . >/dev/null 2>&1 || true
           cp -r "$TMP_DIR/generated" ./generated
+          cp -r "$TMP_DIR/showcase" ./showcase
           if [ -f ./generated/README.md ]; then
             cp ./generated/README.md ./README.md
           fi
-          git add generated README.md
+          git add generated showcase README.md
           git commit -m "chore(svg): update generated DataProfile panels and output showcase README"
           git branch -M output-temp output
           git push -f origin output

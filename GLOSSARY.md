@@ -25,8 +25,12 @@ A chromatic and contrast scheme (such as the dual-surface transparent palette) a
 _Avoid_: Theme, Mode, Skin
 
 **Profile Manifest**:
-The public, declarative YAML specification (`profile.yaml`) that identifies the Subject, active Sources, and selected Schools without storing secret credentials.
-_Avoid_: Config file, Settings, Environment file
+The declarative specification (`profile.yaml`, optionally overridden by local or CI environment variables) that identifies the Subject, active Sources, and selected Schools without committing secret credentials or personal curriculum churn to upstream source control.
+_Avoid_: Config file, Settings
+
+**Showcase**:
+The deterministic reference set of Panels rendered from the default Profile Manifest to illustrate the four Schools in project documentation, kept separate from any live Subject portfolio.
+_Avoid_: Sample images, Mockup, Preview
 
 **Owned Repository**:
 A public or private non-fork repository belonging to the Subject whose source code, notebooks, dependency manifests, and engineering hygiene signals are fully attributed to the Subject's portfolio.

@@ -1,23 +1,27 @@
 # ============================================================================
 # DataProfile — Declarative Profile Manifest (profile.yaml)
 # Safe to commit publicly. Contains ZERO secrets or tokens.
+#
+# Tip: To customize your portfolio without modifying this tracked file on `main`
+# (avoiding personal commits or fork merge conflicts), set overrides in `.env`
+# using `[item 1; item 2]` syntax and run `go run ./cmd/dataprofile sync`.
 # ============================================================================
 
 subject:
-  name: "Pablo Diego"
+  name: "Ada Lovelace"
   role: "Data Scientist & Analytics Engineer"
   locale: "en" # Supported: "en" | "pt-BR"
   headlines:
     - "Welcome people and mystical beings."
-    - "I'm Pablo! 👋"
-    - "Working with data 10+ years"
+    - "I'm Ada Lovelace! 👋"
+    - "Building analytical engines & ML systems"
   bio:
-    - "Economist and Data Scientist with 10+ years of experience transforming complex datasets into actionable insights, predictive models, and production analytics engineering pipelines."
+    - "Data Scientist and Analytics Engineer transforming complex datasets into actionable insights, predictive models, and production data pipelines."
     - "Focused on quantitative analysis, machine learning, and open-source data tooling across Python, SQL, Go, and R."
 
 sources:
   github:
-    username: "pablodiegoo"
+    username: "example-data-scientist"
     include_forks: false
     include_private_count: true
     exclude_repos: []
@@ -34,12 +38,12 @@ sources:
       - "Batchfile"
 
   kaggle:
-    username: "pablodiegoo"
+    username: "example-data-scientist"
     enabled: true
     mode: "hybrid" # "hybrid" (Headless Chrome CDP + optional API v1) | "browser" | "api"
 
   huggingface:
-    username: "pablodiegoo"
+    username: "example-data-scientist"
     enabled: true
 
 normalization:

@@ -10,8 +10,8 @@
 [![Sources](https://img.shields.io/badge/Sources-GitHub%20%7C%20Kaggle%20%7C%20Hugging%20Face-d97706)](#the-four-analytical-panels-panel)
 
 <p align="center">
-  <img src="generated/few/summary.svg" width="48%" alt="Executive Summary (Stephen Few Grammar)" />
-  <img src="generated/tufte/summary.svg" width="48%" alt="Executive Summary (Edward Tufte Grammar)" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/few/summary.svg" width="48%" alt="Executive Summary (Stephen Few Grammar)" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/tufte/summary.svg" width="48%" alt="Executive Summary (Edward Tufte Grammar)" />
 </p>
 
 </div>
@@ -43,56 +43,56 @@ If a metric is zero, the renderer adapts the layout rather than printing rows of
 
 Each run generates all five panels across four visualization schools under `generated/<school>/<panel>.svg`. None of the generated SVGs print the name of the school or its author inside the image, which allows you to adopt a single visual grammar or mix panels from different schools in the same profile.
 
-### I. `generated/tufte/` (Edward Tufte)
+### I. `tufte` (Edward Tufte)
 
 Inspired by **Edward Tufte** (*The Visual Display of Quantitative Information*, 1983), this grammar removes outer boxes and grid cages so that every line serves the data. It uses serif typography with tabular numerals, dot-dash plots for language share, supertables for Kaggle percentiles, and inline sparklines with interquartile shading.
 
 <p align="center">
-  <img src="generated/tufte/languages.svg" width="48%" alt="Tufte Languages Panel" />
-  <img src="generated/tufte/stack.svg" width="48%" alt="Tufte Stack Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/tufte/languages.svg" width="48%" alt="Tufte Languages Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/tufte/stack.svg" width="48%" alt="Tufte Stack Panel" />
 </p>
 <p align="center">
-  <img src="generated/tufte/kaggle.svg" width="48%" alt="Tufte Kaggle Panel" />
-  <img src="generated/tufte/impact.svg" width="48%" alt="Tufte Impact Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/tufte/kaggle.svg" width="48%" alt="Tufte Kaggle Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/tufte/impact.svg" width="48%" alt="Tufte Impact Panel" />
 </p>
 
-### II. `generated/few/` (Stephen Few)
+### II. `few` (Stephen Few)
 
 Inspired by **Stephen Few** (*Information Dashboard Design*, 2006), this layout is organized for three-second scanning by technical recruiters and engineering managers. It pairs top KPI strips with bullet graphs (qualitative background bands, an inner performance bar, and a vertical target threshold marker) and reserves accent color for category leaders.
 
 <p align="center">
-  <img src="generated/few/languages.svg" width="48%" alt="Few Languages Panel" />
-  <img src="generated/few/stack.svg" width="48%" alt="Few Stack Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/few/languages.svg" width="48%" alt="Few Languages Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/few/stack.svg" width="48%" alt="Few Stack Panel" />
 </p>
 <p align="center">
-  <img src="generated/few/kaggle.svg" width="48%" alt="Few Kaggle Panel" />
-  <img src="generated/few/impact.svg" width="48%" alt="Few Impact Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/few/kaggle.svg" width="48%" alt="Few Kaggle Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/few/impact.svg" width="48%" alt="Few Impact Panel" />
 </p>
 
-### III. `generated/cairo/` (Alberto Cairo)
+### III. `cairo` (Alberto Cairo)
 
 Inspired by **Alberto Cairo** (*The Functional Art*, 2012; *The Truthful Art*, 2016), this school treats the portfolio like an editorial data-journalism piece. It combines a crimson top rule with a thesis-driven serif headline, a 10x5 waffle chart for code structure, lollipop charts with dashed benchmark lines, and an annotation layer (`↳`) that explains what the numbers mean in context.
 
 <p align="center">
-  <img src="generated/cairo/languages.svg" width="48%" alt="Cairo Languages Panel" />
-  <img src="generated/cairo/stack.svg" width="48%" alt="Cairo Stack Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/cairo/languages.svg" width="48%" alt="Cairo Languages Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/cairo/stack.svg" width="48%" alt="Cairo Stack Panel" />
 </p>
 <p align="center">
-  <img src="generated/cairo/kaggle.svg" width="48%" alt="Cairo Kaggle Panel" />
-  <img src="generated/cairo/impact.svg" width="48%" alt="Cairo Impact Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/cairo/kaggle.svg" width="48%" alt="Cairo Kaggle Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/cairo/impact.svg" width="48%" alt="Cairo Impact Panel" />
 </p>
 
-### IV. `generated/holmes/` (Nigel Holmes & ISOTYPE)
+### IV. `holmes` (Nigel Holmes & ISOTYPE)
 
 Inspired by **Nigel Holmes** (*Designer's Guide to Creating Charts and Diagrams*, 1984) and Otto Neurath's ISOTYPE system, this grammar uses magazine header ribbons, 10-block pictorial unit charts (where each block equals 10% of the codebase), a stepped podium showing progression toward Kaggle Grandmaster, and visual badges for engineering practices.
 
 <p align="center">
-  <img src="generated/holmes/languages.svg" width="48%" alt="Holmes Languages Panel" />
-  <img src="generated/holmes/stack.svg" width="48%" alt="Holmes Stack Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/holmes/languages.svg" width="48%" alt="Holmes Languages Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/holmes/stack.svg" width="48%" alt="Holmes Stack Panel" />
 </p>
 <p align="center">
-  <img src="generated/holmes/kaggle.svg" width="48%" alt="Holmes Kaggle Panel" />
-  <img src="generated/holmes/impact.svg" width="48%" alt="Holmes Impact Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/holmes/kaggle.svg" width="48%" alt="Holmes Kaggle Panel" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/holmes/impact.svg" width="48%" alt="Holmes Impact Panel" />
 </p>
 
 ## 2-Minute Setup Guide
@@ -158,7 +158,7 @@ jobs:
 
 1. Click **Fork** at the top-right of this page.
 2. Open the **Actions** tab in your fork and click **"I understand my workflows, go ahead and enable them"** (GitHub disables scheduled workflows on fresh forks by default).
-3. Edit [`profile.yaml`](profile.yaml) on `main` with your usernames and commit. The bundled workflow ([`.github/workflows/generate.yml`](.github/workflows/generate.yml)) will compile the engine, validate all 20 SVGs, and publish them (along with a ready-to-copy catalog `README.md`) to the orphan `output` branch of your fork using the built-in `GITHUB_TOKEN`.
+3. Either edit [`profile.yaml`](profile.yaml) on `main` with your usernames and commit, **or** keep `profile.yaml` untouched (to avoid personal curriculum commits on `main` and merge conflicts when syncing your fork) by setting your overrides in a local gitignored `.env` file using `[item 1; item 2]` syntax and running `go run ./cmd/dataprofile sync`. The bundled workflow ([`.github/workflows/generate.yml`](.github/workflows/generate.yml)) will compile the engine, validate all SVGs, and publish them (along with a ready-to-copy catalog `README.md`) to the orphan `output` branch using `GITHUB_TOKEN`.
 
 ### Optional secrets for private metrics and Kaggle REST API v1
 
@@ -192,11 +192,14 @@ Once the workflow publishes to the `output` branch, paste the snippet for your p
 Because the engine uses only the Go 1.23+ standard library, you can run and test everything locally without installing external dependencies:
 
 ```bash
-# Generate all 20 SVGs (4 Schools x 5 Panels) using live APIs and profile.yaml
+# Generate all SVG panels across 4 Schools using live APIs, profile.yaml, and .env overrides
 go run ./cmd/dataprofile generate --config=profile.yaml
 
-# Generate deterministic showcase SVGs in offline demo mode
-go run ./cmd/dataprofile generate --demo
+# Sync local .env curriculum & secret overrides to GitHub Actions and trigger regeneration
+go run ./cmd/dataprofile sync
+
+# Generate deterministic Showcase SVGs in offline demo mode (ignoring .env overrides)
+go run ./cmd/dataprofile generate --demo --no-env --output=showcase
 
 # Render all panels in Brazilian Portuguese (pt-BR)
 go run ./cmd/dataprofile generate --demo --locale=pt-BR
@@ -210,17 +213,16 @@ go test -v ./...
 
 ```text
 dataprofile/
-├── cmd/dataprofile/main.go                  # CLI entrypoint (generate and validate subcommands)
+├── cmd/dataprofile/main.go                  # CLI entrypoint (generate, validate, and sync subcommands)
 ├── internal/
 │   ├── domain/model.go                      # Canonical domain types (School, Panel, Palette, PortfolioData)
-│   ├── config/                              # Declarative profile.yaml and .env loader
+│   ├── config/                              # Declarative profile.yaml and .env [item 1; item 2] override loader
 │   ├── normalizer/                          # Jupyter .ipynb base64 deflator and 3-pillar Stack scanner
 │   ├── sources/{github,kaggle,huggingface}/ # Concurrent upstream Source collectors
-│   └── render/                              # Parameterized SVG engine (4 Schools x 5 Panels, en and pt-BR)
+│   └── render/                              # Parameterized SVG engine (4 Schools x 9 Panels, en and pt-BR)
 ├── prototypes/                              # Interactive HTML/SVG viewer (prototypes/index.html)
-├── generated/{tufte,few,cairo,holmes}/      # Rendered SVG panels and output branch README
 ├── GLOSSARY.md                              # Domain vocabulary definitions
-└── docs/adr/                                # Architectural Decision Records (ADR-0001, ADR-0002)
+└── docs/adr/                                # Architectural Decision Records (ADR-0001 to ADR-0005)
 ```
 
 ## Contributing, security, and license

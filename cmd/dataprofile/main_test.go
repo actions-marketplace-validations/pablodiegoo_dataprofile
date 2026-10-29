@@ -53,8 +53,8 @@ output:
 		t.Fatalf("failed to build CLI binary: %v\n%s", err, string(out))
 	}
 
-	// 1. Run generate with --config, --output, and --demo
-	genCmd := exec.Command(binPath, "generate", "--config", manifestPath, "--output", outDir, "--demo")
+	// 1. Run generate with --config, --output, --demo, and --no-env
+	genCmd := exec.Command(binPath, "generate", "--config", manifestPath, "--output", outDir, "--demo", "--no-env")
 	if out, err := genCmd.CombinedOutput(); err != nil {
 		t.Fatalf("generate failed: %v\n%s", err, string(out))
 	}
@@ -145,15 +145,15 @@ output:
 		}
 	}
 
-	// 2. Run validate with --config and --output
-	valCmd := exec.Command(binPath, "validate", "--config", manifestPath, "--output", outDir)
+	// 2. Run validate with --config, --output, and --no-env
+	valCmd := exec.Command(binPath, "validate", "--config", manifestPath, "--output", outDir, "--no-env")
 	if out, err := valCmd.CombinedOutput(); err != nil {
 		t.Fatalf("validate with --output failed: %v\n%s", err, string(out))
 	}
 
 	// 3. Run generate with --locale=pt-BR overriding manifest locale: "en"
 	ptOutDir := filepath.Join(dir, "pt-out")
-	genPtCmd := exec.Command(binPath, "generate", "--config", manifestPath, "--output", ptOutDir, "--locale=pt-BR", "--demo")
+	genPtCmd := exec.Command(binPath, "generate", "--config", manifestPath, "--output", ptOutDir, "--locale=pt-BR", "--demo", "--no-env")
 	if out, err := genPtCmd.CombinedOutput(); err != nil {
 		t.Fatalf("generate --locale=pt-BR failed: %v\n%s", err, string(out))
 	}
@@ -184,6 +184,47 @@ output:
 	}
 	if !strings.Contains(string(ptFullSVG), "Olá! Eu sou Ada Lovelace 👋") || !strings.Contains(string(ptFullSVG), "Ecossistema Completo de Dados &amp; ML Ancorado por") {
 		t.Errorf("expected --locale=pt-BR CLI flag to localize header and analytical panels in cairo/full.svg")
+	}
+
+	// 4. Verify .env override with [item 1; item 2] syntax vs --no-env isolation and `sync --dry-run`
+	envFile := filepath.Join(dir, "custom.env")
+	envContent := `
+SUBJECT_NAME="Pablo Diego"
+SUBJECT_HEADLINES=[Welcome people and mystical beings.; I'm Pablo! 👋; Working with data 10+ years]
+SUBJECT_BIO=[Economist and Data Scientist.; Open-source tooling in Go and Python.]
+GITHUB_USERNAME="pablodiegoo"
+ACCESS_TOKEN="ghp_test_token"
+`
+	if err := os.WriteFile(envFile, []byte(envContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	envOutDir := filepath.Join(dir, "env-out")
+	genEnvCmd := exec.Command(binPath, "generate", "--config", manifestPath, "--env", envFile, "--output", envOutDir, "--demo")
+	if out, err := genEnvCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generate with --env failed: %v\n%s", err, string(out))
+	}
+	envHdr, err := os.ReadFile(filepath.Join(envOutDir, "tufte", "header.svg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(envHdr), "I&#39;m Pablo! 👋") || strings.Contains(string(envHdr), "Ada Lovelace") {
+		t.Errorf("expected --env override to replace Ada Lovelace with Pablo's headlines in header.svg")
+	}
+
+	syncCmd := exec.Command(binPath, "sync", "--env", envFile, "--dry-run")
+	syncOut, err := syncCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("sync --dry-run failed: %v\n%s", err, string(syncOut))
+	}
+	for _, want := range []string{
+		`[dry-run] gh variable set GH_USERNAME --body "pablodiegoo"`,
+		`[dry-run] gh variable set SUBJECT_NAME --body "Pablo Diego"`,
+		`[dry-run] gh secret set ACCESS_TOKEN --body "***"`,
+		`[dry-run] gh workflow run generate.yml`,
+	} {
+		if !strings.Contains(string(syncOut), want) {
+			t.Errorf("expected %q in sync --dry-run output, got:\n%s", want, string(syncOut))
+		}
 	}
 }
 
@@ -404,10 +445,13 @@ func TestGitHubActionWorkflowAndSecretHygiene(t *testing.T) {
 		`go test -v ./...`,
 		`ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}`,
 		`GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`,
-		`KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}`,
+		`KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME || vars.KAGGLE_USERNAME }}`,
 		`KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}`,
 		`HF_TOKEN: ${{ secrets.HF_TOKEN }}`,
-		`go run ./cmd/dataprofile generate`,
+		`SUBJECT_NAME: ${{ vars.SUBJECT_NAME }}`,
+		`GH_USERNAME: ${{ vars.GH_USERNAME }}`,
+		`go run ./cmd/dataprofile generate --config=profile.yaml --output=generated`,
+		`go run ./cmd/dataprofile generate --config=profile.yaml --output=showcase --demo --no-env`,
 		`go run ./cmd/dataprofile validate`,
 		`git checkout --orphan`,
 		`git push -f origin output`,
@@ -418,25 +462,25 @@ func TestGitHubActionWorkflowAndSecretHygiene(t *testing.T) {
 		}
 	}
 
-	// 3. Verify .gitignore secret exclusion rules
+	// 3. Verify .gitignore secret and generated output exclusion rules
 	gitignoreRaw, err := os.ReadFile(filepath.Join(root, ".gitignore"))
 	if err != nil {
 		t.Fatalf("missing .gitignore: %v", err)
 	}
 	gitignoreStr := string(gitignoreRaw)
-	for _, pattern := range []string{".env", ".env.*", "!.env.example", "kaggle.json"} {
+	for _, pattern := range []string{".env", ".env.*", "!.env.example", "kaggle.json", "/generated/", "/showcase/"} {
 		if !strings.Contains(gitignoreStr, pattern) {
-			t.Errorf(".gitignore missing required secret exclusion rule %q", pattern)
+			t.Errorf(".gitignore missing required exclusion rule %q", pattern)
 		}
 	}
 
-	// 4. Verify .env.example documents all optional secrets without leaking values
+	// 4. Verify .env.example documents all optional secrets and [item 1; item 2] overrides without leaking values
 	envExRaw, err := os.ReadFile(filepath.Join(root, ".env.example"))
 	if err != nil {
 		t.Fatalf("missing .env.example: %v", err)
 	}
 	envExStr := string(envExRaw)
-	for _, key := range []string{"ACCESS_TOKEN=", "GITHUB_TOKEN=", "KAGGLE_USERNAME=", "KAGGLE_KEY=", "HF_TOKEN="} {
+	for _, key := range []string{"ACCESS_TOKEN=", "GITHUB_TOKEN=", "KAGGLE_USERNAME=", "KAGGLE_KEY=", "HF_TOKEN=", "SUBJECT_HEADLINES=", "SUBJECT_BIO="} {
 		if !strings.Contains(envExStr, key) {
 			t.Errorf(".env.example missing documented variable %q", key)
 		}
@@ -446,16 +490,21 @@ func TestGitHubActionWorkflowAndSecretHygiene(t *testing.T) {
 func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 	root := repoRoot(t)
 
-	// 1. Verify all 20 generated/<school>/<panel>.svg exist and pass ValidateSVG
+	// 1. Render all 36 Showcase SVGs from profile.yaml in demo mode and verify against prototypes/schools/
+	manifest, err := config.LoadManifest(filepath.Join(root, "profile.yaml"))
+	if err != nil {
+		t.Fatalf("failed loading root profile.yaml: %v", err)
+	}
+	data := render.DefaultPortfolioData(manifest)
+
 	for _, school := range domain.AllSchools() {
 		for _, panel := range domain.AllPanels() {
-			genPath := filepath.Join(root, "generated", string(school), string(panel)+".svg")
-			genBytes, err := os.ReadFile(genPath)
+			svgStr, err := render.Render(school, panel, data)
 			if err != nil {
-				t.Fatalf("missing generated SVG %s: %v", genPath, err)
+				t.Fatalf("failed rendering %s/%s: %v", school, panel, err)
 			}
-			if err := render.ValidateSVG(string(genBytes)); err != nil {
-				t.Errorf("generated SVG %s failed ValidateSVG: %v", genPath, err)
+			if err := render.ValidateSVG(svgStr); err != nil {
+				t.Errorf("rendered SVG %s/%s failed ValidateSVG: %v", school, panel, err)
 			}
 
 			// For the 4 analytical panels (languages, stack, kaggle, impact), verify prototypes/schools/<school>/<panel>.svg matches
@@ -468,15 +517,15 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 				if err := render.ValidateSVG(string(protoBytes)); err != nil {
 					t.Errorf("prototype SVG %s failed ValidateSVG: %v", protoPath, err)
 				}
-				if string(protoBytes) != string(genBytes) {
-					t.Errorf("prototype SVG %s is out of sync with %s", protoPath, genPath)
+				if string(protoBytes) != svgStr {
+					t.Errorf("prototype SVG %s is out of sync with rendered %s/%s", protoPath, school, panel)
 				}
 			}
 		}
 	}
 
 	// 2. Verify all remaining SVGs in prototypes/ pass ValidateSVG
-	err := filepath.Walk(filepath.Join(root, "prototypes"), func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(filepath.Join(root, "prototypes"), func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".svg") {
 			return err
 		}
@@ -538,13 +587,14 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"Stephen Few",
 		"Alberto Cairo",
 		"Nigel Holmes",
-		"generated/tufte/languages.svg",
-		"generated/few/languages.svg",
-		"generated/cairo/languages.svg",
-		"generated/holmes/languages.svg",
+		"output/showcase/tufte/languages.svg",
+		"output/showcase/few/languages.svg",
+		"output/showcase/cairo/languages.svg",
+		"output/showcase/holmes/languages.svg",
 		"2-Minute Setup Guide",
 		"profile.yaml",
 		"go run ./cmd/dataprofile generate",
+		"go run ./cmd/dataprofile sync",
 		"go run ./cmd/dataprofile validate",
 		"--demo",
 		"--locale=pt-BR",
