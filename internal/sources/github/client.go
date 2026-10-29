@@ -389,6 +389,7 @@ func (c *Client) fetchRepoLanguages(ctx context.Context, fullName string) (map[s
 var dependencyManifestFiles = []string{
 	"pyproject.toml",
 	"requirements.txt",
+	"uv.lock",
 	"environment.yml",
 	"DESCRIPTION",
 }
@@ -521,18 +522,13 @@ func (c *Client) fetchRepoTrafficViews14d(ctx context.Context, fullName string) 
 	return v.Count, true
 }
 
-func (c *Client) fetchRepoManifests(ctx context.Context, fullName string) string {
-	text, _ := c.fetchRepoManifestsWithMeta(ctx, fullName)
-	return text
-}
-
 func (c *Client) fetchRepoManifestsWithMeta(ctx context.Context, fullName string) (string, bool) {
 	var parts []string
 	var hasReqTxt bool
 	for _, filename := range dependencyManifestFiles {
 		if content := c.fetchRepoFileContent(ctx, fullName, filename); content != "" {
 			parts = append(parts, content)
-			if filename == "requirements.txt" {
+			if filename == "requirements.txt" || filename == "uv.lock" {
 				hasReqTxt = true
 			}
 		}
@@ -651,7 +647,7 @@ func isIgnoredTreePath(p string) bool {
 
 func isManifestFileName(baseLower string) bool {
 	switch baseLower {
-	case "pyproject.toml", "requirements.txt", "environment.yml", "environment.yaml", "pipfile", "description", "setup.py":
+	case "pyproject.toml", "requirements.txt", "uv.lock", "poetry.lock", "pipfile", "pipfile.lock", "environment.yml", "environment.yaml", "description", "renv.lock", "setup.py":
 		return true
 	}
 	return strings.HasPrefix(baseLower, "requirements") && strings.HasSuffix(baseLower, ".txt")
@@ -668,12 +664,17 @@ func workspaceKeyForPath(p string, isMonorepo bool) string {
 	parts := strings.Split(dir, "/")
 	firstLower := strings.ToLower(parts[0])
 	switch firstLower {
-	case "reports", "utils", "projects", "notebooks", "labs", "analyses", "estudos", "modulos", "aulas", "scripts", "packages", "apps", "services":
+	case "reports", "utils", "projects", "labs", "analyses", "estudos", "modulos", "aulas", "packages", "apps", "services", "clients", "studies", "experiments":
 		if len(parts) >= 2 {
 			return parts[0] + "/" + parts[1]
 		}
+		if isManifestFileName(strings.ToLower(filepath.Base(p))) {
+			return parts[0]
+		}
+		return "root"
+	default:
+		return "root"
 	}
-	return parts[0]
 }
 
 func (c *Client) inspectRepoTree(
@@ -684,6 +685,7 @@ func (c *Client) inspectRepoTree(
 	detectStack bool,
 ) (hygiene repoHygiene, prodFiles, edaFiles int, workspaceHints []string) {
 	var analyticalEntries []gitTreeEntry
+	analyticalScriptOrNotebookCount := 0
 
 	for _, e := range entries {
 		if isIgnoredTreePath(e.Path) {
@@ -700,9 +702,11 @@ func (c *Client) inspectRepoTree(
 		switch ext {
 		case ".ipynb", ".rmd", ".qmd":
 			edaFiles++
+			analyticalScriptOrNotebookCount++
 			analyticalEntries = append(analyticalEntries, e)
 		case ".py", ".r", ".sql":
 			prodFiles++
+			analyticalScriptOrNotebookCount++
 			analyticalEntries = append(analyticalEntries, e)
 		case ".go", ".jl", ".rs", ".ts", ".tsx", ".js", ".jsx", ".sh", ".c", ".cpp", ".java", ".kt", ".swift", ".rb", ".php", ".templ", ".svelte":
 			prodFiles++
@@ -717,7 +721,7 @@ func (c *Client) inspectRepoTree(
 		return hygiene, prodFiles, edaFiles, []string{baseMeta}
 	}
 
-	isMonorepo := len(analyticalEntries) > 6
+	isMonorepo := analyticalScriptOrNotebookCount >= 5
 	wsFiles := make(map[string][]gitTreeEntry)
 	var wsOrder []string
 
@@ -757,7 +761,7 @@ func (c *Client) inspectRepoTree(
 			if sampledInWS >= 2 || fetchedCount >= maxFilesPerRepo {
 				break
 			}
-			if filePriorityScore(cand) >= 99 {
+			if filePriorityScore(cand) >= unscannableFileScore {
 				continue
 			}
 			if content := c.fetchRepoFileContent(ctx, fullName, cand.Path); content != "" {
@@ -767,12 +771,18 @@ func (c *Client) inspectRepoTree(
 			}
 		}
 
-		wsHint := baseMeta + " " + wk + " " + strings.Join(pathTokens, " ") + "\n" + strings.Join(sampledContents, "\n")
+		prefix := wk
+		if len(wsOrder) == 1 {
+			prefix = baseMeta + " " + wk
+		}
+		wsHint := prefix + " " + strings.Join(pathTokens, " ") + "\n" + strings.Join(sampledContents, "\n")
 		workspaceHints = append(workspaceHints, wsHint)
 	}
 
 	return hygiene, prodFiles, edaFiles, workspaceHints
 }
+
+const unscannableFileScore = 99
 
 func filePriorityScore(e gitTreeEntry) int {
 	base := strings.ToLower(filepath.Base(e.Path))
@@ -793,25 +803,33 @@ func filePriorityScore(e gitTreeEntry) int {
 		if e.Size <= 2*1024*1024 {
 			return 5
 		}
-		return 99
+		return unscannableFileScore
 	default:
-		return 99
+		return unscannableFileScore
 	}
 }
 
 func extractRelevantCodeText(path, raw string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-	if ext == ".ipynb" && len(raw) > 16*1024 {
-		// Extract only lines mentioning import, from, library, or package names to avoid scanning megabytes of base64 PNGs
-		var relevant []string
-		for _, line := range strings.Split(raw, "\n") {
-			lower := strings.ToLower(line)
-			if strings.Contains(lower, "import ") || strings.Contains(lower, "from ") || strings.Contains(lower, "library(") || strings.Contains(lower, "require(") {
-				relevant = append(relevant, line)
+	if ext == ".ipynb" {
+		if codeOnly := normalizer.ExtractNotebookCode([]byte(raw)); codeOnly != "" {
+			if len(codeOnly) > 32*1024 {
+				return codeOnly[:32*1024]
 			}
+			return codeOnly
 		}
-		if len(relevant) > 0 {
-			return strings.Join(relevant, "\n")
+		if len(raw) > 16*1024 {
+			// Fallback: extract lines mentioning import, from, library, or package names
+			var relevant []string
+			for _, line := range strings.Split(raw, "\n") {
+				lower := strings.ToLower(line)
+				if strings.Contains(lower, "import ") || strings.Contains(lower, "from ") || strings.Contains(lower, "library(") || strings.Contains(lower, "require(") {
+					relevant = append(relevant, line)
+				}
+			}
+			if len(relevant) > 0 {
+				return strings.Join(relevant, "\n")
+			}
 		}
 	}
 	if len(raw) > 32*1024 {

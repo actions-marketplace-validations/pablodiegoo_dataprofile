@@ -740,3 +740,141 @@ func TestCollectThreeTierPrivateOwnedMonorepoAndContributedRepos(t *testing.T) {
 		}
 	}
 }
+
+func TestCollectMonorepoAnalyticalWorkspacesVsSingleProjectRepo(t *testing.T) {
+	mux := http.NewServeMux()
+	var monorepoContentFetches int32
+
+	mux.HandleFunc("/users/adalovelace/repos", func(w http.ResponseWriter, r *http.Request) {
+		repos := []restRepo{
+			{
+				Name:          "client-monorepo",
+				FullName:      "adalovelace/client-monorepo",
+				Language:      "Python",
+				DefaultBranch: "main",
+			},
+			{
+				Name:          "single-project-ml",
+				FullName:      "adalovelace/single-project-ml",
+				Language:      "Python",
+				DefaultBranch: "main",
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(repos)
+	})
+
+	mux.HandleFunc("/repos/adalovelace/client-monorepo/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Jupyter Notebook": 500000, "Python": 120000})
+	})
+	mux.HandleFunc("/repos/adalovelace/single-project-ml/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Python": 180000})
+	})
+
+	// Repo 1: Multi-project monorepo with 5 analytical scripts/notebooks (+ 1 nested uv.lock) across 3 workspaces
+	mux.HandleFunc("/repos/adalovelace/client-monorepo/git/trees/main", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"tree": []gitTreeEntry{
+				{Path: "Reports/RetailChurn/eda.ipynb", Type: "blob", Size: 48000},
+				{Path: "Reports/RetailChurn/glm_model.R", Type: "blob", Size: 3200},
+				{Path: "Reports/SpatialDemand/choropleth.py", Type: "blob", Size: 4100},
+				{Path: "Reports/SpatialDemand/spatial_queries.sql", Type: "blob", Size: 2100},
+				{Path: "Utils/DataCLI/uv.lock", Type: "blob", Size: 14000},
+				{Path: "Utils/DataCLI/cli.py", Type: "blob", Size: 2800},
+			},
+		})
+	})
+
+	// Repo 2: Standard single-project repository with 7 analytical entries in standard layout (root, src/, tests/, notebooks/)
+	mux.HandleFunc("/repos/adalovelace/single-project-ml/git/trees/main", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"tree": []gitTreeEntry{
+				{Path: "pyproject.toml", Type: "blob", Size: 900},
+				{Path: "src/ingest.py", Type: "blob", Size: 3100},
+				{Path: "src/features.py", Type: "blob", Size: 4200},
+				{Path: "src/train.py", Type: "blob", Size: 5400},
+				{Path: "src/evaluate.py", Type: "blob", Size: 2900},
+				{Path: "tests/test_train.py", Type: "blob", Size: 1800},
+				{Path: "notebooks/eda_overview.ipynb", Type: "blob", Size: 15000},
+			},
+		})
+	})
+
+	// Notebook with >32KB base64 PNG in cell 0 and imports in cell 1 (single-line JSON)
+	bigB64 := strings.Repeat("iVBORw0KGgoAAAANSUhEUgAAAAUA", 1400)
+	compactNotebookJSON := `{"metadata":{"kernelspec":{"language":"python"}},"cells":[{"cell_type":"code","source":["plt.plot([1,2,3])\n"],"outputs":[{"data":{"image/png":"` + bigB64 + `"}}]},{"cell_type":"code","source":["import statsmodels.api as sm\n","from sklearn.cluster import KMeans\n","import seaborn as sns\n"],"outputs":[]}]}`
+
+	mux.HandleFunc("/repos/adalovelace/client-monorepo/contents/", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&monorepoContentFetches, 1)
+		switch r.URL.Path {
+		case "/repos/adalovelace/client-monorepo/contents/Reports/RetailChurn/eda.ipynb":
+			_, _ = w.Write([]byte(compactNotebookJSON))
+		case "/repos/adalovelace/client-monorepo/contents/Reports/RetailChurn/glm_model.R":
+			_, _ = w.Write([]byte("library(tidyverse)\nlibrary(ggplot2)\n"))
+		case "/repos/adalovelace/client-monorepo/contents/Reports/SpatialDemand/choropleth.py":
+			_, _ = w.Write([]byte("import geopandas as gpd\nimport folium\nimport numpy as np\n"))
+		case "/repos/adalovelace/client-monorepo/contents/Reports/SpatialDemand/spatial_queries.sql":
+			_, _ = w.Write([]byte("SELECT ST_Area(geom) FROM postgis_table;\n"))
+		case "/repos/adalovelace/client-monorepo/contents/Utils/DataCLI/uv.lock":
+			_, _ = w.Write([]byte("name = \"typer\"\nname = \"pydantic\"\nname = \"openai-whisper\"\nname = \"pypandoc\"\n"))
+		case "/repos/adalovelace/client-monorepo/contents/Utils/DataCLI/cli.py":
+			_, _ = w.Write([]byte("import typer\nimport pydantic\n"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+
+	mux.HandleFunc("/repos/adalovelace/single-project-ml/contents/pyproject.toml", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[project]
+dependencies = ["geopandas>=0.14", "scipy>=1.12", "typer>=0.9", "scikit-learn>=1.4", "pypandoc>=1.13"]`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := NewClient("")
+	client.BaseURL = srv.URL
+
+	_, stack, _, err := client.Collect(
+		context.Background(),
+		domain.GitHubSourceConfig{Username: "adalovelace"},
+		domain.NormalizationConfig{DeflateNotebooks: true, DetectDataStack: true},
+	)
+	if err != nil {
+		t.Fatalf("Collect failed: %v", err)
+	}
+
+	// 3 Analytical Workspaces from client-monorepo + 1 single Analytical Workspace from single-project-ml = 4
+	if stack.TotalSources != 4 {
+		t.Errorf("expected TotalSources=4 (3 monorepo workspaces + 1 single-project repo), got %d", stack.TotalSources)
+	}
+	if fetches := atomic.LoadInt32(&monorepoContentFetches); fetches == 0 || fetches > 12 {
+		t.Errorf("expected monorepo content fetches in [1..12], got %d", fetches)
+	}
+
+	// Verify nested uv.lock, compact .ipynb imports after 32KB base64, and Analytical Workspace scripts fed into stack detection
+	foundData := make(map[string]int)
+	for _, it := range stack.DataAnalytics {
+		foundData[it.Name] = it.RepoCount
+	}
+	if foundData["GeoPandas / Spatial"] < 1 || foundData["ETL & CLI Pipelines"] < 1 {
+		t.Errorf("expected GeoPandas / Spatial and ETL & CLI Pipelines detected from monorepo workspaces, got %+v", stack.DataAnalytics)
+	}
+
+	foundML := make(map[string]int)
+	for _, it := range stack.MLAndAI {
+		foundML[it.Name] = it.RepoCount
+	}
+	if foundML["Statsmodels / GLM"] < 1 || foundML["Clustering & PCA"] < 1 || foundML["LLMs & Speech AI"] < 1 {
+		t.Errorf("expected Statsmodels / GLM, Clustering & PCA (from .ipynb cell after >32KB base64), and LLMs & Speech AI (from uv.lock), got %+v", stack.MLAndAI)
+	}
+
+	foundViz := make(map[string]int)
+	for _, it := range stack.VizAndApps {
+		foundViz[it.Name] = it.RepoCount
+	}
+	if foundViz["Geospatial Maps"] < 1 || foundViz["Report Automation"] < 1 {
+		t.Errorf("expected Geospatial Maps and Report Automation detected in VizAndApps, got %+v", stack.VizAndApps)
+	}
+}
+

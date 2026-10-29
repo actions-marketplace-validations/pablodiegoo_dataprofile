@@ -81,6 +81,24 @@ func DeflateNotebookJSON(raw []byte) (NotebookStats, error) {
 	return stats, nil
 }
 
+// ExtractNotebookCode parses a raw .ipynb JSON document and returns the concatenated source
+// of all executable code cells, stripping base64 output payloads and JSON schema noise.
+func ExtractNotebookCode(raw []byte) string {
+	var root ipynbRoot
+	if err := json.Unmarshal(raw, &root); err != nil || len(root.Cells) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, cell := range root.Cells {
+		if cell.CellType == "code" {
+			if src := strings.TrimSpace(extractCellSource(cell.Source)); src != "" {
+				parts = append(parts, src)
+			}
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
 func extractCellSource(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return ""
@@ -295,7 +313,7 @@ var canonicalStackRules = []stackRule{
 	{canonical: "Apache Spark", pillar: "data", tokens: []string{"pyspark", "spark", "databricks", "delta-spark"}},
 	{canonical: "dbt / Airflow", pillar: "data", tokens: []string{"dbt-", "dbt_core", "dbt", "apache-airflow", "airflow", "prefect", "dagster"}},
 	{canonical: "NumPy / SciPy", pillar: "data", tokens: []string{"numpy", "scipy", "pyarrow", "parquet", "openpyxl"}},
-	{canonical: "GeoPandas / Spatial", pillar: "data", tokens: []string{"geopandas", "shapely", "osmnx", "pyproj", "fiona", "rasterio", "postgis"}},
+	{canonical: "GeoPandas / Spatial", pillar: "data", tokens: []string{"geopandas", "shapely", "osmnx", "import pyproj", "from pyproj", "pyproj==", "pyproj>=", "fiona", "rasterio", "postgis"}},
 	{canonical: "ETL & CLI Pipelines", pillar: "data", tokens: []string{"typer", "fastapi", "pydantic", "httpx", "celery", "alembic"}},
 
 	// Machine Learning & AI (first 4 are default baseline order)
@@ -303,7 +321,7 @@ var canonicalStackRules = []stackRule{
 	{canonical: "PyTorch", pillar: "ml", tokens: []string{"torch", "pytorch", "torchvision", "torchaudio", "lightning"}},
 	{canonical: "XGBoost / LightGBM", pillar: "ml", tokens: []string{"xgboost", "lightgbm", "catboost", "optuna"}},
 	{canonical: "Hugging Face", pillar: "ml", tokens: []string{"transformers", "datasets", "huggingface", "accelerate", "peft", "diffusers"}},
-	{canonical: "Statsmodels / GLM", pillar: "ml", tokens: []string{"statsmodels", "pingouin", "linearmodels", "factor_analysis", "factor_analyzer", "chi2", "ols", "glm"}},
+	{canonical: "Statsmodels / GLM", pillar: "ml", tokens: []string{"statsmodels", "pingouin", "linearmodels", "factor_analysis", "factor_analyzer", "chi2", "sm.ols", "smf.ols", "ols(", "glm"}},
 	{canonical: "Clustering & PCA", pillar: "ml", tokens: []string{"kmeans", "dbscan", "gower", "umap", "hdbscan", "pca", "clustering"}},
 	{canonical: "LLMs & Speech AI", pillar: "ml", tokens: []string{"whisper", "openai", "google-generativeai", "gemini", "langchain", "llamaindex", "vibevoice"}},
 

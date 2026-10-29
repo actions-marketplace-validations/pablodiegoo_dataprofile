@@ -231,20 +231,81 @@ func TestNormalizeLanguageMapTop5WithoutFakeShellAndSQLCanonicalization(t *testi
 
 func TestDetectStackDynamicCatalogReplacesZeroSparkWithRealEcosystems(t *testing.T) {
 	workspaces := []string{
-		"import pandas as pd\nimport numpy as np\nimport geopandas as gpd\nimport statsmodels.api as sm\nimport folium\n",
-		"import pandas as pd\nimport scipy.stats as stats\nfrom sklearn.cluster import KMeans, DBSCAN\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n",
-		"import duckdb\nimport typer\nimport openai\nimport whisper\nimport pypandoc\n",
+		"import pandas as pd\nimport numpy as np\nimport geopandas as gpd\nimport statsmodels.api as sm\nimport folium\nimport plotly.express as px\n",
+		"import pandas as pd\nimport scipy.stats as stats\nfrom sklearn.cluster import KMeans, DBSCAN\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nimport contextily as ctx\n",
+		"import duckdb\nimport typer\nimport openai\nimport whisper\nimport pypandoc\nimport reportlab\n",
+		"import numpy as np\nimport geopandas as gpd\nimport pingouin as pg\nfrom sklearn.decomposition import PCA\nimport jinja2\nimport matplotlib.pyplot as plt\n",
 	}
 
 	stack := DetectStackFromManifests(workspaces)
-	for _, item := range stack.DataAnalytics {
-		if item.RepoCount == 0 {
-			t.Errorf("expected dynamic Top 4 DataAnalytics to have non-zero counts, got %+v", stack.DataAnalytics)
-		}
+	if stack.TotalSources != 4 {
+		t.Errorf("expected TotalSources=4, got %d", stack.TotalSources)
 	}
-	for _, item := range stack.MLAndAI {
-		if item.RepoCount == 0 {
-			t.Errorf("expected dynamic Top 4 MLAndAI to have non-zero counts, got %+v", stack.MLAndAI)
+
+	pillars := []struct {
+		name       string
+		got        []string
+		wantNames  []string
+		wantCounts []int
+		items      int
+	}{
+		{
+			name:       "DataAnalytics",
+			wantNames:  []string{"Pandas / Polars", "NumPy / SciPy", "GeoPandas / Spatial", "SQL / DuckDB"},
+			wantCounts: []int{3, 3, 2, 1},
+		},
+		{
+			name:       "MLAndAI",
+			wantNames:  []string{"Scikit-Learn", "Statsmodels / GLM", "Clustering & PCA", "LLMs & Speech AI"},
+			wantCounts: []int{2, 2, 2, 1},
+		},
+		{
+			name:       "VizAndApps",
+			wantNames:  []string{"Matplotlib / Seaborn", "Geospatial Maps", "Report Automation", "Plotly / Dash"},
+			wantCounts: []int{2, 2, 2, 1},
+		},
+	}
+
+	gotSlices := [][]struct {
+		name      string
+		repoCount int
+		isLeader  bool
+	}{
+		nil, nil, nil,
+	}
+	for _, it := range stack.DataAnalytics {
+		gotSlices[0] = append(gotSlices[0], struct {
+			name      string
+			repoCount int
+			isLeader  bool
+		}{it.Name, it.RepoCount, it.IsLeader})
+	}
+	for _, it := range stack.MLAndAI {
+		gotSlices[1] = append(gotSlices[1], struct {
+			name      string
+			repoCount int
+			isLeader  bool
+		}{it.Name, it.RepoCount, it.IsLeader})
+	}
+	for _, it := range stack.VizAndApps {
+		gotSlices[2] = append(gotSlices[2], struct {
+			name      string
+			repoCount int
+			isLeader  bool
+		}{it.Name, it.RepoCount, it.IsLeader})
+	}
+
+	for pIdx, p := range pillars {
+		for i, item := range gotSlices[pIdx] {
+			if item.repoCount == 0 {
+				t.Errorf("expected dynamic Top 4 %s to have non-zero counts, got %+v", p.name, gotSlices[pIdx])
+			}
+			if item.name != p.wantNames[i] || item.repoCount != p.wantCounts[i] {
+				t.Errorf("expected %s[%d]=%s (%d), got %+v", p.name, i, p.wantNames[i], p.wantCounts[i], item)
+			}
+			if (i == 0) != item.isLeader {
+				t.Errorf("expected %s[%d].IsLeader=%v, got %v", p.name, i, i == 0, item.isLeader)
+			}
 		}
 	}
 }
