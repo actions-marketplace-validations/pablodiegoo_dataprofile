@@ -22,6 +22,10 @@ inputs:
     description: "Render deterministic showcase metrics without live API queries (true | false)"
     required: false
     default: "false"
+  no-env:
+    description: "Ignore .env and environment variable overrides and render pure profile.yaml (true | false)"
+    required: false
+    default: "false"
   github-token:
     description: "GitHub token for repository and contribution queries"
     required: false
@@ -58,9 +62,14 @@ runs:
         if [ "${{ inputs.demo }}" = "true" ]; then
           ARGS="$ARGS --demo"
         fi
+        VAL_ARGS=""
+        if [ "${{ inputs.no-env }}" = "true" ]; then
+          ARGS="$ARGS --no-env"
+          VAL_ARGS="--no-env"
+        fi
         if [ -d ./cmd/dataprofile ]; then
           go run ./cmd/dataprofile generate $ARGS
-          go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}"
+          go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}" $VAL_ARGS
         else
           CONFIG_ABS="$(realpath -m "${{ inputs.config }}")"
           OUTPUT_ABS="$(realpath -m "${{ inputs.output }}")"
@@ -71,6 +80,9 @@ runs:
           if [ "${{ inputs.demo }}" = "true" ]; then
             EXTRA_ARGS="$EXTRA_ARGS --demo"
           fi
+          if [ "${{ inputs.no-env }}" = "true" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --no-env"
+          fi
           (cd "${{ github.action_path }}" && go run ./cmd/dataprofile generate --config="$CONFIG_ABS" --output="$OUTPUT_ABS" $EXTRA_ARGS)
-          (cd "${{ github.action_path }}" && go run ./cmd/dataprofile validate --config="$CONFIG_ABS" --output="$OUTPUT_ABS")
+          (cd "${{ github.action_path }}" && go run ./cmd/dataprofile validate --config="$CONFIG_ABS" --output="$OUTPUT_ABS" $VAL_ARGS)
         fi

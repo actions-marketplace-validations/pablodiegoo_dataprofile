@@ -7,7 +7,7 @@
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white)](go.mod)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Visualization Schools](https://img.shields.io/badge/Schools-Tufte%20%7C%20Few%20%7C%20Cairo%20%7C%20Holmes-0284c7)](#the-four-visualization-schools-school)
-[![Sources](https://img.shields.io/badge/Sources-GitHub%20%7C%20Kaggle%20%7C%20Hugging%20Face-d97706)](#the-four-analytical-panels-panel)
+[![Sources](https://img.shields.io/badge/Sources-GitHub%20%7C%20Kaggle%20%7C%20Hugging%20Face-d97706)](#the-analytical-and-narrative-panels-panel)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/showcase/few/summary.svg" width="48%" alt="Executive Summary (Stephen Few Grammar)" />
@@ -26,22 +26,26 @@ Second, knowing that a practitioner writes Python or R says very little about th
 
 Third, a data professional's public work rarely lives on GitHub alone. Competition rankings, datasets, and notebooks often sit on Kaggle, while pretrained weights and demos live on Hugging Face Hub. Instead of displaying those signals in generic cards, DataProfile renders them using four classic schools of information design (`tufte`, `few`, `cairo`, and `holmes`).
 
-## The four analytical panels (`Panel`)
+## The analytical and narrative panels (`Panel`)
 
-DataProfile compiles metrics from GitHub, Kaggle, and Hugging Face Hub into four modular panels (plus a consolidated `summary.svg`). Every file uses a transparent canvas (`fill="none"`) and a dual-surface palette calibrated for WCAG AA contrast on both GitHub Light (`#ffffff`) and GitHub Dark (`#0d1117`):
+DataProfile compiles metrics from GitHub, Kaggle, and Hugging Face Hub into nine modular panels (four analytical panels, three identity/narrative panels, and two composite panels — 36 SVGs total across four schools). Every file uses a transparent canvas (`fill="none"`) and a dual-surface palette calibrated for WCAG AA contrast on both GitHub Light (`#ffffff`) and GitHub Dark (`#0d1117`):
 
 | Panel File | Domain Focus | Key Engineering & Data Signals |
 | :--- | :--- | :--- |
 | **`languages.svg`** | Code, Notebooks & Engineering Hygiene | Strips embedded base64 chart bloat from `.ipynb` files to recover true source code proportions, measures the Exploration (EDA) vs. Production split, and counts repositories with lockfiles, CI/CD, test suites, and Docker. |
 | **`stack.svg`** | Data, ML & Analytics Ecosystem | Scans dependency manifests across three pillars: Data & Analytics (`Pandas/Polars`, `SQL/DuckDB`, `Apache Spark`, `dbt/Airflow`), Machine Learning & AI (`Scikit-Learn`, `PyTorch`, `XGBoost/LightGBM`, `Hugging Face`), and Visualization & Data Apps (`Plotly/Dash`, `Streamlit`, `Matplotlib/Seaborn`, `ggplot2`). |
 | **`kaggle.svg`** | Kaggle Standing & Medals | Combines headless Chrome CDP extraction with optional Kaggle REST API v1 calls to display Overall Tier (`Novice` to `Grandmaster`), global peak rank, cumulative medals (Gold, Silver, Bronze), and percentile standing across Notebooks, Datasets, Competitions, and Discussions. |
-| **`impact.svg`** | Open-Source & AI Community Impact | Joins GitHub reach (annual contributions, 52-week trend, stars, public repos, forks, 14-day views) with Hugging Face Hub metrics (published models, datasets, spaces, 30-day downloads, and community likes). |
+| **`impact.svg`** | Open-Source & AI Community Impact | Joins GitHub reach (annual contributions, 52-week trend, stars, public and contributed repos, forks, 14-day views) with Hugging Face Hub metrics (published models, datasets, spaces, 30-day downloads, and community likes). |
+| **`summary.svg`** | Consolidated 4-Quadrant Overview | Synthesizes code distribution, stack leaders, Kaggle standing, and community reach into a single executive card. |
+| **`header.svg`** | Animated Portfolio Header (`900px`) | Pure SVG 1.1 SMIL typing/headline rotation (`subject.headlines`), role subtitle, and live telemetry strip across the top of a profile README. |
+| **`bio.svg` / `bio-full.svg`** | Elastic Career Bio (`440px` / `900px`) | Deterministic Go word-wrapping and dynamic `viewBox` height reflow for multi-paragraph career narratives (`subject.bio`). |
+| **`full.svg`** | Full Portfolio Composite (`900px`) | Combines the animated `header`, elastic `bio-full`, and the 2×2 grid of all four analytical panels into a single self-contained SVG. |
 
 If a metric is zero, the renderer adapts the layout rather than printing rows of zeros. For instance, when a practitioner has zero Gold medals on Kaggle or no published models on Hugging Face Hub, the panel shifts that space to active progression tracks or GitHub engineering velocity.
 
 ## The four visualization schools (`School`)
 
-Each run generates all five panels across four visualization schools under `generated/<school>/<panel>.svg`. None of the generated SVGs print the name of the school or its author inside the image, which allows you to adopt a single visual grammar or mix panels from different schools in the same profile.
+Each run generates all nine panels across four visualization schools (36 SVGs). On the orphan `output` branch, `output/showcase/<school>/<panel>.svg` hosts the deterministic **Showcase** rendered from `profile.yaml` (`--demo --no-env`), while `output/generated/<school>/<panel>.svg` hosts the **Subject**'s live portfolio. None of the generated SVGs print the name of the school or its author inside the image, which allows you to adopt a single visual grammar or mix panels from different schools in the same profile.
 
 ### I. `tufte` (Edward Tufte)
 

@@ -2,6 +2,16 @@
 
 All notable changes to DataProfile are documented in this file. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Environment override engine (`internal/config`) supporting `.env` and GitHub Actions Variables/Secrets layered over `profile.yaml`, with `[item 1; item 2]` semicolon-delimited bracket list syntax (`ParseEnvList` and `ApplyEnvOverrides`) and `--no-env` Showcase isolation (`ADR-0005`).
+- `dataprofile sync` CLI subcommand (`cmd/dataprofile`) with `--dry-run`, `--repo`, `--workflow`, and `--trigger` flags to synchronize local `.env` curriculum variables (`gh variable set`) and credentials (`gh secret set`) with GitHub Actions and trigger orphan `output` branch regeneration without commits on `main`.
+- Dual-tree orphan `output` branch publishing (`output/showcase/` rendered with `--demo --no-env` for documentation previews and `output/generated/` rendered with live Subject overrides), removing tracked `generated/` SVGs from `main`.
+- Animated portfolio `header` Panel (`900px` SMIL headline rotation), elastic `bio` (`440px`) and `bio-full` (`900px`) Panels with deterministic Go word-wrapping, and composite `full` Panel (`900px` combining `header`, `bio-full`, and the 2×2 analytical grid) across all four Schools (`ADR-0004`).
+- Three-tier privacy-preserving collection (`Owned Repository`, `Contributed Repository`, `Passive Fork`), recursive monorepo `Analytical Workspace` detection, multi-year GitHub contribution velocity, and authenticated private Kaggle and Hugging Face Hub aggregation (`ADR-0003`).
+
 ## [v1.0.0] - 2026-10-28
 
 ### Added
