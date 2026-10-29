@@ -2,15 +2,16 @@
 
 All notable changes to DataProfile are documented in this file. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.1.0] - 2026-10-29
 
 ### Added
 
 - Environment override engine (`internal/config`) supporting `.env` and GitHub Actions Variables/Secrets layered over `profile.yaml`, with `[item 1; item 2]` semicolon-delimited bracket list syntax (`ParseEnvList` and `ApplyEnvOverrides`) and `--no-env` Showcase isolation (`ADR-0005`).
 - `dataprofile sync` CLI subcommand (`cmd/dataprofile`) with `--env`, `--repo`, `--workflow`, `--trigger`, and `--dry-run` flags (`PlanGitHubSync` mapping `GITHUB_*` to `GH_*`, omitting `GITHUB_TOKEN`, masking secrets as `***` in `--dry-run`, and pushing via `gh variable set` and `gh secret set`) to trigger orphan `output` branch regeneration without commits on `main`.
 - Dual-tree orphan `output` branch publishing (`output/showcase/` rendered with `--demo --no-env` for the project documentation Showcase and `output/generated/` rendered with live Subject overrides), removing tracked `generated/` SVGs from `main`.
-- Animated portfolio `header` Panel (`900px` SMIL headline rotation), elastic `bio` (`440px`) and `bio-full` (`900px`) Panels with deterministic Go word-wrapping, and composite `full` Panel (`900px` combining `header`, `bio-full`, and the 2×2 analytical grid) across all four Schools (`ADR-0004`).
+- Animated portfolio `header` Panel (`900px` SMIL headline rotation), elastic `bio` (`440px`) and `bio-full` (`900px`) Panels with deterministic Go word-wrapping, and composite `full` Panel (`900px` combining `header`, `bio-full`, and the 2×2 analytical grid) across all four Schools (`ADR-0004`), bringing the full catalog to 36 SVG Panels.
 - Three-tier privacy-preserving collection (`Owned Repository`, `Contributed Repository`, `Passive Fork`), recursive monorepo `Analytical Workspace` detection, multi-year GitHub contribution velocity, and authenticated private Kaggle and Hugging Face Hub aggregation (`ADR-0003`).
+- End-to-end documentation in `README.md` covering the Table of Contents, orphan `output` branch update lifecycle, comparison and step-by-step setup for all four configuration modes (Modes A–D), authentication tokens, Kaggle collection modes, and raw embed URLs.
 
 ## [v1.0.0] - 2026-10-28
 
