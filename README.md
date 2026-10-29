@@ -24,7 +24,7 @@ First, GitHub Linguist measures language share by raw file bytes, which includes
 
 Second, knowing that a practitioner writes Python or R says very little about their actual work. What distinguishes a data engineer from a computer vision researcher is the set of libraries declared inside `pyproject.toml`, `requirements.txt`, `environment.yml`, and `DESCRIPTION` (such as Polars, DuckDB, PyTorch, Scikit-Learn, dbt, or Streamlit), together with engineering habits like dependency lockfiles, CI workflows, automated tests, and Dockerfiles.
 
-Third, a data professional's public work rarely lives on GitHub alone. Competition rankings, datasets, and notebooks often sit on Kaggle, while pretrained weights and demos live on Hugging Face Hub. Instead of displaying those signals in generic cards, DataProfile renders them using four classic schools of information design (`tufte`, `few`, `cairo`, and `holmes`).
+Third, a data professional's public work rarely lives on GitHub alone. Competition rankings, datasets, and notebooks often sit on Kaggle, while pretrained weights and demos live on Hugging Face Hub. Instead of displaying those signals in generic layouts, DataProfile renders them using four classic schools of information design (`tufte`, `few`, `cairo`, and `holmes`).
 
 ## The analytical and narrative panels (`Panel`)
 
@@ -36,7 +36,7 @@ DataProfile compiles metrics from GitHub, Kaggle, and Hugging Face Hub into nine
 | **`stack.svg`** | Data, ML & Analytics Ecosystem | Scans dependency manifests across three pillars: Data & Analytics (`Pandas/Polars`, `SQL/DuckDB`, `Apache Spark`, `dbt/Airflow`), Machine Learning & AI (`Scikit-Learn`, `PyTorch`, `XGBoost/LightGBM`, `Hugging Face`), and Visualization & Data Apps (`Plotly/Dash`, `Streamlit`, `Matplotlib/Seaborn`, `ggplot2`). |
 | **`kaggle.svg`** | Kaggle Standing & Medals | Combines headless Chrome CDP extraction with optional Kaggle REST API v1 calls to display Overall Tier (`Novice` to `Grandmaster`), global peak rank, cumulative medals (Gold, Silver, Bronze), and percentile standing across Notebooks, Datasets, Competitions, and Discussions. |
 | **`impact.svg`** | Open-Source & AI Community Impact | Joins GitHub reach (annual contributions, 52-week trend, stars, public and contributed repos, forks, 14-day views) with Hugging Face Hub metrics (published models, datasets, spaces, 30-day downloads, and community likes). |
-| **`summary.svg`** | Consolidated 4-Quadrant Overview | Synthesizes code distribution, stack leaders, Kaggle standing, and community reach into a single executive card. |
+| **`summary.svg`** | Consolidated 4-Quadrant Overview | Synthesizes code distribution, stack leaders, Kaggle standing, and community reach into a single executive panel. |
 | **`header.svg`** | Animated Portfolio Header (`900px`) | Pure SVG 1.1 SMIL typing/headline rotation (`subject.headlines`), role subtitle, and live telemetry strip across the top of a profile README. |
 | **`bio.svg` / `bio-full.svg`** | Elastic Career Bio (`440px` / `900px`) | Deterministic Go word-wrapping and dynamic `viewBox` height reflow for multi-paragraph career narratives (`subject.bio`). |
 | **`full.svg`** | Full Portfolio Composite (`900px`) | Combines the animated `header`, elastic `bio-full`, and the 2×2 grid of all four analytical panels into a single self-contained SVG. |
@@ -45,7 +45,7 @@ If a metric is zero, the renderer adapts the layout rather than printing rows of
 
 ## The four visualization schools (`School`)
 
-Each run generates all nine panels across four visualization schools (36 SVGs). On the orphan `output` branch, `output/showcase/<school>/<panel>.svg` hosts the deterministic **Showcase** rendered from `profile.yaml` (`--demo --no-env`), while `output/generated/<school>/<panel>.svg` hosts the **Subject**'s live portfolio. None of the generated SVGs print the name of the school or its author inside the image, which allows you to adopt a single visual grammar or mix panels from different schools in the same profile.
+Each run generates all nine panels across four visualization schools (36 SVGs). On the orphan `output` branch, `output/showcase/<school>/<panel>.svg` hosts the deterministic **Showcase** rendered from `profile.yaml` (`--demo --no-env`), while `output/generated/<school>/<panel>.svg` hosts the **Subject**'s live portfolio. None of the generated SVGs print the name of the school or its author inside the artwork, which allows you to adopt a single visual grammar or mix panels from different schools in the same profile.
 
 ### I. `tufte` (Edward Tufte)
 
@@ -175,9 +175,21 @@ Never commit tokens to `profile.yaml`. Local `.env` files are excluded via [`.gi
 
 ### Embed the panels in your profile `README.md`
 
-Once the workflow publishes to the `output` branch, paste the snippet for your preferred school into your `<username>/<username>` profile `README.md` (replace `/few/` with `/tufte/`, `/cairo/`, or `/holmes/`, or mix schools across panels):
+Once the workflow publishes to the `output` branch (`output/generated/<school>/<panel>.svg`), paste either the single composite `full.svg` panel or the modular `header.svg` + `bio-full.svg` + 2×2 analytical grid into your `<username>/<username>` profile `README.md` (replace `/few/` with `/tufte/`, `/cairo/`, or `/holmes/`, or mix schools across panels):
 
 ```markdown
+<!-- Option 1: Single full-portfolio composite (animated header + elastic bio + 2x2 grid) -->
+<p align="center">
+  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/full.svg" width="100%" alt="DataProfile Full Portfolio" />
+</p>
+
+<!-- Option 2: Modular panels (header.svg, bio.svg / bio-full.svg, summary.svg, or 2x2 analytical grid) -->
+<p align="center">
+  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/header.svg" width="100%" alt="Animated Portfolio Header" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/bio-full.svg" width="100%" alt="Career Bio" />
+</p>
 <p align="center">
   <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/languages.svg" width="48%" alt="Languages & Engineering" />
   <img src="https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/few/stack.svg" width="48%" alt="Data & ML Stack" />

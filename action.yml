@@ -55,34 +55,24 @@ runs:
         KAGGLE_USERNAME: ${{ inputs.kaggle-username }}
         KAGGLE_KEY: ${{ inputs.kaggle-key }}
       run: |
-        ARGS="--config=${{ inputs.config }} --output=${{ inputs.output }}"
+        EXTRA_ARGS=""
+        VAL_ARGS=""
         if [ -n "${{ inputs.locale }}" ]; then
-          ARGS="$ARGS --locale=${{ inputs.locale }}"
+          EXTRA_ARGS="$EXTRA_ARGS --locale=${{ inputs.locale }}"
         fi
         if [ "${{ inputs.demo }}" = "true" ]; then
-          ARGS="$ARGS --demo"
+          EXTRA_ARGS="$EXTRA_ARGS --demo"
         fi
-        VAL_ARGS=""
         if [ "${{ inputs.no-env }}" = "true" ]; then
-          ARGS="$ARGS --no-env"
+          EXTRA_ARGS="$EXTRA_ARGS --no-env"
           VAL_ARGS="--no-env"
         fi
         if [ -d ./cmd/dataprofile ]; then
-          go run ./cmd/dataprofile generate $ARGS
+          go run ./cmd/dataprofile generate --config=${{ inputs.config }} --output=${{ inputs.output }} $EXTRA_ARGS
           go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}" $VAL_ARGS
         else
           CONFIG_ABS="$(realpath -m "${{ inputs.config }}")"
           OUTPUT_ABS="$(realpath -m "${{ inputs.output }}")"
-          EXTRA_ARGS=""
-          if [ -n "${{ inputs.locale }}" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --locale=${{ inputs.locale }}"
-          fi
-          if [ "${{ inputs.demo }}" = "true" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --demo"
-          fi
-          if [ "${{ inputs.no-env }}" = "true" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --no-env"
-          fi
           (cd "${{ github.action_path }}" && go run ./cmd/dataprofile generate --config="$CONFIG_ABS" --output="$OUTPUT_ABS" $EXTRA_ARGS)
           (cd "${{ github.action_path }}" && go run ./cmd/dataprofile validate --config="$CONFIG_ABS" --output="$OUTPUT_ABS" $VAL_ARGS)
         fi

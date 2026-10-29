@@ -8,7 +8,7 @@ Before writing code or opening an issue, read [`GLOSSARY.md`](GLOSSARY.md) and t
 
 ## Local development setup
 
-DataProfile compiles as a static Go 1.23+ binary using only the Go standard library. Generated SVG directories (`/generated/` and `/showcase/`) are excluded from the `main` branch via [`.gitignore`](.gitignore) and published exclusively to the orphan `output` branch so local runs and personal curriculum updates never pollute `main`. You can clone the repository and run the full test and validation suite immediately:
+DataProfile compiles as a static Go 1.23+ binary using only the Go standard library. Generated SVG directories (`/generated/` and `/showcase/`) are excluded from the `main` branch via [`.gitignore`](.gitignore) and published exclusively to the orphan `output` branch (`output/showcase/<school>/<panel>.svg` and `output/generated/<school>/<panel>.svg`) so local runs and personal curriculum updates never pollute `main`. You can clone the repository and run the full test and validation suite immediately:
 
 ```bash
 # Run all unit and integration tests across collectors, normalizers, config overrides, and renderers

@@ -452,41 +452,44 @@ func repoRoot(t *testing.T) string {
 	return root
 }
 
+func assertFileContains(t *testing.T, root, relPath string, requiredTokens []string) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(root, relPath))
+	if err != nil {
+		t.Fatalf("missing %s: %v", relPath, err)
+	}
+	content := string(raw)
+	for _, tok := range requiredTokens {
+		if !strings.Contains(content, tok) {
+			t.Errorf("%s missing expected token %q", relPath, tok)
+		}
+	}
+}
+
 func TestGitHubActionWorkflowAndSecretHygiene(t *testing.T) {
 	root := repoRoot(t)
 
 	// 1. Verify action.yml composite GitHub Action contract
-	actionRaw, err := os.ReadFile(filepath.Join(root, "action.yml"))
-	if err != nil {
-		t.Fatalf("missing action.yml: %v", err)
-	}
-	actionStr := string(actionRaw)
-	requiredActionTokens := []string{
+	assertFileContains(t, root, "action.yml", []string{
 		`using: "composite"`,
 		`actions/setup-go@v5`,
 		`go-version: "1.23"`,
 		`config:`,
 		`output:`,
 		`locale:`,
+		`demo:`,
+		`no-env:`,
 		`go run ./cmd/dataprofile generate`,
 		`--config=${{ inputs.config }}`,
 		`--output=${{ inputs.output }}`,
 		`--locale=${{ inputs.locale }}`,
-		`go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}"`,
-	}
-	for _, tok := range requiredActionTokens {
-		if !strings.Contains(actionStr, tok) {
-			t.Errorf("action.yml missing required token %q", tok)
-		}
-	}
+		`--no-env`,
+		`VAL_ARGS="--no-env"`,
+		`go run ./cmd/dataprofile validate --config="${{ inputs.config }}" --output="${{ inputs.output }}" $VAL_ARGS`,
+	})
 
 	// 2. Verify .github/workflows/generate.yml CI/CD & orphan output branch workflow
-	wfRaw, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "generate.yml"))
-	if err != nil {
-		t.Fatalf("missing .github/workflows/generate.yml: %v", err)
-	}
-	wfStr := string(wfRaw)
-	requiredWorkflowTokens := []string{
+	assertFileContains(t, root, filepath.Join(".github", "workflows", "generate.yml"), []string{
 		`cron:`,
 		`workflow_dispatch:`,
 		`branches:`,
@@ -499,54 +502,77 @@ func TestGitHubActionWorkflowAndSecretHygiene(t *testing.T) {
 		`KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}`,
 		`HF_TOKEN: ${{ secrets.HF_TOKEN }}`,
 		`SUBJECT_NAME: ${{ vars.SUBJECT_NAME }}`,
+		`SUBJECT_ROLE: ${{ vars.SUBJECT_ROLE }}`,
+		`SUBJECT_LOCALE: ${{ vars.SUBJECT_LOCALE }}`,
+		`SUBJECT_HEADLINES: ${{ vars.SUBJECT_HEADLINES }}`,
+		`SUBJECT_BIO: ${{ vars.SUBJECT_BIO }}`,
 		`GH_USERNAME: ${{ vars.GH_USERNAME }}`,
+		`GH_INCLUDE_FORKS: ${{ vars.GH_INCLUDE_FORKS }}`,
+		`GH_INCLUDE_PRIVATE_COUNT: ${{ vars.GH_INCLUDE_PRIVATE_COUNT }}`,
+		`GH_EXCLUDE_REPOS: ${{ vars.GH_EXCLUDE_REPOS }}`,
+		`GH_EXCLUDE_LANGS: ${{ vars.GH_EXCLUDE_LANGS }}`,
+		`KAGGLE_ENABLED: ${{ vars.KAGGLE_ENABLED }}`,
+		`KAGGLE_MODE: ${{ vars.KAGGLE_MODE }}`,
+		`HF_USERNAME: ${{ vars.HF_USERNAME }}`,
+		`HF_ENABLED: ${{ vars.HF_ENABLED }}`,
+		`DEFLATE_NOTEBOOKS: ${{ vars.DEFLATE_NOTEBOOKS }}`,
+		`DETECT_DATA_STACK: ${{ vars.DETECT_DATA_STACK }}`,
+		`OUTPUT_DIRECTORY: ${{ vars.OUTPUT_DIRECTORY }}`,
+		`OUTPUT_SCHOOLS: ${{ vars.OUTPUT_SCHOOLS }}`,
+		`OUTPUT_PANELS: ${{ vars.OUTPUT_PANELS }}`,
 		`go run ./cmd/dataprofile generate --config=profile.yaml --output=generated`,
-		`go run ./cmd/dataprofile generate --config=profile.yaml --output=showcase --demo --no-env`,
-		`go run ./cmd/dataprofile validate`,
+		`go run ./cmd/dataprofile validate --config=profile.yaml --output=generated`,
+		`go run ./cmd/dataprofile generate --config=profile.yaml --demo --no-env --output=showcase`,
+		`go run ./cmd/dataprofile validate --config=profile.yaml --no-env --output=showcase`,
+		`cp -r "$TMP_DIR/generated" ./generated`,
+		`cp -r "$TMP_DIR/showcase" ./showcase`,
+		`git add generated showcase README.md`,
 		`git checkout --orphan`,
 		`git push -f origin output`,
-	}
-	for _, tok := range requiredWorkflowTokens {
-		if !strings.Contains(wfStr, tok) {
-			t.Errorf(".github/workflows/generate.yml missing required token %q", tok)
-		}
-	}
+	})
 
-	// 3. Verify .gitignore secret and generated output exclusion rules
-	gitignoreRaw, err := os.ReadFile(filepath.Join(root, ".gitignore"))
-	if err != nil {
-		t.Fatalf("missing .gitignore: %v", err)
-	}
-	gitignoreStr := string(gitignoreRaw)
-	for _, pattern := range []string{".env", ".env.*", "!.env.example", "kaggle.json", "/generated/", "/showcase/"} {
-		if !strings.Contains(gitignoreStr, pattern) {
-			t.Errorf(".gitignore missing required exclusion rule %q", pattern)
-		}
+	// 3. Verify .gitignore secret and generated output exclusion rules and confirm generated/ and showcase/ are untracked on main
+	assertFileContains(t, root, ".gitignore", []string{
+		".env",
+		".env.*",
+		"!.env.example",
+		"kaggle.json",
+		"/generated/",
+		"/showcase/",
+	})
+	lsCmd := exec.Command("git", "-C", root, "ls-files", "generated", "showcase")
+	if trackedOut, err := lsCmd.CombinedOutput(); err != nil {
+		t.Fatalf("git ls-files failed: %v\n%s", err, string(trackedOut))
+	} else if strings.TrimSpace(string(trackedOut)) != "" {
+		t.Errorf("expected zero tracked files under generated/ or showcase/ on main, found:\n%s", string(trackedOut))
 	}
 
 	// 4. Verify .env.example documents all optional secrets and [item 1; item 2] overrides without leaking values
-	envExRaw, err := os.ReadFile(filepath.Join(root, ".env.example"))
-	if err != nil {
-		t.Fatalf("missing .env.example: %v", err)
-	}
-	envExStr := string(envExRaw)
-	for _, key := range []string{"ACCESS_TOKEN=", "GITHUB_TOKEN=", "KAGGLE_USERNAME=", "KAGGLE_KEY=", "HF_TOKEN=", "SUBJECT_HEADLINES=", "SUBJECT_BIO="} {
-		if !strings.Contains(envExStr, key) {
-			t.Errorf(".env.example missing documented variable %q", key)
-		}
-	}
+	assertFileContains(t, root, ".env.example", []string{
+		"ACCESS_TOKEN=",
+		"GITHUB_TOKEN=",
+		"KAGGLE_USERNAME=",
+		"KAGGLE_KEY=",
+		"HF_TOKEN=",
+		"SUBJECT_HEADLINES=",
+		"SUBJECT_BIO=",
+	})
 }
 
 func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 	root := repoRoot(t)
 
-	// 1. Render all 36 Showcase SVGs from profile.yaml in demo mode and verify against prototypes/schools/
+	// 1. Render all 36 Showcase SVGs (4 Schools x 9 Panels) from profile.yaml in demo mode and verify against prototypes/schools/
 	manifest, err := config.LoadManifest(filepath.Join(root, "profile.yaml"))
 	if err != nil {
 		t.Fatalf("failed loading root profile.yaml: %v", err)
 	}
+	if len(domain.AllSchools()) != 4 || len(domain.AllPanels()) != 9 {
+		t.Fatalf("expected 4 Schools and 9 Panels (36 SVGs), got %d Schools and %d Panels", len(domain.AllSchools()), len(domain.AllPanels()))
+	}
 	data := render.DefaultPortfolioData(manifest)
 
+	renderedCount := 0
 	for _, school := range domain.AllSchools() {
 		for _, panel := range domain.AllPanels() {
 			svgStr, err := render.Render(school, panel, data)
@@ -556,6 +582,7 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 			if err := render.ValidateSVG(svgStr); err != nil {
 				t.Errorf("rendered SVG %s/%s failed ValidateSVG: %v", school, panel, err)
 			}
+			renderedCount++
 
 			// For the 4 analytical panels (languages, stack, kaggle, impact), verify prototypes/schools/<school>/<panel>.svg matches
 			if panel == domain.PanelLanguages || panel == domain.PanelStack || panel == domain.PanelKaggle || panel == domain.PanelImpact {
@@ -572,6 +599,9 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 				}
 			}
 		}
+	}
+	if renderedCount != 36 {
+		t.Errorf("expected 36 rendered Showcase SVGs across 4 Schools and 9 Panels, got %d", renderedCount)
 	}
 
 	// 2. Verify all remaining SVGs in prototypes/ pass ValidateSVG
@@ -593,12 +623,7 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 	}
 
 	// 3. Verify interactive prototype viewer (prototypes/index.html)
-	protoHTMLRaw, err := os.ReadFile(filepath.Join(root, "prototypes", "index.html"))
-	if err != nil {
-		t.Fatalf("missing prototypes/index.html: %v", err)
-	}
-	protoHTML := string(protoHTMLRaw)
-	requiredHTMLTokens := []string{
+	assertFileContains(t, root, filepath.Join("prototypes", "index.html"), []string{
 		"#0d1117",
 		"#ffffff",
 		"🌙 Dark GitHub",
@@ -615,72 +640,119 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"stack.svg",
 		"kaggle.svg",
 		"impact.svg",
-	}
-	for _, tok := range requiredHTMLTokens {
-		if !strings.Contains(protoHTML, tok) {
-			t.Errorf("prototypes/index.html missing required token %q", tok)
-		}
-	}
+	})
 
 	// 4. Verify flagship README.md showcase & documentation
-	readmeRaw, err := os.ReadFile(filepath.Join(root, "README.md"))
-	if err != nil {
-		t.Fatalf("missing README.md: %v", err)
-	}
-	readmeStr := string(readmeRaw)
-	requiredReadmeTokens := []string{
+	assertFileContains(t, root, "README.md", []string{
+		"36 SVGs",
 		"languages.svg",
 		"stack.svg",
 		"kaggle.svg",
 		"impact.svg",
+		"summary.svg",
+		"header.svg",
+		"bio.svg",
+		"bio-full.svg",
+		"full.svg",
 		"Edward Tufte",
 		"Stephen Few",
 		"Alberto Cairo",
 		"Nigel Holmes",
+		"output/showcase/few/summary.svg",
+		"output/showcase/tufte/summary.svg",
 		"output/showcase/tufte/languages.svg",
 		"output/showcase/few/languages.svg",
 		"output/showcase/cairo/languages.svg",
 		"output/showcase/holmes/languages.svg",
+		"output/generated/",
 		"2-Minute Setup Guide",
 		"profile.yaml",
+		"[item 1; item 2]",
 		"go run ./cmd/dataprofile generate",
 		"go run ./cmd/dataprofile sync",
 		"go run ./cmd/dataprofile validate",
 		"--demo",
+		"--no-env",
+		"--output=showcase",
 		"--locale=pt-BR",
 		"go test -v ./...",
 		"GLOSSARY.md",
 		"docs/adr/",
-	}
-	for _, tok := range requiredReadmeTokens {
-		if !strings.Contains(readmeStr, tok) {
-			t.Errorf("README.md missing required section or reference %q", tok)
-		}
-	}
+		"ADR-0005",
+	})
 
-	// 5. Verify Open Source Guide & GitHub Community Standards files
+	// 5. Verify Open Source Guide, Domain Docs, ADRs & GitHub Community Standards files
 	communityFiles := map[string][]string{
-		"LICENSE":                           {"Apache License", "Version 2.0"},
-		"NOTICE":                            {"https://github.com/pablodiegoo/dataprofile", "Pablo Diego", "Apache License, Version 2.0"},
-		"CODE_OF_CONDUCT.md":                {"Contributor Covenant Code of Conduct", "Our pledge"},
-		"CONTRIBUTING.md":                   {"GLOSSARY.md", "go test -v ./...", "Apache License 2.0"},
-		"SECURITY.md":                       {"Security Policy", "Reporting a vulnerability", "ACCESS_TOKEN"},
-		"CITATION.cff":                      {"cff-version: 1.2.0", "Apache-2.0", "https://github.com/pablodiegoo/dataprofile"},
-		"CHANGELOG.md":                      {"v1.0.0", "Apache License 2.0"},
-		".github/PULL_REQUEST_TEMPLATE.md":  {"GLOSSARY.md", "NOTICE", "go test -v ./..."},
+		"LICENSE":            {"Apache License", "Version 2.0"},
+		"NOTICE":             {"https://github.com/pablodiegoo/dataprofile", "Pablo Diego", "Apache License, Version 2.0"},
+		"CODE_OF_CONDUCT.md": {"Contributor Covenant Code of Conduct", "Our pledge"},
+		"CONTRIBUTING.md": {
+			"GLOSSARY.md",
+			"ADR-0005",
+			"36 Showcase SVG panels (4 Schools x 9 Panels)",
+			"header", "bio", "bio-full", "full",
+			"--demo --no-env --output=showcase",
+			"output/showcase/",
+			"output/generated/",
+			"go run ./cmd/dataprofile sync --dry-run",
+			"go test -v ./...",
+			"Apache License 2.0",
+		},
+		"SECURITY.md": {
+			"Security Policy",
+			"Reporting a vulnerability",
+			"ACCESS_TOKEN",
+			"[item 1; item 2]",
+			"PlanGitHubSync",
+			"/generated/",
+			"/showcase/",
+			"ADR-0005",
+		},
+		"CITATION.cff": {"cff-version: 1.2.0", "Apache-2.0", "https://github.com/pablodiegoo/dataprofile"},
+		"CHANGELOG.md": {
+			"v1.0.0",
+			"Apache License 2.0",
+			"ADR-0005",
+			"[item 1; item 2]",
+			"--no-env",
+			"dataprofile sync",
+			"output/showcase/",
+			"output/generated/",
+			"header", "bio", "bio-full", "full",
+		},
+		".github/PULL_REQUEST_TEMPLATE.md": {
+			"GLOSSARY.md",
+			"NOTICE",
+			"go test -v ./...",
+			"--demo --no-env --output=showcase",
+			"Showcase",
+			"ADR-0005",
+		},
 		".github/ISSUE_TEMPLATE/config.yml": {"https://github.com/pablodiegoo/dataprofile/discussions"},
+		"GLOSSARY.md": {
+			"Subject",
+			"Source",
+			"Panel",
+			"School",
+			"Palette",
+			"Profile Manifest",
+			"Showcase",
+			"Owned Repository",
+			"Passive Fork",
+			"Contributed Repository",
+			"Notebook Deflation",
+			"Analytical Workspace",
+		},
+		"docs/adr/0005-env-overrides-and-orphan-output-branch.md": {
+			"[item 1; item 2]",
+			"dataprofile sync",
+			"output/showcase/",
+			"output/generated/",
+			"--demo --no-env",
+		},
 	}
 	for relPath, requiredTokens := range communityFiles {
-		raw, err := os.ReadFile(filepath.Join(root, relPath))
-		if err != nil {
-			t.Fatalf("missing community standard file %s: %v", relPath, err)
-		}
-		content := string(raw)
-		for _, tok := range requiredTokens {
-			if !strings.Contains(content, tok) {
-				t.Errorf("%s missing expected token %q", relPath, tok)
-			}
-		}
+		assertFileContains(t, root, relPath, requiredTokens)
 	}
 }
 

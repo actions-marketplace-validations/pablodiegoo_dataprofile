@@ -61,8 +61,8 @@ jobs:
         run: |
           go run ./cmd/dataprofile generate --config=profile.yaml --output=generated
           go run ./cmd/dataprofile validate --config=profile.yaml --output=generated
-          go run ./cmd/dataprofile generate --config=profile.yaml --output=showcase --demo --no-env
-          go run ./cmd/dataprofile validate --config=profile.yaml --output=showcase --no-env
+          go run ./cmd/dataprofile generate --config=profile.yaml --demo --no-env --output=showcase
+          go run ./cmd/dataprofile validate --config=profile.yaml --no-env --output=showcase
 
       - name: Publish SVGs to orphan output branch
         run: |

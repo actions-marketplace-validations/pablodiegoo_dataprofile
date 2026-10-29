@@ -1,13 +1,13 @@
 ## Summary
 
-<!-- State what this change does and why in 1-3 direct sentences. Reference the issue number (e.g. Closes #14) if applicable. -->
+<!-- State what this change does and why in 1-3 direct sentences. Reference the issue number (e.g. Closes #15) if applicable. -->
 
 ## Affected Domain Components
 
-- [ ] `School` / `Panel` SVG Renderer (`internal/render`)
+- [ ] `School` / `Panel` SVG Renderer (`internal/render` — 4 `School`s × 9 `Panel`s, 36 SVGs)
 - [ ] Jupyter Deflator or Stack Scanner (`internal/normalizer`)
 - [ ] Upstream `Source` Collector (`internal/sources/{github,kaggle,huggingface}`)
-- [ ] `Profile Manifest` / `.env` Overrides / CLI / GitHub Action (`cmd/dataprofile`, `internal/config`, `action.yml`)
+- [ ] `Profile Manifest` / `.env` Overrides / CLI / GitHub Action (`cmd/dataprofile`, `internal/config`, `action.yml`, `ADR-0005`)
 - [ ] Documentation / Governance (`README.md`, `GLOSSARY.md`, `docs/adr/`)
 
 ## Verification Checklist

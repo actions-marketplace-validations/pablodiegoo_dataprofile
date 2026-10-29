@@ -11,7 +11,7 @@ DataProfile releases follow semantic versioning (`v1.x.y`) with a moving `v1` ma
 
 ## Credential and secret hygiene
 
-DataProfile is designed so that `profile.yaml` (`Profile Manifest`) on `main` holds only a neutral reference `Showcase` configuration and zero secret credentials. Secret tokens must never be written to `profile.yaml` or committed to git history.
+DataProfile is designed so that `profile.yaml` (`Profile Manifest`) on `main` holds only a neutral reference `Showcase` configuration and zero secret credentials (see [`ADR-0005`](docs/adr/0005-env-overrides-and-orphan-output-branch.md)). Secret tokens must never be written to `profile.yaml` or committed to git history.
 
 In GitHub Actions workflows, credentials are supplied through encrypted **GitHub Actions Secrets**, while non-secret curriculum overrides (`SUBJECT_*`, `GH_*`, `KAGGLE_ENABLED`, `HF_USERNAME`, `OUTPUT_*`) are stored in **GitHub Actions Variables** (`Settings -> Secrets and variables -> Actions`):
 
