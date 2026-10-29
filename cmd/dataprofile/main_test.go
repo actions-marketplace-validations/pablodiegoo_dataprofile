@@ -826,6 +826,26 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"Publish SVGs to orphan output branch",
 		"git checkout --orphan output-temp",
 		"git push -f origin output",
+		"## Authentication tokens, private metrics, and Kaggle modes",
+		"| Secret Name | Required? | Recommended Scopes / Format | What It Unlocks |",
+		"**`GITHUB_TOKEN`**",
+		"**`ACCESS_TOKEN`**",
+		"**`KAGGLE_KEY`**",
+		"**`HF_TOKEN`**",
+		"docs/adr/0003-privacy-preserving-three-tier-collection.md",
+		"*Owned Repository*",
+		"*Contributed Repository*",
+		"*Passive Fork*",
+		"| Kaggle Mode | Credentials Needed | Collection Mechanism |",
+		"**`hybrid`** (default)",
+		"**`browser`**",
+		"**`api`**",
+		"## Embedding the updated SVGs in your profile `README.md`",
+		"https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/<school>/<panel>.svg",
+		"replace `/dataprofile/` in the URL with `/<your-username>/` (`https://raw.githubusercontent.com/<your-username>/<your-username>/output/generated/<school>/<panel>.svg`)",
+		"<!-- Layout 1: Single full-portfolio composite (animated header + elastic bio + 2x2 grid) -->",
+		"<!-- Layout 2: Modular panels (header.svg, bio-full.svg, and 2x2 analytical grid) -->",
+		"<!-- Layout 3: Mix and match different schools in the same grid -->",
 		"profile.yaml",
 		"[item 1; item 2]",
 		"go run ./cmd/dataprofile generate",
@@ -845,6 +865,21 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"docs/adr/",
 		"ADR-0005",
 	})
+
+	readmeRaw, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatalf("failed reading README.md: %v", err)
+	}
+	readmeStr := string(readmeRaw)
+	if strings.Contains(readmeStr, "—") {
+		t.Errorf("README.md contains forbidden em-dash (—); use parentheses, commas, colons, or periods per /escrever rules")
+	}
+	for lineIdx, line := range strings.Split(readmeStr, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "- **") && (strings.Contains(trimmed, ":**") || strings.Contains(trimmed, "**:")) {
+			t.Errorf("README.md line %d contains decorative bold-label list item (%q); use inline prose enumeration or a table per /escrever §19", lineIdx+1, trimmed)
+		}
+	}
 
 	// 5. Verify Open Source Guide, Domain Docs, ADRs & GitHub Community Standards files
 	communityFiles := map[string][]string{
