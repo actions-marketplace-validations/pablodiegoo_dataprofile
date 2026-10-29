@@ -154,4 +154,44 @@ KAGGLE_KEY=kaggle_dotenv_key
 	}
 }
 
+func TestDefaultManifestExcludeLangsAndIncludePrivateAlias(t *testing.T) {
+	def := DefaultManifest()
+	wantExcludeLangs := []string{
+		"HTML", "CSS", "SCSS", "TeX", "G-code",
+		"Roff", "Liquid", "Blade", "Rich Text Format", "Batchfile",
+	}
+	if len(def.Sources.GitHub.ExcludeLangs) != len(wantExcludeLangs) {
+		t.Fatalf("expected %d default exclude_langs, got %d (%v)",
+			len(wantExcludeLangs), len(def.Sources.GitHub.ExcludeLangs), def.Sources.GitHub.ExcludeLangs)
+	}
+	for i, want := range wantExcludeLangs {
+		if def.Sources.GitHub.ExcludeLangs[i] != want {
+			t.Errorf("default ExcludeLangs[%d] = %q, want %q", i, def.Sources.GitHub.ExcludeLangs[i], want)
+		}
+	}
+
+	dir := t.TempDir()
+	manifestPath := filepath.Join(dir, "profile.yaml")
+	content := `
+sources:
+  github:
+    username: "pablodiegoo"
+    include_private: false
+`
+	if err := os.WriteFile(manifestPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err := LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+	if m.Sources.GitHub.IncludePrivateCount {
+		t.Errorf("expected include_private: false alias to set IncludePrivateCount=false")
+	}
+	if len(m.Sources.GitHub.ExcludeLangs) != len(wantExcludeLangs) {
+		t.Errorf("expected omitted exclude_langs to retain %d defaults, got %v", len(wantExcludeLangs), m.Sources.GitHub.ExcludeLangs)
+	}
+}
+
+
 

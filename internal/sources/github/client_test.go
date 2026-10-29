@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
 	"github.com/pablodiegoo/dataprofile/internal/domain"
+	"github.com/pablodiegoo/dataprofile/internal/render"
 )
 
 func TestCollectRepositoriesLanguagesAndHygiene(t *testing.T) {
@@ -501,5 +503,240 @@ func TestCollectIncludePrivateCountAndTrafficFallback(t *testing.T) {
 	if lpPub.TotalRepos != 2 || imPub.PublicRepos != 2 {
 		t.Errorf("expected TotalRepos=2 and PublicRepos=2 when IncludePrivateCount=false, got TotalRepos=%d PublicRepos=%d",
 			lpPub.TotalRepos, imPub.PublicRepos)
+	}
+}
+
+func TestCollectThreeTierPrivateOwnedMonorepoAndContributedRepos(t *testing.T) {
+	mux := http.NewServeMux()
+	var gotAffiliation string
+
+	// Authenticated /user/repos returns both public and private Owned Repositories + a passive fork
+	mux.HandleFunc("/user/repos", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer pat_token" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		gotAffiliation = r.URL.Query().Get("affiliation")
+		repos := []restRepo{
+			{
+				Name:          "AGP",
+				FullName:      "pablodiegoo/AGP",
+				Private:       true,
+				Fork:          false,
+				Stargazers:    5,
+				Forks:         1,
+				Language:      "Jupyter Notebook",
+				DefaultBranch: "main",
+			},
+			{
+				Name:          "secret-client-audit",
+				FullName:      "pablodiegoo/secret-client-audit",
+				Private:       true,
+				Fork:          false,
+				Stargazers:    0,
+				Forks:         0,
+				Language:      "", // Empty primary language and empty /languages map; files counted strictly from recursive git tree
+				DefaultBranch: "main",
+			},
+			{
+				Name:          "dataprofile",
+				FullName:      "pablodiegoo/dataprofile",
+				Private:       false,
+				Fork:          false,
+				Stargazers:    12,
+				Forks:         2,
+				Language:      "Go",
+				DefaultBranch: "main",
+			},
+			{
+				Name:          "iota-sdk",
+				FullName:      "pablodiegoo/iota-sdk",
+				Private:       false,
+				Fork:          true,
+				Stargazers:    900,
+				Forks:         200,
+				Language:      "Go",
+				DefaultBranch: "main",
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(repos)
+	})
+
+	mux.HandleFunc("/repos/pablodiegoo/AGP/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{
+			"Jupyter Notebook": 20 * 1024 * 1024,
+			"Python":           4 * 1024 * 1024,
+		})
+	})
+	mux.HandleFunc("/repos/pablodiegoo/secret-client-audit/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{})
+	})
+	mux.HandleFunc("/repos/pablodiegoo/dataprofile/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{
+			"Go": 300 * 1024,
+		})
+	})
+
+	// Monorepo recursive git tree with multiple Analytical Workspaces + nested hygiene signals
+	mux.HandleFunc("/repos/pablodiegoo/AGP/git/trees/main", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"tree": []gitTreeEntry{
+				{Path: "Reports/Rio Bonito/DataAnalysis.ipynb", Type: "blob", Size: 42000},
+				{Path: "Reports/Rio Bonito/Wrangling.ipynb", Type: "blob", Size: 38000},
+				{Path: "Reports/Rio Bonito/regressao.py", Type: "blob", Size: 4200},
+				{Path: "Reports/Empetur/generate_maps.py", Type: "blob", Size: 5100},
+				{Path: "Reports/Empetur/test_models.py", Type: "blob", Size: 3400},
+				{Path: "Reports/Marica/duckdb_cleaner.py", Type: "blob", Size: 6100},
+				{Path: "Utils/pyproject.toml", Type: "blob", Size: 1200},
+				{Path: "Utils/uv.lock", Type: "blob", Size: 18000},
+				{Path: "Utils/agp_media/cli.py", Type: "blob", Size: 3200},
+				{Path: "Utils/ZapSender/adLog.ipynb", Type: "blob", Size: 25000},
+				{Path: ".github/workflows/ci.yml", Type: "blob", Size: 900},
+				{Path: "deploy/Dockerfile", Type: "blob", Size: 650},
+			},
+		})
+	})
+	// Second private repo with 2 .py files and 1 .qmd file in its git tree (even though /languages was empty)
+	mux.HandleFunc("/repos/pablodiegoo/secret-client-audit/git/trees/main", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"tree": []gitTreeEntry{
+				{Path: "audit/pipeline.py", Type: "blob", Size: 2400},
+				{Path: "audit/test_pipeline.py", Type: "blob", Size: 1800},
+				{Path: "audit/report.qmd", Type: "blob", Size: 8400},
+			},
+		})
+	})
+	mux.HandleFunc("/repos/pablodiegoo/AGP/contents/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/pablodiegoo/AGP/contents/Utils/pyproject.toml":
+			_, _ = w.Write([]byte(`dependencies = ["pandas", "geopandas", "torch", "transformers", "openai-whisper", "typer"]`))
+		case "/repos/pablodiegoo/AGP/contents/Reports/Rio Bonito/regressao.py":
+			_, _ = w.Write([]byte("SECRET_PROPRIETARY_FORMULA = 42\nimport pandas as pd\nimport numpy as np\nimport statsmodels.api as sm\nfrom sklearn.linear_model import LogisticRegression\nimport seaborn as sns\n"))
+		case "/repos/pablodiegoo/AGP/contents/Reports/Empetur/generate_maps.py":
+			_, _ = w.Write([]byte("import geopandas as gpd\nimport osmnx as ox\nimport matplotlib.pyplot as plt\n"))
+		case "/repos/pablodiegoo/AGP/contents/Reports/Marica/duckdb_cleaner.py":
+			_, _ = w.Write([]byte("import duckdb\nimport pandas as pd\nfrom sklearn.cluster import DBSCAN\n"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+
+	// GraphQL returns multi-year contributions + 2 Contributed Repositories
+	mux.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
+		var reqBody struct {
+			Query string `json:"query"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&reqBody)
+		w.Header().Set("Content-Type", "application/json")
+		if len(reqBody.Query) > 0 && reqBody.Query[0] == 'q' && !strings.Contains(reqBody.Query, "y2026:") {
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": map[string]interface{}{
+					"user": map[string]interface{}{
+						"contributionsCollection": map[string]interface{}{
+							"contributionYears": []int{2026, 2025},
+							"contributionCalendar": map[string]interface{}{
+								"totalContributions": 8331,
+								"weeks": []map[string]interface{}{
+									{"contributionDays": []map[string]int{{"contributionCount": 20}}},
+									{"contributionDays": []map[string]int{{"contributionCount": 40}}},
+								},
+							},
+						},
+						"repositoriesContributedTo": map[string]interface{}{
+							"totalCount": 2,
+							"nodes": []map[string]string{
+								{"nameWithOwner": "iota-uz/iota-sdk"},
+								{"nameWithOwner": "Agora-Pesquisa/agora-pesquisa.github.io"},
+							},
+						},
+					},
+				},
+			})
+			return
+		}
+		// Multi-year query response
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": map[string]interface{}{
+				"user": map[string]interface{}{
+					"y2026": map[string]interface{}{"contributionCalendar": map[string]int{"totalContributions": 8144}},
+					"y2025": map[string]interface{}{"contributionCalendar": map[string]int{"totalContributions": 933}},
+				},
+			},
+		})
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := NewClient("pat_token")
+	client.BaseURL = srv.URL
+
+	lp, sp, im, err := client.Collect(
+		context.Background(),
+		domain.GitHubSourceConfig{Username: "pablodiegoo", IncludeForks: false, IncludePrivateCount: true},
+		domain.NormalizationConfig{DeflateNotebooks: true, DetectDataStack: true},
+	)
+	if err != nil {
+		t.Fatalf("Collect failed: %v", err)
+	}
+
+	if gotAffiliation != "owner" {
+		t.Errorf("expected /user/repos query param affiliation=owner, got %q", gotAffiliation)
+	}
+	// 3 Owned Repositories (AGP private + secret-client-audit private + dataprofile public; iota-sdk fork excluded)
+	if lp.TotalRepos != 3 {
+		t.Errorf("expected 3 Owned Repositories in lp.TotalRepos, got %d", lp.TotalRepos)
+	}
+	// Impact reach includes 3 Owned + 2 Contributed Repositories = 5
+	if im.ContributedRepos != 2 || im.PublicRepos != 5 {
+		t.Errorf("expected ContributedRepos=2 and PublicRepos=5, got ContributedRepos=%d PublicRepos=%d", im.ContributedRepos, im.PublicRepos)
+	}
+	// Multi-year all-time contributions = 8144 + 933 = 9077
+	if im.AnnualContributions != 9077 {
+		t.Errorf("expected multi-year contributions=9077, got %d", im.AnnualContributions)
+	}
+	// True file counts across trees: AGP (5 .py + 3 .ipynb) + secret-client-audit (2 .py + 1 .qmd) + dataprofile fallback (1 prod) = 8 prod, 4 eda
+	if lp.ExplorationFiles != 4 || lp.ProductionFiles != 8 {
+		t.Errorf("expected ExplorationFiles=4 and ProductionFiles=8 from recursive trees, got eda=%d prod=%d", lp.ExplorationFiles, lp.ProductionFiles)
+	}
+	// Nested hygiene signals detected across Analytical Workspaces in AGP and secret-client-audit
+	if lp.LockfileRepos != 1 || lp.CICDRepos != 1 || lp.TestSuiteRepos != 2 || lp.ContainerizedRepos != 1 {
+		t.Errorf("expected recursive tree hygiene Lockfiles=1 CI=1 Tests=2 Docker=1, got Lockfiles=%d CI=%d Tests=%d Docker=%d",
+			lp.LockfileRepos, lp.CICDRepos, lp.TestSuiteRepos, lp.ContainerizedRepos)
+	}
+	// Multiple Analytical Workspaces detected inside AGP
+	if sp.TotalSources < 4 {
+		t.Errorf("expected >=4 Analytical Workspaces scanned across Owned Repositories, got %d", sp.TotalSources)
+	}
+
+	// Privacy-preserving guarantee: zero private repo names, Analytical Workspace paths, or code leak into rendered SVGs
+	portfolio := render.DefaultPortfolioData(domain.ProfileManifest{
+		Subject: domain.SubjectConfig{Name: "Pablo Diego", Locale: "en"},
+	})
+	portfolio.Languages = lp
+	portfolio.Stack = sp
+	portfolio.Impact = im
+
+	privateIdentifiers := []string{
+		"AGP",
+		"secret-client-audit",
+		"Rio Bonito",
+		"Empetur",
+		"regressao.py",
+		"SECRET_PROPRIETARY_FORMULA",
+	}
+	for _, school := range domain.AllSchools() {
+		for _, panel := range domain.AllPanels() {
+			svg, err := render.Render(school, panel, portfolio)
+			if err != nil {
+				t.Fatalf("Render(%s, %s) failed: %v", school, panel, err)
+			}
+			for _, secret := range privateIdentifiers {
+				if strings.Contains(svg, secret) {
+					t.Errorf("privacy leak: Render(%s, %s) leaked private identifier %q into SVG", school, panel, secret)
+				}
+			}
+		}
 	}
 }

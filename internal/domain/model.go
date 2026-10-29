@@ -219,6 +219,7 @@ type ImpactMetrics struct {
 	ActiveStreakDays    int     `json:"active_streak_days"`
 	TotalStars          int     `json:"total_stars"`
 	PublicRepos         int     `json:"public_repos"`
+	ContributedRepos    int     `json:"contributed_repos"`
 	TotalForks          int     `json:"total_forks"`
 	RepoViews14d        int     `json:"repo_views_14d"`
 	LinesAdded          int     `json:"lines_added"`

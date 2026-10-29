@@ -27,3 +27,23 @@ _Avoid_: Theme, Mode, Skin
 **Profile Manifest**:
 The public, declarative YAML specification (`profile.yaml`) that identifies the Subject, active Sources, and selected Schools without storing secret credentials.
 _Avoid_: Config file, Settings, Environment file
+
+**Owned Repository**:
+A public or private non-fork repository belonging to the Subject whose source code, notebooks, dependency manifests, and engineering hygiene signals are fully attributed to the Subject's portfolio.
+_Avoid_: Public repo, User repo
+
+**Passive Fork**:
+A forked repository whose upstream codebase and community stars originate from third parties and are excluded from the Subject's language proportions, stack detection, and star counts.
+_Avoid_: Forked repo
+
+**Contributed Repository**:
+An external or organization repository where the Subject has authored verified commits, pull requests, or code reviews, counted toward repository reach and contribution velocity without claiming upstream code bytes or stars.
+_Avoid_: Ignored repo, Collaborator repo
+
+**Notebook Deflation**:
+The normalization process that strips embedded base64 chart images, execution outputs, and JSON schema overhead from interactive notebooks so language proportions reflect only executable source code.
+_Avoid_: Bloat filter, File compression
+
+**Analytical Workspace**:
+A standalone Owned Repository or a self-contained project subdirectory within a monorepo that houses its own notebooks, source scripts, or dependency manifests, serving as the unit of ecosystem stack detection.
+_Avoid_: Subfolder, Directory, Package

@@ -17,7 +17,14 @@ sources:
     exclude_langs:
       - "HTML"
       - "CSS"
+      - "SCSS"
       - "TeX"
+      - "G-code"
+      - "Roff"
+      - "Liquid"
+      - "Blade"
+      - "Rich Text Format"
+      - "Batchfile"
 
   kaggle:
     username: "pablodiegoo"

@@ -14,6 +14,7 @@ type Secrets struct {
 	GitHubToken    string
 	KaggleUsername string
 	KaggleKey      string
+	HFToken        string
 }
 
 // LoadSecrets reads optional .env file if present and resolves environment variables.
@@ -57,10 +58,16 @@ func LoadSecrets(dotenvPath string) Secrets {
 		kgKey = get("KAGGLE_API_TOKEN")
 	}
 
+	hfTok := get("HF_TOKEN")
+	if hfTok == "" {
+		hfTok = get("HUGGINGFACE_TOKEN")
+	}
+
 	return Secrets{
 		GitHubToken:    ghToken,
 		KaggleUsername: get("KAGGLE_USERNAME"),
 		KaggleKey:      kgKey,
+		HFToken:        hfTok,
 	}
 }
 
@@ -76,7 +83,18 @@ func DefaultManifest() domain.ProfileManifest {
 			GitHub: domain.GitHubSourceConfig{
 				IncludeForks:        false,
 				IncludePrivateCount: true,
-				ExcludeLangs:        []string{"HTML", "CSS"},
+				ExcludeLangs: []string{
+					"HTML",
+					"CSS",
+					"SCSS",
+					"TeX",
+					"G-code",
+					"Roff",
+					"Liquid",
+					"Blade",
+					"Rich Text Format",
+					"Batchfile",
+				},
 			},
 			Kaggle: domain.KaggleSourceConfig{
 				Enabled: true,
@@ -249,7 +267,7 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 					manifest.Sources.GitHub.Username = val
 				case "include_forks":
 					manifest.Sources.GitHub.IncludeForks = parseBool(val, false)
-				case "include_private_count":
+				case "include_private_count", "include_private":
 					manifest.Sources.GitHub.IncludePrivateCount = parseBool(val, true)
 				}
 			case "kaggle":

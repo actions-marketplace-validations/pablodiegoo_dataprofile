@@ -98,13 +98,13 @@ func extractCellSource(raw json.RawMessage) string {
 
 func canonicalLanguageName(lang string) string {
 	switch strings.ToLower(strings.TrimSpace(lang)) {
-	case "python", "python3", "py":
+	case "python", "python3", "py", "cython":
 		return "Python"
 	case "r", "ir":
 		return "R"
 	case "julia":
 		return "Julia"
-	case "sql":
+	case "sql", "plpgsql", "tsql", "plsql":
 		return "SQL"
 	case "go", "golang":
 		return "Go"
@@ -116,25 +116,38 @@ func canonicalLanguageName(lang string) string {
 	}
 }
 
+var distinctTop5Palette = []string{
+	"#0284c7", // Sky 600
+	"#d97706", // Amber 600
+	"#00ADD8", // Cyan / Go
+	"#2563eb", // Blue 600
+	"#059669", // Emerald 600
+	"#7c3aed", // Violet 600
+	"#e11d48", // Rose 600
+	"#64748b", // Slate 500
+}
+
 // LanguageColor returns a high-contrast semantic color for a programming language.
 func LanguageColor(name string) string {
-	switch strings.ToLower(name) {
+	switch strings.ToLower(canonicalLanguageName(name)) {
 	case "python":
 		return "#0284c7"
-	case "sql", "plpgsql", "tsql":
+	case "sql":
 		return "#d97706"
-	case "go", "golang":
+	case "go":
 		return "#00ADD8"
 	case "r":
 		return "#2563eb"
-	case "shell", "bash", "sh":
+	case "shell", "bash", "sh", "templ":
 		return "#059669"
-	case "julia":
+	case "julia", "php":
 		return "#7c3aed"
-	case "rust":
+	case "rust", "svelte":
 		return "#e11d48"
-	case "typescript", "javascript":
-		return "#0284c7"
+	case "typescript":
+		return "#2563eb"
+	case "javascript":
+		return "#7c3aed"
 	default:
 		return "#64748b"
 	}
@@ -181,6 +194,16 @@ func NormalizeLanguageMap(rawBytes map[string]int64, deflate bool, exclude []str
 				notebookDeflated += b
 				cleaned[lang] += b
 			}
+		case "PLpgSQL", "TSQL", "PLSQL":
+			if !exMap["sql"] {
+				cleaned["SQL"] += b
+				prodBytes += b
+			}
+		case "Cython":
+			if !exMap["python"] {
+				cleaned["Python"] += b
+				prodBytes += b
+			}
 		default:
 			cleaned[lang] += b
 			prodBytes += b
@@ -215,20 +238,35 @@ func NormalizeLanguageMap(rawBytes map[string]int64, deflate bool, exclude []str
 	})
 
 	if len(items) > 5 {
-		var otherBytes int64
-		for _, it := range items[4:] {
-			otherBytes += it.bytes
-		}
-		items = append(items[:4], kv{"Shell", otherBytes})
+		items = items[:5]
 	}
 
+	var topTotal int64
 	for _, it := range items {
-		pct := math.Round((float64(it.bytes)/float64(total))*1000) / 10
+		topTotal += it.bytes
+	}
+	if topTotal == 0 {
+		topTotal = total
+	}
+
+	usedColors := make(map[string]bool, len(items))
+	for _, it := range items {
+		pct := math.Round((float64(it.bytes)/float64(topTotal))*1000) / 10
+		color := LanguageColor(it.name)
+		if usedColors[color] {
+			for _, candidate := range distinctTop5Palette {
+				if !usedColors[candidate] {
+					color = candidate
+					break
+				}
+			}
+		}
+		usedColors[color] = true
 		langs = append(langs, domain.LanguageStat{
 			Name:       it.name,
 			Bytes:      it.bytes,
 			Percentage: pct,
-			Color:      LanguageColor(it.name),
+			Color:      color,
 		})
 	}
 
@@ -251,27 +289,35 @@ type stackRule struct {
 }
 
 var canonicalStackRules = []stackRule{
-	// Data & Analytics
+	// Data & Analytics (first 4 are default baseline order)
 	{canonical: "Pandas / Polars", pillar: "data", tokens: []string{"pandas", "polars", "geopandas"}},
-	{canonical: "SQL / DuckDB", pillar: "data", tokens: []string{"duckdb", "sqlalchemy", "psycopg", "sql", "bigquery", "snowflake"}},
+	{canonical: "SQL / DuckDB", pillar: "data", tokens: []string{"duckdb", "sqlalchemy", "psycopg", "sql", "plpgsql", "bigquery", "snowflake", "sqlite"}},
 	{canonical: "Apache Spark", pillar: "data", tokens: []string{"pyspark", "spark", "databricks", "delta-spark"}},
 	{canonical: "dbt / Airflow", pillar: "data", tokens: []string{"dbt-", "dbt_core", "dbt", "apache-airflow", "airflow", "prefect", "dagster"}},
+	{canonical: "NumPy / SciPy", pillar: "data", tokens: []string{"numpy", "scipy", "pyarrow", "parquet", "openpyxl"}},
+	{canonical: "GeoPandas / Spatial", pillar: "data", tokens: []string{"geopandas", "shapely", "osmnx", "pyproj", "fiona", "rasterio", "postgis"}},
+	{canonical: "ETL & CLI Pipelines", pillar: "data", tokens: []string{"typer", "fastapi", "pydantic", "httpx", "celery", "alembic"}},
 
-	// Machine Learning & AI
-	{canonical: "Scikit-Learn", pillar: "ml", tokens: []string{"scikit-learn", "sklearn", "scipy", "statsmodels"}},
-	{canonical: "PyTorch", pillar: "ml", tokens: []string{"torch", "pytorch", "torchvision", "lightning"}},
+	// Machine Learning & AI (first 4 are default baseline order)
+	{canonical: "Scikit-Learn", pillar: "ml", tokens: []string{"scikit-learn", "sklearn", "logisticregression", "linearregression", "randomforest"}},
+	{canonical: "PyTorch", pillar: "ml", tokens: []string{"torch", "pytorch", "torchvision", "torchaudio", "lightning"}},
 	{canonical: "XGBoost / LightGBM", pillar: "ml", tokens: []string{"xgboost", "lightgbm", "catboost", "optuna"}},
 	{canonical: "Hugging Face", pillar: "ml", tokens: []string{"transformers", "datasets", "huggingface", "accelerate", "peft", "diffusers"}},
+	{canonical: "Statsmodels / GLM", pillar: "ml", tokens: []string{"statsmodels", "pingouin", "linearmodels", "factor_analysis", "factor_analyzer", "chi2", "ols", "glm"}},
+	{canonical: "Clustering & PCA", pillar: "ml", tokens: []string{"kmeans", "dbscan", "gower", "umap", "hdbscan", "pca", "clustering"}},
+	{canonical: "LLMs & Speech AI", pillar: "ml", tokens: []string{"whisper", "openai", "google-generativeai", "gemini", "langchain", "llamaindex", "vibevoice"}},
 
-	// Visualization & Data Apps
+	// Visualization & Data Apps (first 4 are default baseline order)
 	{canonical: "Plotly / Dash", pillar: "viz", tokens: []string{"plotly", "dash", "kaleido"}},
 	{canonical: "Streamlit", pillar: "viz", tokens: []string{"streamlit", "gradio", "shiny"}},
 	{canonical: "Matplotlib / Seaborn", pillar: "viz", tokens: []string{"matplotlib", "seaborn", "altair", "bokeh"}},
 	{canonical: "ggplot2 / Tidyverse", pillar: "viz", tokens: []string{"ggplot2", "tidyverse", "dplyr", "tidymodels"}},
+	{canonical: "Geospatial Maps", pillar: "viz", tokens: []string{"folium", "contextily", "leafmap", "osmnx", "voronoi", "choropleth", "shapefile"}},
+	{canonical: "Report Automation", pillar: "viz", tokens: []string{"pypandoc", "python-pptx", "reportlab", "weasyprint", "jinja2", "xlsxwriter"}},
 }
 
-// DetectStackFromManifests scans repository dependency manifest contents (pyproject.toml,
-// requirements.txt, environment.yml, DESCRIPTION) and aggregates counts across the 3 pillars.
+// DetectStackFromManifests scans repository and Analytical Workspace dependency manifests and code hints
+// and aggregates counts across the 3 pillars, dynamically selecting the Top 4 ecosystems per pillar.
 func DetectStackFromManifests(repoManifests []string) domain.StackPanel {
 	counts := make(map[string]int)
 	for _, content := range repoManifests {
@@ -288,15 +334,11 @@ func DetectStackFromManifests(repoManifests []string) domain.StackPanel {
 
 	buildPillar := func(pillar string) []domain.StackItem {
 		var list []domain.StackItem
-		maxCount := 0
 		for _, rule := range canonicalStackRules {
 			if rule.pillar != pillar {
 				continue
 			}
 			c := counts[rule.canonical]
-			if c > maxCount {
-				maxCount = c
-			}
 			list = append(list, domain.StackItem{
 				Name:      rule.canonical,
 				RepoCount: c,
@@ -305,6 +347,15 @@ func DetectStackFromManifests(repoManifests []string) domain.StackPanel {
 		sort.SliceStable(list, func(i, j int) bool {
 			return list[i].RepoCount > list[j].RepoCount
 		})
+		if len(list) > 4 {
+			list = list[:4]
+		}
+		maxCount := 0
+		for _, it := range list {
+			if it.RepoCount > maxCount {
+				maxCount = it.RepoCount
+			}
+		}
 		for i := range list {
 			if maxCount > 0 {
 				list[i].WeightPct = math.Round((float64(list[i].RepoCount) / float64(maxCount)) * 100)

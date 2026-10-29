@@ -189,3 +189,62 @@ Suggests: duckdb`,
 		}
 	}
 }
+
+func TestNormalizeLanguageMapTop5WithoutFakeShellAndSQLCanonicalization(t *testing.T) {
+	raw := map[string]int64{
+		"Python":     450000,
+		"Cython":     50000, // should merge into Python (500,000 total)
+		"Go":         300000,
+		"JavaScript": 200000,
+		"TypeScript": 150000,
+		"PLpgSQL":    50000, // should merge into SQL (100,000 total)
+		"TSQL":       30000,
+		"PLSQL":      20000,
+		"R":          80000,
+		"PHP":        40000,
+	}
+
+	langs, _, _, _ := NormalizeLanguageMap(raw, true, nil)
+	if len(langs) != 5 {
+		t.Fatalf("expected Top 5 languages, got %d", len(langs))
+	}
+	wantOrder := []string{"Python", "Go", "JavaScript", "TypeScript", "SQL"}
+	wantBytes := []int64{500000, 300000, 200000, 150000, 100000}
+	seenColors := make(map[string]string)
+	for i, want := range wantOrder {
+		if langs[i].Name != want {
+			t.Errorf("expected langs[%d].Name=%q, got %q", i, want, langs[i].Name)
+		}
+		if langs[i].Bytes != wantBytes[i] {
+			t.Errorf("expected langs[%d] (%s) Bytes=%d, got %d", i, want, wantBytes[i], langs[i].Bytes)
+		}
+		if langs[i].Color == "" {
+			t.Errorf("expected non-empty color for %s", langs[i].Name)
+		}
+		if prevLang, exists := seenColors[langs[i].Color]; exists {
+			t.Errorf("expected distinct hues for all Top 5 languages, but %s and %s both got %s",
+				prevLang, langs[i].Name, langs[i].Color)
+		}
+		seenColors[langs[i].Color] = langs[i].Name
+	}
+}
+
+func TestDetectStackDynamicCatalogReplacesZeroSparkWithRealEcosystems(t *testing.T) {
+	workspaces := []string{
+		"import pandas as pd\nimport numpy as np\nimport geopandas as gpd\nimport statsmodels.api as sm\nimport folium\n",
+		"import pandas as pd\nimport scipy.stats as stats\nfrom sklearn.cluster import KMeans, DBSCAN\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n",
+		"import duckdb\nimport typer\nimport openai\nimport whisper\nimport pypandoc\n",
+	}
+
+	stack := DetectStackFromManifests(workspaces)
+	for _, item := range stack.DataAnalytics {
+		if item.RepoCount == 0 {
+			t.Errorf("expected dynamic Top 4 DataAnalytics to have non-zero counts, got %+v", stack.DataAnalytics)
+		}
+	}
+	for _, item := range stack.MLAndAI {
+		if item.RepoCount == 0 {
+			t.Errorf("expected dynamic Top 4 MLAndAI to have non-zero counts, got %+v", stack.MLAndAI)
+		}
+	}
+}
