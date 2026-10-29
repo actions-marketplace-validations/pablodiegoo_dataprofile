@@ -199,7 +199,7 @@ If you want to keep `main` clean without cloning the repository or installing Go
 
 ### Mode C: Fork + editing `profile.yaml` on `main`
 
-If you prefer keeping your public configuration in a single YAML file inside your fork and do not mind commits on `main`, edit [`profile.yaml`](profile.yaml) directly.
+If you prefer keeping your public configuration in a single YAML file inside your fork and do not mind commits on `main`, edit [`profile.yaml`](profile.yaml) (*Profile Manifest*) directly.
 
 1. Fork this repository and enable workflows in the **Actions** tab.
 2. Edit [`profile.yaml`](profile.yaml) on `main` (either in the GitHub web editor or via git) with your name, role, bio, and usernames across `github`, `kaggle`, and `huggingface`.
