@@ -186,13 +186,15 @@ output:
 		t.Errorf("expected --locale=pt-BR CLI flag to localize header and analytical panels in cairo/full.svg")
 	}
 
-	// 4. Verify .env override with [item 1; item 2] syntax vs --no-env isolation and `sync --dry-run`
+	// 4. Verify .env override with [item 1; item 2] syntax, process env & CLI flag precedence, --no-env isolation, and `sync --dry-run`
 	envFile := filepath.Join(dir, "custom.env")
 	envContent := `
 SUBJECT_NAME="Pablo Diego"
+SUBJECT_LOCALE="en"
 SUBJECT_HEADLINES=[Welcome people and mystical beings.; I'm Pablo! 👋; Working with data 10+ years]
 SUBJECT_BIO=[Economist and Data Scientist.; Open-source tooling in Go and Python.]
 GITHUB_USERNAME="pablodiegoo"
+OUTPUT_DIRECTORY="dotenv-ignored-dir"
 ACCESS_TOKEN="ghp_test_token"
 `
 	if err := os.WriteFile(envFile, []byte(envContent), 0o600); err != nil {
@@ -209,6 +211,54 @@ ACCESS_TOKEN="ghp_test_token"
 	}
 	if !strings.Contains(string(envHdr), "I&#39;m Pablo! 👋") || strings.Contains(string(envHdr), "Ada Lovelace") {
 		t.Errorf("expected --env override to replace Ada Lovelace with Pablo's headlines in header.svg")
+	}
+	valEnvCmd := exec.Command(binPath, "validate", "--config", manifestPath, "--env", envFile, "--output", envOutDir)
+	if out, err := valEnvCmd.CombinedOutput(); err != nil {
+		t.Fatalf("validate with --env failed: %v\n%s", err, string(out))
+	}
+
+	// Verify process env overrides .env while explicit CLI flags (--output, --locale) override process env and .env
+	precOutDir := filepath.Join(dir, "prec-out")
+	precCmd := exec.Command(binPath, "generate", "--config", manifestPath, "--env", envFile, "--output", precOutDir, "--locale=pt-BR", "--demo")
+	precCmd.Env = append(os.Environ(),
+		"SUBJECT_HEADLINES=[Headline from process env]",
+		"SUBJECT_LOCALE=en",
+		"OUTPUT_DIRECTORY="+filepath.Join(dir, "wrong-process-env-dir"),
+	)
+	if out, err := precCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generate precedence check failed: %v\n%s", err, string(out))
+	}
+	precHdr, err := os.ReadFile(filepath.Join(precOutDir, "cairo", "header.svg"))
+	if err != nil {
+		t.Fatalf("expected --output CLI flag to take precedence over OUTPUT_DIRECTORY: %v", err)
+	}
+	if !strings.Contains(string(precHdr), "Headline from process env") || !strings.Contains(string(precHdr), "contribuições anuais") {
+		t.Errorf("expected process env SUBJECT_HEADLINES to override .env and --locale=pt-BR CLI flag to override SUBJECT_LOCALE=en")
+	}
+
+	// Verify --no-env isolates Showcase renders from both --env and process env overrides on generate and validate
+	noEnvOutDir := filepath.Join(dir, "no-env-showcase")
+	noEnvGenCmd := exec.Command(binPath, "generate", "--config", manifestPath, "--env", envFile, "--output", noEnvOutDir, "--demo", "--no-env")
+	noEnvGenCmd.Env = append(os.Environ(),
+		"SUBJECT_NAME=Process Env Intruder",
+		"SUBJECT_HEADLINES=[Intruder Headline]",
+		"OUTPUT_SCHOOLS=[tufte]",
+		"OUTPUT_PANELS=[header]",
+	)
+	if out, err := noEnvGenCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generate --no-env failed: %v\n%s", err, string(out))
+	}
+	noEnvHdr, err := os.ReadFile(filepath.Join(noEnvOutDir, "holmes", "header.svg"))
+	if err != nil {
+		t.Fatalf("expected --no-env to ignore OUTPUT_SCHOOLS=[tufte] and render holmes/header.svg: %v", err)
+	}
+	if !strings.Contains(string(noEnvHdr), "Ada Lovelace") || strings.Contains(string(noEnvHdr), "I&#39;m Pablo! 👋") || strings.Contains(string(noEnvHdr), "Intruder") {
+		t.Errorf("expected --no-env to render pure profile.yaml (Ada Lovelace) without .env or process env overrides")
+	}
+	noEnvValCmd := exec.Command(binPath, "validate", "--config", manifestPath, "--env", envFile, "--output", noEnvOutDir, "--no-env")
+	noEnvValCmd.Env = noEnvGenCmd.Env
+	if out, err := noEnvValCmd.CombinedOutput(); err != nil {
+		t.Fatalf("validate --no-env failed: %v\n%s", err, string(out))
 	}
 
 	syncCmd := exec.Command(binPath, "sync", "--env", envFile, "--dry-run")

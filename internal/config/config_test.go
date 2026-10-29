@@ -378,15 +378,15 @@ subject:
 }
 
 func TestParseEnvListAndApplyEnvOverrides(t *testing.T) {
-	items, ok := ParseEnvList(`[Welcome people and mystical beings.; I'm Pablo! 👋; Working with data 10+ years\; and counting]`)
-	if !ok || len(items) != 3 {
-		t.Fatalf("expected 3 items from ParseEnvList, got ok=%v items=%+v", ok, items)
+	items, ok := ParseEnvList(`[Welcome people and mystical beings.; I'm Pablo! 👋; Working with data 10+ years\; and counting; Kaggle Master (#412)] # trailing comment`)
+	if !ok || len(items) != 4 {
+		t.Fatalf("expected 4 items from ParseEnvList, got ok=%v items=%+v", ok, items)
 	}
-	if items[1] != "I'm Pablo! 👋" || items[2] != "Working with data 10+ years; and counting" {
+	if items[1] != "I'm Pablo! 👋" || items[2] != "Working with data 10+ years; and counting" || items[3] != "Kaggle Master (#412)" {
 		t.Errorf("unexpected parsed items: %+v", items)
 	}
 
-	emptyItems, okEmpty := ParseEnvList("[]")
+	emptyItems, okEmpty := ParseEnvList("[] # empty list comment")
 	if !okEmpty || len(emptyItems) != 0 {
 		t.Errorf("expected empty slice for [], got ok=%v items=%+v", okEmpty, emptyItems)
 	}
@@ -399,10 +399,10 @@ func TestParseEnvListAndApplyEnvOverrides(t *testing.T) {
 	dotenvPath := filepath.Join(dir, ".env")
 	dotenvContent := `
 SUBJECT_NAME="Pablo Diego"
-SUBJECT_ROLE="Data Scientist & Analytics Engineer"
+SUBJECT_ROLE=I'm a Data Scientist & Engineers' Lead # inline comment after apostrophes
 SUBJECT_LOCALE="pt-BR"
 SUBJECT_HEADLINES=[Welcome people and mystical beings.; I'm Pablo! 👋; Kaggle Master (#412)] # inline comment
-SUBJECT_BIO=[Economist and Data Scientist with 10+ years.; Focused on Python, SQL, Go, and R.]
+SUBJECT_BIO='[Economist and Data Scientist with 10+ years.; I'm focused on Python, SQL, Go, and R (#1).]' # single-quoted bracket list
 GITHUB_USERNAME="pablodiegoo"
 GITHUB_INCLUDE_FORKS=true
 GITHUB_INCLUDE_PRIVATE_COUNT=false
@@ -440,13 +440,13 @@ GITHUB_TOKEN="ghp_ignored_by_sync"
 	m := DefaultManifest()
 	ApplyEnvOverrides(&m, dotenvPath)
 
-	if m.Subject.Name != "Pablo Diego" || m.Subject.Locale != "pt-BR" {
+	if m.Subject.Name != "Pablo Diego" || m.Subject.Role != "I'm a Data Scientist & Engineers' Lead" || m.Subject.Locale != "pt-BR" {
 		t.Errorf("unexpected Subject after .env override: %+v", m.Subject)
 	}
 	if len(m.Subject.Headlines) != 3 || m.Subject.Headlines[2] != "Kaggle Master (#412)" {
 		t.Errorf("unexpected Headlines after .env override: %+v", m.Subject.Headlines)
 	}
-	if len(m.Subject.Bio) != 2 || m.Subject.Bio[1] != "Focused on Python, SQL, Go, and R." {
+	if len(m.Subject.Bio) != 2 || m.Subject.Bio[1] != "I'm focused on Python, SQL, Go, and R (#1)." {
 		t.Errorf("unexpected Bio after .env override: %+v", m.Subject.Bio)
 	}
 	if m.Sources.GitHub.Username != "pablodiegoo" || !m.Sources.GitHub.IncludeForks || m.Sources.GitHub.IncludePrivateCount {
@@ -471,11 +471,29 @@ GITHUB_TOKEN="ghp_ignored_by_sync"
 		t.Errorf("unexpected Output config after .env override: %+v", m.Output)
 	}
 
-	// Verify GH_USERNAME process env alias overrides .env GITHUB_USERNAME
+	// Verify GH_* and HUGGINGFACE_* process env aliases override .env values and empty [] clears slices
 	t.Setenv("GH_USERNAME", "ci-variable-user")
+	t.Setenv("GH_INCLUDE_FORKS", "false")
+	t.Setenv("GH_INCLUDE_PRIVATE", "true")
+	t.Setenv("GH_EXCLUDE_REPOS", "[ci-excluded-repo]")
+	t.Setenv("GH_EXCLUDE_LANGS", "[]")
+	t.Setenv("HUGGINGFACE_USERNAME", "ci-hf-user")
+	t.Setenv("HUGGINGFACE_ENABLED", "true")
 	ApplyEnvOverrides(&m, dotenvPath)
 	if m.Sources.GitHub.Username != "ci-variable-user" {
 		t.Errorf("expected GH_USERNAME process env to override .env, got %q", m.Sources.GitHub.Username)
+	}
+	if m.Sources.GitHub.IncludeForks || !m.Sources.GitHub.IncludePrivateCount {
+		t.Errorf("expected GH_INCLUDE_FORKS=false and GH_INCLUDE_PRIVATE=true from process env, got %+v", m.Sources.GitHub)
+	}
+	if len(m.Sources.GitHub.ExcludeRepos) != 1 || m.Sources.GitHub.ExcludeRepos[0] != "ci-excluded-repo" {
+		t.Errorf("expected GH_EXCLUDE_REPOS=[ci-excluded-repo] from process env, got %+v", m.Sources.GitHub.ExcludeRepos)
+	}
+	if len(m.Sources.GitHub.ExcludeLangs) != 0 {
+		t.Errorf("expected GH_EXCLUDE_LANGS=[] to clear ExcludeLangs, got %+v", m.Sources.GitHub.ExcludeLangs)
+	}
+	if m.Sources.HuggingFace.Username != "ci-hf-user" || !m.Sources.HuggingFace.Enabled {
+		t.Errorf("expected HUGGINGFACE_* process env overrides, got %+v", m.Sources.HuggingFace)
 	}
 
 	// Verify PlanGitHubSync maps GITHUB_* to GH_* and classifies secrets vs variables

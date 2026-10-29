@@ -54,45 +54,48 @@ func LoadDotenvMap(dotenvPath string) map[string]string {
 	return envMap
 }
 
+func resolveEnvValue(envMap map[string]string, keys ...string) (string, bool) {
+	for _, k := range keys {
+		if v := strings.TrimSpace(stripEnvComment(os.Getenv(k))); v != "" {
+			return cleanYAMLScalar(v), true
+		}
+	}
+	for _, k := range keys {
+		if v := strings.TrimSpace(envMap[k]); v != "" {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+func parseEnvListOrMultiline(v string) []string {
+	if list, isList := ParseEnvList(v); isList {
+		return list
+	}
+	return splitMultilineScalar(v)
+}
+
 // LoadSecrets reads optional .env file if present and resolves environment variables.
 // Precedence: explicit environment variables > .env file values.
 func LoadSecrets(dotenvPath string) Secrets {
 	envMap := LoadDotenvMap(dotenvPath)
-
-	get := func(key string) string {
-		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
-			return v
-		}
-		return envMap[key]
-	}
-
-	ghToken := get("ACCESS_TOKEN")
-	if ghToken == "" {
-		ghToken = get("GITHUB_TOKEN")
-	}
-
-	kgKey := get("KAGGLE_KEY")
-	if kgKey == "" {
-		kgKey = get("KAGGLE_API_TOKEN")
-	}
-
-	hfTok := get("HF_TOKEN")
-	if hfTok == "" {
-		hfTok = get("HUGGINGFACE_TOKEN")
+	get := func(keys ...string) string {
+		v, _ := resolveEnvValue(envMap, keys...)
+		return v
 	}
 
 	return Secrets{
-		GitHubToken:    ghToken,
+		GitHubToken:    get("ACCESS_TOKEN", "GITHUB_TOKEN"),
 		KaggleUsername: get("KAGGLE_USERNAME"),
-		KaggleKey:      kgKey,
-		HFToken:        hfTok,
+		KaggleKey:      get("KAGGLE_KEY", "KAGGLE_API_TOKEN"),
+		HFToken:        get("HF_TOKEN", "HUGGINGFACE_TOKEN"),
 	}
 }
 
 // ParseEnvList parses a bracketed semicolon-delimited list `[item 1; item 2]`
 // from an environment variable or .env file. Literal semicolons can be escaped as `\;`.
 func ParseEnvList(raw string) ([]string, bool) {
-	s := cleanYAMLScalar(strings.TrimSpace(raw))
+	s := cleanYAMLScalar(strings.TrimSpace(stripEnvComment(raw)))
 	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
 		return nil, false
 	}
@@ -133,19 +136,8 @@ func ApplyEnvOverrides(manifest *domain.ProfileManifest, dotenvPath string) {
 		return
 	}
 	envMap := LoadDotenvMap(dotenvPath)
-
 	get := func(keys ...string) (string, bool) {
-		for _, k := range keys {
-			if v := strings.TrimSpace(os.Getenv(k)); v != "" {
-				return cleanYAMLScalar(v), true
-			}
-		}
-		for _, k := range keys {
-			if v := strings.TrimSpace(envMap[k]); v != "" {
-				return v, true
-			}
-		}
-		return "", false
+		return resolveEnvValue(envMap, keys...)
 	}
 
 	if v, ok := get("SUBJECT_NAME"); ok {
@@ -158,18 +150,10 @@ func ApplyEnvOverrides(manifest *domain.ProfileManifest, dotenvPath string) {
 		manifest.Subject.Locale = v
 	}
 	if v, ok := get("SUBJECT_HEADLINES"); ok {
-		if list, isList := ParseEnvList(v); isList {
-			manifest.Subject.Headlines = list
-		} else {
-			manifest.Subject.Headlines = splitMultilineScalar(v)
-		}
+		manifest.Subject.Headlines = parseEnvListOrMultiline(v)
 	}
 	if v, ok := get("SUBJECT_BIO"); ok {
-		if list, isList := ParseEnvList(v); isList {
-			manifest.Subject.Bio = list
-		} else {
-			manifest.Subject.Bio = splitMultilineScalar(v)
-		}
+		manifest.Subject.Bio = parseEnvListOrMultiline(v)
 	}
 
 	if v, ok := get("GITHUB_USERNAME", "GH_USERNAME"); ok {
@@ -618,6 +602,10 @@ func stripYAMLComment(s string) string {
 	return s
 }
 
+func isAlphaNumByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
+
 func stripEnvComment(s string) string {
 	var (
 		inSingle, inDouble bool
@@ -625,7 +613,22 @@ func stripEnvComment(s string) string {
 	)
 	for i := 0; i < len(s); i++ {
 		if bracketDepth == 0 {
-			updateQuoteState(s[i], &inSingle, &inDouble)
+			switch s[i] {
+			case '\'':
+				if !inDouble {
+					prevAlpha := i > 0 && isAlphaNumByte(s[i-1])
+					nextAlpha := i+1 < len(s) && isAlphaNumByte(s[i+1])
+					if !inSingle && !prevAlpha {
+						inSingle = true
+					} else if inSingle && !(prevAlpha && nextAlpha) {
+						inSingle = false
+					}
+				}
+			case '"':
+				if !inSingle {
+					inDouble = !inDouble
+				}
+			}
 		}
 		if !inSingle && !inDouble {
 			switch s[i] {
