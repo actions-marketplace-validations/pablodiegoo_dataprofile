@@ -13,7 +13,7 @@ An external platform from which raw professional signals, artifacts, and metrics
 _Avoid_: Integration, Connector, Plugin, Provider
 
 **Panel**:
-A standalone SVG visual module representing one analytical dimension of the Subject's portfolio (language distribution, data stack, Kaggle standing, community impact, or executive summary).
+A standalone SVG visual module portraying the Subject's portfolio through an analytical dimension (language distribution, data stack, Kaggle standing, community impact), an identity or narrative block (animated header, career bio), or a composite synthesis (executive summary, full portfolio).
 _Avoid_: Widget, Card, Badge, Image
 
 **School**:

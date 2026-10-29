@@ -25,6 +25,13 @@ Every SVG uses the **Universal Dual-Surface Palette** (transparent canvas `fill=
 Removes all decorative boxes and grid cages so every drop of ink encodes data: **Dot-Dash Plots** (`languages`), **3-Pillar Dot Plots** (`stack`), **Tabular Supertables** (`kaggle`), and **Inline Sparklines** (`impact`).
 
 <p align="center">
+  <img src="generated/tufte/header.svg" width="96%" alt="tufte header" />
+</p>
+<p align="center">
+  <img src="generated/tufte/bio.svg" width="48%" alt="tufte bio" />
+  <img src="generated/tufte/bio-full.svg" width="96%" alt="tufte bio-full" />
+</p>
+<p align="center">
   <img src="generated/tufte/languages.svg" width="48%" alt="tufte languages" />
   <img src="generated/tufte/stack.svg" width="48%" alt="tufte stack" />
 </p>
@@ -35,6 +42,10 @@ Removes all decorative boxes and grid cages so every drop of ink encodes data: *
 <p align="center">
   <em>Consolidated Executive Card (`summary.svg`):</em><br/>
   <img src="generated/tufte/summary.svg" width="65%" alt="tufte summary" />
+</p>
+<p align="center">
+  <em>Full Portfolio Composite (`full.svg`) & Animated Header (`header.svg`):</em><br/>
+  <img src="generated/tufte/full.svg" width="96%" alt="tufte full" />
 </p>
 
 📋 **Copy & Paste — 4-Panel Grid (2×2) for your Profile `README.md`:**
@@ -58,12 +69,34 @@ Removes all decorative boxes and grid cages so every drop of ink encodes data: *
 </p>
 ```
 
+📋 **Copy & Paste — Full Portfolio Suite (`full.svg` / `header.svg` / `bio.svg` / `bio-full.svg`):**
+
+```markdown
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/tufte/header.svg" width="100%" alt="DataProfile Animated Header" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/tufte/bio.svg" width="48%" alt="DataProfile Career Bio (Compact)" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/tufte/bio-full.svg" width="100%" alt="DataProfile Career Bio (Full Width)" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/tufte/full.svg" width="100%" alt="DataProfile Full Portfolio" />
+</p>
+```
+
 ---
 
 ## II. `few` — Executive Dashboard Telemetry & Bullet Graphs (Stephen Few)
 
 Designed for 3-second executive scanning: top **KPI Telemetry Strips**, **Stephen Few Bullet Graphs** comparing current standing against vertical target thresholds (`│`), and pre-attentive color highlighting the #1 tool in each stack pillar.
 
+<p align="center">
+  <img src="generated/few/header.svg" width="96%" alt="few header" />
+</p>
+<p align="center">
+  <img src="generated/few/bio.svg" width="48%" alt="few bio" />
+  <img src="generated/few/bio-full.svg" width="96%" alt="few bio-full" />
+</p>
 <p align="center">
   <img src="generated/few/languages.svg" width="48%" alt="few languages" />
   <img src="generated/few/stack.svg" width="48%" alt="few stack" />
@@ -75,6 +108,10 @@ Designed for 3-second executive scanning: top **KPI Telemetry Strips**, **Stephe
 <p align="center">
   <em>Consolidated Executive Card (`summary.svg`):</em><br/>
   <img src="generated/few/summary.svg" width="65%" alt="few summary" />
+</p>
+<p align="center">
+  <em>Full Portfolio Composite (`full.svg`) & Animated Header (`header.svg`):</em><br/>
+  <img src="generated/few/full.svg" width="96%" alt="few full" />
 </p>
 
 📋 **Copy & Paste — 4-Panel Grid (2×2) for your Profile `README.md`:**
@@ -98,12 +135,34 @@ Designed for 3-second executive scanning: top **KPI Telemetry Strips**, **Stephe
 </p>
 ```
 
+📋 **Copy & Paste — Full Portfolio Suite (`full.svg` / `header.svg` / `bio.svg` / `bio-full.svg`):**
+
+```markdown
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/few/header.svg" width="100%" alt="DataProfile Animated Header" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/few/bio.svg" width="48%" alt="DataProfile Career Bio (Compact)" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/few/bio-full.svg" width="100%" alt="DataProfile Career Bio (Full Width)" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/few/full.svg" width="100%" alt="DataProfile Full Portfolio" />
+</p>
+```
+
 ---
 
 ## III. `cairo` — Functional Art & Editorial Data Journalism (Alberto Cairo)
 
 Frames portfolio telemetry like a data-journalism piece: top **Crimson Editorial Rule (`#e11d48`)**, thesis-driven **Serif Headlines**, **10×5 Waffle Charts**, **Lollipop Charts** with dashed benchmark lines, and **`↳` Callout Annotations**.
 
+<p align="center">
+  <img src="generated/cairo/header.svg" width="96%" alt="cairo header" />
+</p>
+<p align="center">
+  <img src="generated/cairo/bio.svg" width="48%" alt="cairo bio" />
+  <img src="generated/cairo/bio-full.svg" width="96%" alt="cairo bio-full" />
+</p>
 <p align="center">
   <img src="generated/cairo/languages.svg" width="48%" alt="cairo languages" />
   <img src="generated/cairo/stack.svg" width="48%" alt="cairo stack" />
@@ -115,6 +174,10 @@ Frames portfolio telemetry like a data-journalism piece: top **Crimson Editorial
 <p align="center">
   <em>Consolidated Executive Card (`summary.svg`):</em><br/>
   <img src="generated/cairo/summary.svg" width="65%" alt="cairo summary" />
+</p>
+<p align="center">
+  <em>Full Portfolio Composite (`full.svg`) & Animated Header (`header.svg`):</em><br/>
+  <img src="generated/cairo/full.svg" width="96%" alt="cairo full" />
 </p>
 
 📋 **Copy & Paste — 4-Panel Grid (2×2) for your Profile `README.md`:**
@@ -138,12 +201,34 @@ Frames portfolio telemetry like a data-journalism piece: top **Crimson Editorial
 </p>
 ```
 
+📋 **Copy & Paste — Full Portfolio Suite (`full.svg` / `header.svg` / `bio.svg` / `bio-full.svg`):**
+
+```markdown
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/cairo/header.svg" width="100%" alt="DataProfile Animated Header" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/cairo/bio.svg" width="48%" alt="DataProfile Career Bio (Compact)" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/cairo/bio-full.svg" width="100%" alt="DataProfile Career Bio (Full Width)" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/cairo/full.svg" width="100%" alt="DataProfile Full Portfolio" />
+</p>
+```
+
 ---
 
 ## IV. `holmes` — Pictorial Isotypes & Visual Storytelling (Nigel Holmes)
 
 Combines bold **Magazine Header Ribbons** with **10-Block Pictorial Isotypes**, a **Stepped Podium Climb** with dynamic trophy placement (`🏆`) for Kaggle progression, and **Visual Engineering Badges**.
 
+<p align="center">
+  <img src="generated/holmes/header.svg" width="96%" alt="holmes header" />
+</p>
+<p align="center">
+  <img src="generated/holmes/bio.svg" width="48%" alt="holmes bio" />
+  <img src="generated/holmes/bio-full.svg" width="96%" alt="holmes bio-full" />
+</p>
 <p align="center">
   <img src="generated/holmes/languages.svg" width="48%" alt="holmes languages" />
   <img src="generated/holmes/stack.svg" width="48%" alt="holmes stack" />
@@ -155,6 +240,10 @@ Combines bold **Magazine Header Ribbons** with **10-Block Pictorial Isotypes**, 
 <p align="center">
   <em>Consolidated Executive Card (`summary.svg`):</em><br/>
   <img src="generated/holmes/summary.svg" width="65%" alt="holmes summary" />
+</p>
+<p align="center">
+  <em>Full Portfolio Composite (`full.svg`) & Animated Header (`header.svg`):</em><br/>
+  <img src="generated/holmes/full.svg" width="96%" alt="holmes full" />
 </p>
 
 📋 **Copy & Paste — 4-Panel Grid (2×2) for your Profile `README.md`:**
@@ -175,6 +264,21 @@ Combines bold **Magazine Header Ribbons** with **10-Block Pictorial Isotypes**, 
 ```markdown
 <p align="center">
   <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/holmes/summary.svg" width="100%" alt="DataProfile Executive Summary" />
+</p>
+```
+
+📋 **Copy & Paste — Full Portfolio Suite (`full.svg` / `header.svg` / `bio.svg` / `bio-full.svg`):**
+
+```markdown
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/holmes/header.svg" width="100%" alt="DataProfile Animated Header" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/holmes/bio.svg" width="48%" alt="DataProfile Career Bio (Compact)" />
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/holmes/bio-full.svg" width="100%" alt="DataProfile Career Bio (Full Width)" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pablodiegoo/dataprofile/output/generated/holmes/full.svg" width="100%" alt="DataProfile Full Portfolio" />
 </p>
 ```
 

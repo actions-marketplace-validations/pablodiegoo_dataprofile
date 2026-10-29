@@ -365,7 +365,7 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 			}
 
 			// For the 4 analytical panels (languages, stack, kaggle, impact), verify prototypes/schools/<school>/<panel>.svg matches
-			if panel != domain.PanelSummary {
+			if panel == domain.PanelLanguages || panel == domain.PanelStack || panel == domain.PanelKaggle || panel == domain.PanelImpact {
 				protoPath := filepath.Join(root, "prototypes", "schools", string(school), string(panel)+".svg")
 				protoBytes, err := os.ReadFile(protoPath)
 				if err != nil {

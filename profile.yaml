@@ -7,6 +7,13 @@ subject:
   name: "Pablo Diego"
   role: "Data Scientist & Analytics Engineer"
   locale: "en" # Supported: "en" | "pt-BR"
+  headlines:
+    - "Welcome people and mystical beings."
+    - "I'm Pablo! 👋"
+    - "Working with data 10+ years"
+  bio:
+    - "Economist and Data Scientist with 10+ years of experience transforming complex datasets into actionable insights, predictive models, and production analytics engineering pipelines."
+    - "Focused on quantitative analysis, machine learning, and open-source data tooling across Python, SQL, Go, and R."
 
 sources:
   github:
@@ -52,3 +59,7 @@ output:
     - "stack"     # Panel 2: Data, ML & Analytics Ecosystem
     - "kaggle"    # Panel 3: Kaggle Competitive Standing & Medals
     - "impact"    # Panel 4: Open-Source & AI Community Impact
+    - "header"    # Animated full-width header banner (900px)
+    - "bio"       # Elastic career bio card (440px mobile/grid width)
+    - "bio-full"  # Elastic career bio banner (900px full width)
+    - "full"      # Full portfolio composite: Header + Bio + 4 Complete Panels (900px)

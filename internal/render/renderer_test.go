@@ -622,5 +622,143 @@ func TestRenderOutputREADMEBilingualAndCopyPasteSnippets(t *testing.T) {
 	}
 }
 
+func TestHeaderBioAndFullPanelsDynamicHeightAndAnimations(t *testing.T) {
+	manifest := config.DefaultManifest()
+	manifest.Subject.Name = "Pablo Diego"
+	manifest.Subject.Role = "Economist | Data Scientist & Analytics Engineer | Content Creator"
+	manifest.Subject.Headlines = []string{
+		"Welcome people and mystical beings.",
+		"I'm Pablo! 👋",
+		"Working with data 10+ years",
+	}
+
+	for _, school := range domain.AllSchools() {
+		// 1. Header panel: 900x115 with SMIL typewriter <textPath> + <animate> and stroke-dasharray chart animation
+		dataHdr := DefaultPortfolioData(manifest)
+		hdrSVG, err := Render(school, domain.PanelHeader, dataHdr)
+		if err != nil {
+			t.Fatalf("Render(%s, header) failed: %v", school, err)
+		}
+		for _, tok := range []string{
+			`width="900" height="115"`,
+			`<textPath xlink:href="#hdr-path0">Welcome people and mystical beings.</textPath>`,
+			`<textPath xlink:href="#hdr-path1">I&#39;m Pablo! 👋</textPath>`,
+			`<textPath xlink:href="#hdr-path2">Working with data 10+ years</textPath>`,
+			`attributeName="stroke-dasharray"`,
+			`repeatCount="indefinite"`,
+		} {
+			if !strings.Contains(hdrSVG, tok) {
+				t.Errorf("Render(%s, header) missing expected animation token %q", school, tok)
+			}
+		}
+
+		// 2. Bio (440px) vs BioFull (900px) and dynamic height adaptation (short 1-line vs long multi-paragraph)
+		shortData := DefaultPortfolioData(manifest)
+		shortData.Subject.Bio = []string{"Short one-line career bio."}
+
+		longData := DefaultPortfolioData(manifest)
+		longData.Subject.Bio = []string{
+			"Economist and Data Scientist with 10+ years of experience transforming complex datasets into actionable insights, predictive models, and production analytics engineering pipelines across diverse industries.",
+			"Focused on quantitative analysis, statistical modeling, machine learning, and open-source data tooling across Python, SQL, Go, and R.",
+			"Passionate about data visualization schools of thought, reproducible research, and sharing educational content with the analytics community.",
+		}
+
+		bioCompactShort, err := Render(school, domain.PanelBio, shortData)
+		if err != nil {
+			t.Fatalf("Render(%s, bio) short failed: %v", school, err)
+		}
+		bioCompactLong, err := Render(school, domain.PanelBio, longData)
+		if err != nil {
+			t.Fatalf("Render(%s, bio) long failed: %v", school, err)
+		}
+		if !strings.Contains(bioCompactShort, `width="440"`) || !strings.Contains(bioCompactLong, `width="440"`) {
+			t.Errorf("Render(%s, bio) expected width=440", school)
+		}
+		if extractSVGHeight(t, bioCompactLong) <= extractSVGHeight(t, bioCompactShort) {
+			t.Errorf("Render(%s, bio) expected long bio height (%d) > short bio height (%d)",
+				school, extractSVGHeight(t, bioCompactLong), extractSVGHeight(t, bioCompactShort))
+		}
+
+		bioFullShort, err := Render(school, domain.PanelBioFull, shortData)
+		if err != nil {
+			t.Fatalf("Render(%s, bio-full) short failed: %v", school, err)
+		}
+		bioFullLong, err := Render(school, domain.PanelBioFull, longData)
+		if err != nil {
+			t.Fatalf("Render(%s, bio-full) long failed: %v", school, err)
+		}
+		if !strings.Contains(bioFullShort, `width="900"`) || !strings.Contains(bioFullLong, `width="900"`) {
+			t.Errorf("Render(%s, bio-full) expected width=900", school)
+		}
+		if extractSVGHeight(t, bioFullLong) <= extractSVGHeight(t, bioFullShort) {
+			t.Errorf("Render(%s, bio-full) expected long bio-full height (%d) > short bio-full height (%d)",
+				school, extractSVGHeight(t, bioFullLong), extractSVGHeight(t, bioFullShort))
+		}
+		// At 440px, a long bio wraps into more lines than at 900px, so bioCompactLong height > bioFullLong height
+		if extractSVGHeight(t, bioCompactLong) <= extractSVGHeight(t, bioFullLong) {
+			t.Errorf("Render(%s) expected 440px wrapped long bio height (%d) > 900px long bio height (%d)",
+				school, extractSVGHeight(t, bioCompactLong), extractSVGHeight(t, bioFullLong))
+		}
+
+		// 3. Full composite panel (900px): empty bio collapses (0 extra space), short bio expands slightly, long bio pushes 4 panels down without overlap
+		emptyBioData := DefaultPortfolioData(manifest)
+		emptyBioData.Subject.Bio = nil
+
+		fullEmptyBio, err := Render(school, domain.PanelFull, emptyBioData)
+		if err != nil {
+			t.Fatalf("Render(%s, full) empty bio failed: %v", school, err)
+		}
+		fullShortBio, err := Render(school, domain.PanelFull, shortData)
+		if err != nil {
+			t.Fatalf("Render(%s, full) short bio failed: %v", school, err)
+		}
+		fullLongBio, err := Render(school, domain.PanelFull, longData)
+		if err != nil {
+			t.Fatalf("Render(%s, full) long bio failed: %v", school, err)
+		}
+
+		hEmpty := extractSVGHeight(t, fullEmptyBio)
+		hShort := extractSVGHeight(t, fullShortBio)
+		hLong := extractSVGHeight(t, fullLongBio)
+		if !(hEmpty < hShort && hShort < hLong) {
+			t.Errorf("Render(%s, full) expected dynamic height progression hEmpty (%d) < hShort (%d) < hLong (%d)",
+				school, hEmpty, hShort, hLong)
+		}
+		// Verify all 4 complete panels and animated header are present inside full.svg
+		for _, want := range []string{
+			`<textPath xlink:href="#full-hdr-path0">`,
+			`Pandas / Polars`,
+			`Scikit-Learn`,
+			`Notebooks`,
+			`Competitions`,
+		} {
+			if !strings.Contains(fullLongBio, want) {
+				t.Errorf("Render(%s, full) missing expected full-panel element %q", school, want)
+			}
+		}
+	}
+}
+
+func extractSVGHeight(t *testing.T, svg string) int {
+	t.Helper()
+	marker := `height="`
+	idx := strings.Index(svg, marker)
+	if idx == -1 {
+		t.Fatalf("SVG missing height attribute")
+	}
+	rest := svg[idx+len(marker):]
+	end := strings.IndexByte(rest, '"')
+	if end == -1 {
+		t.Fatalf("malformed height attribute")
+	}
+	var h int
+	for _, ch := range rest[:end] {
+		if ch >= '0' && ch <= '9' {
+			h = h*10 + int(ch-'0')
+		}
+	}
+	return h
+}
+
 
 

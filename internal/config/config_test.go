@@ -207,5 +207,69 @@ sources:
 	}
 }
 
+func TestLoadManifestHeadlinesAndBioFormats(t *testing.T) {
+	dir := t.TempDir()
+	manifestPath := filepath.Join(dir, "profile.yaml")
+	content := `
+subject:
+  name: "Pablo Diego"
+  role: "Economist | Data Scientist"
+  locale: "pt-BR"
+  headlines:
+    - "Welcome people and mystical beings."
+    - "I'm Pablo! 👋"
+    - "Working with data 10+ years"
+  bio:
+    - "Economista e Cientista de Dados com mais de 10 anos de experiência."
+    - "Focado em modelagem estatística, machine learning e engenharia analítica."
+output:
+  panels:
+    - "header"
+    - "bio"
+    - "bio-full"
+    - "full"
+`
+	if err := os.WriteFile(manifestPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err := LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+	if len(m.Subject.Headlines) != 3 || m.Subject.Headlines[1] != "I'm Pablo! 👋" {
+		t.Errorf("unexpected Subject.Headlines: %+v", m.Subject.Headlines)
+	}
+	if len(m.Subject.Bio) != 2 || m.Subject.Bio[0] != "Economista e Cientista de Dados com mais de 10 anos de experiência." {
+		t.Errorf("unexpected Subject.Bio: %+v", m.Subject.Bio)
+	}
+	if len(m.Output.Panels) != 4 || m.Output.Panels[2] != "bio-full" || m.Output.Panels[3] != "full" {
+		t.Errorf("unexpected Output.Panels: %+v", m.Output.Panels)
+	}
+
+	// Test block scalar (|) for bio
+	blockPath := filepath.Join(dir, "block.yaml")
+	blockContent := `
+subject:
+  name: "Ada Lovelace"
+  headlines: ["Analytical Engine", "First Programmer"]
+  bio: |
+    First line of career narrative.
+    Second line of career narrative.
+`
+	if err := os.WriteFile(blockPath, []byte(blockContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mb, err := LoadManifest(blockPath)
+	if err != nil {
+		t.Fatalf("LoadManifest block failed: %v", err)
+	}
+	if len(mb.Subject.Headlines) != 2 || mb.Subject.Headlines[0] != "Analytical Engine" {
+		t.Errorf("unexpected inline Subject.Headlines: %+v", mb.Subject.Headlines)
+	}
+	if len(mb.Subject.Bio) != 2 || mb.Subject.Bio[1] != "Second line of career narrative." {
+		t.Errorf("unexpected block Subject.Bio: %+v", mb.Subject.Bio)
+	}
+}
+
 
 

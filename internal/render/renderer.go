@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/pablodiegoo/dataprofile/internal/domain"
 )
@@ -110,6 +111,13 @@ type labels struct {
 	ImpactCairoLeadFmt   string
 	ImpactCairoCallout   string
 	ImpactHolmesBanner   string
+
+	// Header, Bio & Full Panels
+	BioTitle              string
+	BioSubFmt             string
+	BioCairoCalloutFmt    string
+	HeaderCairoCalloutFmt string
+	HeaderTrendLbl        string
 }
 
 func getLabels(locale string, strippedMB float64, totalRepos int) labels {
@@ -204,6 +212,11 @@ func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 			ImpactCairoLeadFmt:    "Produção contínua de engenharia em %d repositórios públicos e artefatos da comunidade",
 			ImpactCairoCallout:    "↳ Pico de velocidade atingido no Q4 com sequência ativa de %d dias.",
 			ImpactHolmesBanner:    "🚀 %s — %s CONTRIBUIÇÕES",
+			BioTitle:              "Trajetória Profissional & Resumo Executivo",
+			BioSubFmt:             "%d Repositórios · ★ %s Estrelas",
+			BioCairoCalloutFmt:    "↳ Portfólio analítico verificado em %d repositórios com %.1f MB de cache Jupyter removido.",
+			HeaderCairoCalloutFmt: "↳ %s contribuições anuais (+%.0f%% YoY) · Kaggle %s",
+			HeaderTrendLbl:        "Tendência 52 Semanas",
 		}
 	}
 	return labels{
@@ -296,6 +309,11 @@ func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 		ImpactCairoLeadFmt:    "Sustained engineering output across %d public repositories and community artifacts",
 		ImpactCairoCallout:    "↳ Peak velocity achieved in Q4 with %d-day active engineering streak.",
 		ImpactHolmesBanner:    "🚀 %s — %s CONTRIBUTIONS",
+		BioTitle:              "Career Narrative & Executive Bio",
+		BioSubFmt:             "%d Repositories · ★ %s Stars",
+		BioCairoCalloutFmt:    "↳ Verified analytical portfolio across %d repositories with %.1f MB of Jupyter cache stripped.",
+		HeaderCairoCalloutFmt: "↳ %s annual contributions (+%.0f%% YoY) · Kaggle %s",
+		HeaderTrendLbl:        "52-Week Velocity",
 	}
 }
 
@@ -422,6 +440,14 @@ func Render(school domain.School, panel domain.Panel, data domain.PortfolioData)
 		svg = renderKaggle(school, data, lbl)
 	case domain.PanelImpact:
 		svg = renderImpact(school, data, lbl)
+	case domain.PanelHeader:
+		svg = renderHeader(school, data, lbl)
+	case domain.PanelBio:
+		svg = renderBio(school, data, lbl, false)
+	case domain.PanelBioFull:
+		svg = renderBio(school, data, lbl, true)
+	case domain.PanelFull:
+		svg = renderFull(school, data, lbl)
 	default:
 		return "", fmt.Errorf("unsupported panel %q", panel)
 	}
@@ -2045,6 +2071,631 @@ func maxFloat(a, b float64) float64 {
 	return b
 }
 
+// ============================================================================
+// ANIMATED HEADER, ELASTIC BIO (440px & 900px), AND FULL COMPOSITE PANEL (900px)
+// ============================================================================
+
+func nonEmptyStr(s, fallback string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return fallback
+	}
+	return s
+}
+
+func resolveHeadlines(d domain.PortfolioData, l labels) []string {
+	var cleaned []string
+	for _, h := range d.Subject.Headlines {
+		if s := strings.TrimSpace(h); s != "" {
+			cleaned = append(cleaned, s)
+		}
+	}
+	if len(cleaned) > 0 {
+		return cleaned
+	}
+
+	name := nonEmptyStr(d.Subject.Name, "Data Practitioner")
+	langs := padLangs(d.Languages.Languages)
+	topStack := "Pandas / Polars"
+	if len(d.Stack.DataAnalytics) > 0 && d.Stack.DataAnalytics[0].Name != "" {
+		topStack = d.Stack.DataAnalytics[0].Name
+	}
+
+	if l.IsPtBR {
+		return []string{
+			fmt.Sprintf("Olá! Eu sou %s 👋", name),
+			fmt.Sprintf("%s (%.1f%%) · %s · %d Repositórios", langs[0].Name, langs[0].Percentage, topStack, d.Languages.TotalRepos),
+			fmt.Sprintf("Kaggle %s (#%s) · %s Contribuições (+%.0f%% YoY)", d.Kaggle.OverallTier, formatInt(d.Kaggle.PeakRank), formatInt(d.Impact.AnnualContributions), d.Impact.YoYGrowthPct),
+		}
+	}
+	return []string{
+		fmt.Sprintf("Welcome! I'm %s 👋", name),
+		fmt.Sprintf("%s (%.1f%%) · %s · %d Repositories", langs[0].Name, langs[0].Percentage, topStack, d.Languages.TotalRepos),
+		fmt.Sprintf("Kaggle %s (#%s) · %s Contributions (+%.0f%% YoY)", d.Kaggle.OverallTier, formatInt(d.Kaggle.PeakRank), formatInt(d.Impact.AnnualContributions), d.Impact.YoYGrowthPct),
+	}
+}
+
+func buildAnimatedHeadlinesSVG(headlines []string, idPrefix string, x, y, maxW int, textClass, fillColor string, fontSizePx float64) string {
+	if len(headlines) == 0 {
+		return ""
+	}
+	var b bytes.Buffer
+	n := len(headlines)
+	for i, msg := range headlines {
+		pathID := fmt.Sprintf("%spath%d", idPrefix, i)
+		animID := fmt.Sprintf("%sd%d", idPrefix, i)
+		var beginAttr string
+		if n == 1 {
+			beginAttr = fmt.Sprintf("0s;%s.end", animID)
+		} else if i == 0 {
+			beginAttr = fmt.Sprintf("0s;%sd%d.end", idPrefix, n-1)
+		} else {
+			beginAttr = fmt.Sprintf("%sd%d.end", idPrefix, i-1)
+		}
+		fmt.Fprintf(&b, `  <path id="%s">
+    <animate id="%s" attributeName="d" begin="%s" dur="6000ms" fill="remove" values="m0,%d h0 ; m0,%d h%d ; m0,%d h%d ; m0,%d h0" keyTimes="0;0.666667;0.833333;1"/>
+  </path>
+  <text x="%d" class="%s" font-weight="bold" fill="%s" font-size="%.1fpx"><textPath xlink:href="#%s">%s</textPath></text>
+`, pathID, animID, beginAttr, y, y, maxW, y, maxW, y, x, textClass, fillColor, fontSizePx, pathID, esc(msg))
+	}
+	return b.String()
+}
+
+func buildTrendPathD(weekly []int, x0, y0, width, height int) (string, int, int) {
+	ptsStr, lastX, lastY := buildTrendPolyline(weekly, x0, y0, width, height)
+	parts := strings.Fields(ptsStr)
+	if len(parts) == 0 {
+		return fmt.Sprintf("M %d,%d L %d,%d", x0, y0+height, x0+width, y0), x0 + width, y0
+	}
+	var b strings.Builder
+	for i, pt := range parts {
+		if i == 0 {
+			b.WriteString("M ")
+		} else {
+			b.WriteString(" L ")
+		}
+		b.WriteString(pt)
+	}
+	return b.String(), lastX, lastY
+}
+
+func renderHeader(school domain.School, d domain.PortfolioData, l labels) string {
+	return renderHeaderSection(school, d, l, "hdr-", true)
+}
+
+func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels, idPrefix string, standalone bool) string {
+	name := nonEmptyStr(d.Subject.Name, "Data Practitioner")
+	role := nonEmptyStr(d.Subject.Role, "Data Scientist & Analytics Engineer")
+	headlines := resolveHeadlines(d, l)
+	langs := padLangs(d.Languages.Languages)
+	k := d.Kaggle
+	im := d.Impact
+
+	switch school {
+	case domain.SchoolTufte:
+		pathD, lastX, lastY := buildTrendPathD(im.WeeklyTrend, 596, 36, 280, 46)
+		animText := buildAnimatedHeadlinesSVG(headlines, idPrefix, 14, 78, 555, "serif", "#526071", 21.0)
+		rightSub := fmt.Sprintf("%d Repos · ★ %s · Kaggle %s", d.Languages.TotalRepos, formatInt(im.TotalStars), k.OverallTier)
+		inner := fmt.Sprintf(`  <text x="14" y="24" class="serif h1">%s — <tspan class="sub">%s</tspan></text>
+  <text x="886" y="24" text-anchor="end" class="num sub">%s</text>
+  <line x1="14" y1="31" x2="886" y2="31" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+%s  <rect x="596" y="42" width="280" height="32" fill="#64748b" fill-opacity="0.12"/>
+  <path d="%s" fill="none" stroke="#64748b" stroke-dasharray="2.5,2.5" stroke-width="1"/>
+  <path d="%s" fill="none" stroke="#0284c7" stroke-width="2">
+    <animate attributeName="stroke-dasharray" values="0 100%%; 10%% 100%%; 100%% 10%%; 10%% 100%%" keyTimes="0; 0.5; 0.9; 1" dur="4s" begin="0s" repeatCount="indefinite"/>
+  </path>
+  <circle cx="%d" cy="%d" r="3.2" fill="#059669"/>
+  <text x="886" y="96" text-anchor="end" class="num micro">%s · %s (+%.0f%% YoY)</text>
+  <line x1="14" y1="106" x2="886" y2="106" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>`,
+			esc(name), esc(role), esc(rightSub),
+			animText, pathD, pathD, lastX, lastY,
+			esc(l.HeaderTrendLbl), formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		if !standalone {
+			return inner
+		}
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 900 115" width="900" height="115">
+  <style>
+    .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
+    .num { font-family: Georgia, serif; font-variant-numeric: tabular-nums; }
+    .h1 { font-size: 13.5px; font-weight: bold; fill: #526071; letter-spacing: 0.2px; }
+    .sub { font-size: 11px; font-style: italic; fill: #64748b; }
+    .micro { font-size: 9.5px; fill: #64748b; }
+  </style>
+%s
+</svg>`, inner)
+
+	case domain.SchoolFew:
+		pathD, lastX, lastY := buildTrendPathD(im.WeeklyTrend, 600, 44, 276, 38)
+		animText := buildAnimatedHeadlinesSVG(headlines, idPrefix, 16, 86, 555, "sans", "#526071", 20.0)
+		bulletW := clampInt(int(math.Round((d.Languages.ProductionPct/100.0)*120.0)), 18, 120)
+		inner := fmt.Sprintf(`  <text x="16" y="21" class="sans hdr">%s — %s</text>
+  <text x="884" y="21" text-anchor="end" class="mono tag">+%.0f%% YoY · %d REPOS</text>
+  <line x1="2" y1="29" x2="898" y2="29" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+  <g transform="translate(16, 34)">
+    <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s %.1f%%</text>
+    <text x="0" y="21" class="sans kpi-lbl">%s</text>
+    <line x1="150" y1="0" x2="150" y2="23" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="162" y="11" class="mono kpi-num" fill="#d97706">%s (#%s)</text>
+    <text x="162" y="21" class="sans kpi-lbl">%s</text>
+    <line x1="330" y1="0" x2="330" y2="23" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="342" y="11" class="mono kpi-num" fill="#059669">%s</text>
+    <text x="342" y="21" class="sans kpi-lbl">%s</text>
+  </g>
+%s  <line x1="584" y1="29" x2="584" y2="113" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+  <path d="%s" fill="none" stroke="#64748b" stroke-dasharray="3,2" stroke-width="1.1"/>
+  <path d="%s" fill="none" stroke="#059669" stroke-width="2.3">
+    <animate attributeName="stroke-dasharray" values="0 100%%; 10%% 100%%; 100%% 10%%; 10%% 100%%" keyTimes="0; 0.5; 0.9; 1" dur="4s" begin="0s" repeatCount="indefinite"/>
+  </path>
+  <circle cx="%d" cy="%d" r="3" fill="#0284c7"/>
+  <g transform="translate(600, 92)">
+    <rect x="0" y="1" width="120" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="0" y="1" width="84" height="8" rx="1.5" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="0" y="3" width="%d" height="4" rx="1" fill="#0284c7"/>
+    <line x1="96" y1="-1" x2="96" y2="11" stroke="#0284c7" stroke-width="2"/>
+    <text x="276" y="8" text-anchor="end" class="mono kpi-lbl">%s</text>
+  </g>`,
+			esc(name), esc(role), im.YoYGrowthPct, d.Languages.TotalRepos,
+			esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary),
+			esc(k.OverallTier), formatInt(k.PeakRank), esc(l.KaggleOverallTierLbl),
+			formatInt(im.AnnualContributions), esc(l.ImpactContribs),
+			animText, pathD, pathD, lastX, lastY, bulletW, esc(l.HeaderTrendLbl))
+		if !standalone {
+			return inner + "\n  <line x1=\"2\" y1=\"113\" x2=\"898\" y2=\"113\" stroke=\"#64748b\" stroke-opacity=\"0.25\" stroke-width=\"1\"/>"
+		}
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 900 115" width="900" height="115">
+  <style>
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .hdr { font-size: 12px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tag { font-size: 9.5px; font-weight: 700; fill: #0284c7; }
+    .kpi-num { font-size: 12px; font-weight: 700; fill: #526071; }
+    .kpi-lbl { font-size: 8px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
+  </style>
+  <rect x="2" y="2" width="896" height="111" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
+%s
+</svg>`, inner)
+
+	case domain.SchoolCairo:
+		pathD, lastX, lastY := buildTrendPathD(im.WeeklyTrend, 602, 26, 272, 56)
+		animText := buildAnimatedHeadlinesSVG(headlines, idPrefix, 14, 84, 555, "serif", "#526071", 21.0)
+		callout := fmt.Sprintf(l.HeaderCairoCalloutFmt, formatInt(im.AnnualContributions), im.YoYGrowthPct, k.OverallTier)
+		inner := fmt.Sprintf(`  <defs>
+    <marker id="%sarrow" overflow="visible" markerHeight="4" markerWidth="6" orient="auto-start-reverse" viewBox="0 0 8.75 5">
+      <path transform="scale(-.5)" d="m0 0 5-5-17.5 5 17.5 5z" fill="#64748b" fill-rule="evenodd"/>
+    </marker>
+  </defs>
+  <rect x="12" y="6" width="876" height="3" fill="#e11d48"/>
+  <text x="14" y="26" class="serif headline">%s</text>
+  <text x="14" y="41" class="sans lead">%s</text>
+  <line x1="14" y1="48" x2="572" y2="48" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+%s  <path d="M 598,20 V 86 H 880" fill="none" marker-start="url(#%sarrow)" marker-end="url(#%sarrow)" stroke="#64748b" stroke-width="1.2"/>
+  <line x1="598" y1="52" x2="880" y2="52" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
+  <path d="%s" fill="none" stroke="#64748b" stroke-dasharray="3,2" stroke-width="1.1"/>
+  <path d="%s" fill="none" stroke="#e11d48" stroke-width="2.4">
+    <animate attributeName="stroke-dasharray" values="0 100%%; 10%% 100%%; 100%% 10%%; 10%% 100%%" keyTimes="0; 0.5; 0.9; 1" dur="4s" begin="0s" repeatCount="indefinite"/>
+  </path>
+  <circle cx="%d" cy="%d" r="3.5" fill="#e11d48"/>
+  <text x="598" y="102" class="serif callout">%s</text>`,
+			idPrefix, esc(name), esc(role), animText, idPrefix, idPrefix, pathD, pathD, lastX, lastY, esc(callout))
+		if !standalone {
+			return inner + "\n  <line x1=\"12\" y1=\"112\" x2=\"888\" y2=\"112\" stroke=\"#64748b\" stroke-opacity=\"0.25\" stroke-width=\"1\"/>"
+		}
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 900 115" width="900" height="115">
+  <style>
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .headline { font-size: 13.5px; font-weight: bold; fill: #526071; }
+    .lead { font-size: 10.5px; fill: #64748b; }
+    .callout { font-size: 9.2px; font-style: italic; fill: #0284c7; }
+  </style>
+%s
+</svg>`, inner)
+
+	default: // SchoolHolmes
+		pathD, lastX, lastY := buildTrendPathD(im.WeeklyTrend, 606, 44, 268, 42)
+		animText := buildAnimatedHeadlinesSVG(headlines, idPrefix, 18, 82, 555, "sans", "#526071", 21.0)
+		inner := fmt.Sprintf(`  <path d="M 3,13 Q 3,3 13,3 L 887,3 Q 897,3 897,13 L 897,32 L 3,32 Z" fill="#0284c7"/>
+  <text x="16" y="22" class="sans banner">⚡ %s — %s</text>
+  <text x="884" y="22" text-anchor="end" class="sans banner">🏆 %s · ★ %s</text>
+%s  <g transform="translate(602, 42)">
+    <rect x="0" y="34" width="24" height="16" rx="2" fill="#64748b" fill-opacity="0.22"/>
+    <rect x="28" y="24" width="24" height="26" rx="2" fill="#059669" fill-opacity="0.32"/>
+    <rect x="56" y="14" width="24" height="36" rx="2" fill="#0284c7" fill-opacity="0.42"/>
+    <rect x="84" y="4" width="24" height="46" rx="2" fill="#d97706" fill-opacity="0.45"/>
+  </g>
+  <path d="%s" fill="none" stroke="#64748b" stroke-dasharray="3,2" stroke-width="1.2"/>
+  <path d="%s" fill="none" stroke="#d97706" stroke-width="2.6">
+    <animate attributeName="stroke-dasharray" values="0 100%%; 10%% 100%%; 100%% 10%%; 10%% 100%%" keyTimes="0; 0.5; 0.9; 1" dur="4s" begin="0s" repeatCount="indefinite"/>
+  </path>
+  <circle cx="%d" cy="%d" r="3.8" fill="#059669"/>
+  <text x="880" y="103" text-anchor="end" class="mono val">🚀 %s (+%.0f%% YoY)</text>`,
+			esc(name), esc(role), strings.ToUpper(esc(k.OverallTier)), formatInt(im.TotalStars),
+			animText, pathD, pathD, lastX, lastY, formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		if !standalone {
+			return inner + "\n  <line x1=\"16\" y1=\"112\" x2=\"884\" y2=\"112\" stroke=\"#64748b\" stroke-opacity=\"0.28\" stroke-width=\"1.2\"/>"
+		}
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 900 115" width="900" height="115">
+  <style>
+    .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
+    .banner { font-size: 11.5px; font-weight: 800; fill: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
+    .val { font-size: 9.5px; font-weight: 800; fill: #059669; }
+  </style>
+  <rect x="3" y="3" width="894" height="109" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
+%s
+</svg>`, inner)
+	}
+}
+
+func fallbackBioParagraphs(d domain.PortfolioData, l labels) []string {
+	name := nonEmptyStr(d.Subject.Name, "Data Practitioner")
+	role := nonEmptyStr(d.Subject.Role, "Data Scientist & Analytics Engineer")
+	langs := padLangs(d.Languages.Languages)
+	topData := "Pandas / Polars"
+	if len(d.Stack.DataAnalytics) > 0 && d.Stack.DataAnalytics[0].Name != "" {
+		topData = d.Stack.DataAnalytics[0].Name
+	}
+	topML := "Scikit-Learn"
+	if len(d.Stack.MLAndAI) > 0 && d.Stack.MLAndAI[0].Name != "" {
+		topML = d.Stack.MLAndAI[0].Name
+	}
+	if l.IsPtBR {
+		return []string{
+			fmt.Sprintf("%s atua como %s, combinando engenharia de software reprodutível, modelagem estatística e arquitetura de dados em %d repositórios verificados.", name, role, d.Languages.TotalRepos),
+			fmt.Sprintf("Especialista em %s (%.1f%%), %s (%.1f%%) e %s, com ecossistema ancorado em %s e %s, nível %s no Kaggle (%d medalhas) e %s contribuições anuais.", langs[0].Name, langs[0].Percentage, langs[1].Name, langs[1].Percentage, langs[2].Name, topData, topML, d.Kaggle.OverallTier, d.Kaggle.TotalMedals(), formatInt(d.Impact.AnnualContributions)),
+		}
+	}
+	return []string{
+		fmt.Sprintf("%s is a %s combining reproducible software engineering, statistical modeling, and analytics architecture across %d verified repositories.", name, role, d.Languages.TotalRepos),
+		fmt.Sprintf("Specializing in %s (%.1f%%), %s (%.1f%%), and %s with a production stack anchored by %s and %s, Kaggle %s standing (%d medals), and %s annual contributions.", langs[0].Name, langs[0].Percentage, langs[1].Name, langs[1].Percentage, langs[2].Name, topData, topML, d.Kaggle.OverallTier, d.Kaggle.TotalMedals(), formatInt(d.Impact.AnnualContributions)),
+	}
+}
+
+func wrapBioParagraphs(paragraphs []string, maxCharsPerLine int) [][]string {
+	if maxCharsPerLine < 20 {
+		maxCharsPerLine = 20
+	}
+	var out [][]string
+	for _, rawPara := range paragraphs {
+		for _, subLine := range strings.Split(strings.ReplaceAll(rawPara, `\n`, "\n"), "\n") {
+			words := strings.Fields(subLine)
+			if len(words) == 0 {
+				continue
+			}
+			var lines []string
+			cur := words[0]
+			for _, w := range words[1:] {
+				if utf8.RuneCountInString(cur)+1+utf8.RuneCountInString(w) <= maxCharsPerLine {
+					cur += " " + w
+				} else {
+					lines = append(lines, cur)
+					cur = w
+				}
+			}
+			lines = append(lines, cur)
+			out = append(out, lines)
+		}
+	}
+	return out
+}
+
+func computeBioLayout(wrapped [][]string, lineHeight, paraGap int) (totalLines int, bodyHeight int) {
+	for _, p := range wrapped {
+		totalLines += len(p)
+	}
+	if totalLines == 0 {
+		return 0, 0
+	}
+	bodyHeight = totalLines * lineHeight
+	if len(wrapped) > 1 {
+		bodyHeight += (len(wrapped) - 1) * paraGap
+	}
+	return totalLines, bodyHeight
+}
+
+func renderBioLinesSVG(wrapped [][]string, x, startY, lineHeight, paraGap int, textClass string) string {
+	var b bytes.Buffer
+	y := startY
+	for pIdx, para := range wrapped {
+		for _, line := range para {
+			fmt.Fprintf(&b, `  <text x="%d" y="%d" class="%s">%s</text>`+"\n", x, y, textClass, esc(line))
+			y += lineHeight
+		}
+		if pIdx < len(wrapped)-1 {
+			y += paraGap
+		}
+	}
+	return b.String()
+}
+
+func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth bool) string {
+	width := 440
+	maxChars := 62
+	if fullWidth {
+		width = 900
+		maxChars = 126
+	}
+
+	rawParas := d.Subject.Bio
+	if len(rawParas) == 0 {
+		rawParas = fallbackBioParagraphs(d, l)
+	}
+	wrapped := wrapBioParagraphs(rawParas, maxChars)
+	if len(wrapped) == 0 {
+		wrapped = wrapBioParagraphs(fallbackBioParagraphs(d, l), maxChars)
+	}
+
+	const (
+		lineHeight = 17
+		paraGap    = 8
+	)
+	_, bodyHeight := computeBioLayout(wrapped, lineHeight, paraGap)
+
+	name := nonEmptyStr(d.Subject.Name, "Data Practitioner")
+	role := nonEmptyStr(d.Subject.Role, "Data Scientist & Analytics Engineer")
+	langs := padLangs(d.Languages.Languages)
+	k := d.Kaggle
+	im := d.Impact
+	subRight := fmt.Sprintf(l.BioSubFmt, d.Languages.TotalRepos, formatInt(im.TotalStars))
+
+	switch school {
+	case domain.SchoolTufte:
+		startY := 48
+		totalHeight := startY + bodyHeight + 16
+		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "serif body")
+		headerTitle := fmt.Sprintf("%s — %s", name, role)
+		if !fullWidth && utf8.RuneCountInString(headerTitle) > 42 {
+			headerTitle = name
+		}
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
+  <style>
+    .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
+    .num { font-family: Georgia, serif; font-variant-numeric: tabular-nums; }
+    .h1 { font-size: 13.5px; font-weight: bold; fill: #526071; letter-spacing: 0.2px; }
+    .sub { font-size: 10px; font-style: italic; fill: #64748b; }
+    .body { font-size: 11px; fill: #526071; }
+  </style>
+  <text x="14" y="21" class="serif h1">%s</text>
+  <text x="%d" y="21" text-anchor="end" class="num sub">%s</text>
+  <line x1="14" y1="28" x2="%d" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+%s  <line x1="14" y1="%d" x2="%d" y2="%d" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+</svg>`, width, totalHeight, width, totalHeight, esc(headerTitle), width-14, esc(subRight), width-14, linesSVG, totalHeight-8, width-14, totalHeight-8)
+
+	case domain.SchoolFew:
+		startY := 82
+		totalHeight := startY + bodyHeight + 14
+		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "sans body")
+		prodBar := clampInt(int(math.Round((d.Languages.ProductionPct/100.0)*84.0)), 14, 84)
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
+  <style>
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .hdr { font-size: 12px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tag { font-size: 9.5px; font-weight: 600; fill: #0284c7; }
+    .body { font-size: 10.8px; font-weight: 500; fill: #526071; }
+    .kpi-num { font-size: 12.5px; font-weight: 700; fill: #526071; }
+    .kpi-lbl { font-size: 8px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
+  </style>
+  <rect x="2" y="2" width="%d" height="%d" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
+  <text x="14" y="20" class="sans hdr">%s</text>
+  <text x="%d" y="20" text-anchor="end" class="mono tag">%s</text>
+  <line x1="2" y1="28" x2="%d" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+  <g transform="translate(14, 33)">
+    <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s (%.1f%%)</text>
+    <text x="0" y="22" class="sans kpi-lbl">%s</text>
+    <line x1="138" y1="0" x2="138" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="150" y="11" class="mono kpi-num" fill="#d97706">%s (#%s)</text>
+    <text x="150" y="22" class="sans kpi-lbl">%s</text>
+    <line x1="292" y1="0" x2="292" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <rect x="304" y="3" width="84" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="304" y="3" width="60" height="8" rx="1.5" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="304" y="5" width="%d" height="4" rx="1" fill="#059669"/>
+    <line x1="370" y1="1" x2="370" y2="13" stroke="#0284c7" stroke-width="2"/>
+    <text x="304" y="22" class="sans kpi-lbl">%s</text>
+  </g>
+  <line x1="2" y1="63" x2="%d" y2="63" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+%s</svg>`,
+			width, totalHeight, width, totalHeight,
+			width-4, totalHeight-4,
+			esc(name), width-14, esc(l.BioTitle), width-2,
+			esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary),
+			esc(k.OverallTier), formatInt(k.PeakRank), esc(l.KaggleOverallTierLbl),
+			prodBar, esc(l.LangFewProdEDA), width-2, linesSVG)
+
+	case domain.SchoolCairo:
+		startY := 66
+		totalHeight := startY + bodyHeight + 28
+		linesSVG := renderBioLinesSVG(wrapped, 20, startY, lineHeight, paraGap, "serif body")
+		callout := fmt.Sprintf(l.BioCairoCalloutFmt, d.Languages.TotalRepos, d.Languages.StrippedBase64MB)
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
+  <style>
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .headline { font-size: 13px; font-weight: bold; fill: #526071; }
+    .lead { font-size: 10px; fill: #64748b; }
+    .body { font-size: 11px; fill: #526071; }
+    .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
+  </style>
+  <rect x="12" y="6" width="%d" height="3" fill="#e11d48"/>
+  <text x="12" y="25" class="serif headline">%s — %s</text>
+  <text x="12" y="39" class="sans lead">%s · %s</text>
+  <line x1="12" y1="46" x2="%d" y2="46" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
+  <line x1="12" y1="54" x2="12" y2="%d" stroke="#0284c7" stroke-width="2.2"/>
+%s  <text x="12" y="%d" class="serif callout">%s</text>
+</svg>`,
+			width, totalHeight, width, totalHeight,
+			width-24, esc(name), esc(l.BioTitle), esc(role), esc(subRight),
+			width-12, startY+bodyHeight-10, linesSVG, totalHeight-10, esc(callout))
+
+	default: // SchoolHolmes
+		startY := 54
+		totalHeight := startY + bodyHeight + 16
+		linesSVG := renderBioLinesSVG(wrapped, 16, startY, lineHeight, paraGap, "sans body")
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
+  <style>
+    .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
+    .banner { font-size: 11.5px; font-weight: 800; fill: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
+    .body { font-size: 11px; font-weight: 600; fill: #526071; }
+  </style>
+  <rect x="3" y="3" width="%d" height="%d" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
+  <path d="M 3,13 Q 3,3 13,3 L %d,3 Q %d,3 %d,13 L %d,32 L 3,32 Z" fill="#0284c7"/>
+  <text x="16" y="22" class="sans banner">⚡ %s — %s</text>
+%s</svg>`,
+			width, totalHeight, width, totalHeight,
+			width-6, totalHeight-6,
+			width-13, width-3, width-3, width-3,
+			esc(name), esc(l.BioTitle), linesSVG)
+	}
+}
+
+func extractInnerPanelBody(svgStr string, tagColorOverride, calloutColorOverride, secColorOverride string) string {
+	start := strings.Index(svgStr, "</style>")
+	if start != -1 {
+		svgStr = svgStr[start+len("</style>"):]
+	} else if idx := strings.IndexByte(svgStr, '>'); idx != -1 {
+		svgStr = svgStr[idx+1:]
+	}
+	if end := strings.LastIndex(svgStr, "</svg>"); end != -1 {
+		svgStr = svgStr[:end]
+	}
+	if tagColorOverride != "" {
+		svgStr = strings.ReplaceAll(svgStr, `class="mono tag"`, fmt.Sprintf(`class="mono tag" fill="%s"`, tagColorOverride))
+	}
+	if calloutColorOverride != "" {
+		svgStr = strings.ReplaceAll(svgStr, `class="serif callout"`, fmt.Sprintf(`class="serif callout" fill="%s"`, calloutColorOverride))
+	}
+	if secColorOverride != "" {
+		svgStr = strings.ReplaceAll(svgStr, `class="sans sec"`, fmt.Sprintf(`class="sans sec" fill="%s"`, secColorOverride))
+	}
+	// Add subtle SMIL entrance animation on sparkline polylines inside the full composite view
+	svgStr = strings.ReplaceAll(svgStr, `<polyline fill="none"`, `<polyline stroke-dasharray="450" fill="none"`)
+	return svgStr
+}
+
+func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
+	const (
+		width        = 900
+		headerHeight = 115
+		lineHeight   = 17
+		paraGap      = 8
+	)
+
+	// 1. Dynamic Bio section: collapses to height 0 when Subject.Bio is empty; expands to exact line count when present
+	wrappedBio := wrapBioParagraphs(d.Subject.Bio, 124)
+	_, bioBodyHeight := computeBioLayout(wrappedBio, lineHeight, paraGap)
+	bioSectionHeight := 0
+	if bioBodyHeight > 0 {
+		bioSectionHeight = bioBodyHeight + 18
+	}
+
+	gridY := headerHeight + bioSectionHeight + 6
+	row2Y := gridY + 238
+	totalHeight := row2Y + 236
+
+	headerInner := renderHeaderSection(school, d, l, "full-hdr-", false)
+	var bioInner string
+	if bioSectionHeight > 0 {
+		bioStartY := headerHeight + 18
+		bioLines := renderBioLinesSVG(wrappedBio, 18, bioStartY, lineHeight, paraGap, "body-txt")
+		bioSepY := headerHeight + bioSectionHeight
+		switch school {
+		case domain.SchoolTufte:
+			bioInner = fmt.Sprintf("%s  <line x1=\"14\" y1=\"%d\" x2=\"886\" y2=\"%d\" stroke=\"#64748b\" stroke-opacity=\"0.4\" stroke-width=\"0.6\"/>\n", bioLines, bioSepY, bioSepY)
+		case domain.SchoolFew:
+			bioInner = fmt.Sprintf("%s  <line x1=\"2\" y1=\"%d\" x2=\"898\" y2=\"%d\" stroke=\"#64748b\" stroke-opacity=\"0.25\" stroke-width=\"1\"/>\n", bioLines, bioSepY, bioSepY)
+		case domain.SchoolCairo:
+			bioInner = fmt.Sprintf("  <line x1=\"12\" y1=\"%d\" x2=\"12\" y2=\"%d\" stroke=\"#e11d48\" stroke-width=\"2.2\"/>\n%s  <line x1=\"12\" y1=\"%d\" x2=\"888\" y2=\"%d\" stroke=\"#64748b\" stroke-opacity=\"0.25\" stroke-width=\"1\"/>\n", headerHeight+6, bioSepY-6, bioLines, bioSepY, bioSepY)
+		default: // SchoolHolmes
+			bioInner = fmt.Sprintf("  <rect x=\"14\" y=\"%d\" width=\"872\" height=\"%d\" rx=\"8\" fill=\"#0284c7\" fill-opacity=\"0.06\" stroke=\"#0284c7\" stroke-opacity=\"0.3\" stroke-width=\"1\"/>\n%s", headerHeight+3, bioSectionHeight-4, bioLines)
+		}
+	}
+
+	p1 := extractInnerPanelBody(renderLanguages(school, d, l), "#0284c7", "#0284c7", "")
+	p2 := extractInnerPanelBody(renderStack(school, d, l), "#64748b", "#0284c7", "")
+	p3 := extractInnerPanelBody(renderKaggle(school, d, l), "#d97706", "#d97706", "")
+	p4 := extractInnerPanelBody(renderImpact(school, d, l), "#059669", "#059669", "#059669")
+
+	quadrants := fmt.Sprintf(`  <g transform="translate(8, %d)">%s  </g>
+  <g transform="translate(452, %d)">%s  </g>
+  <g transform="translate(8, %d)">%s  </g>
+  <g transform="translate(452, %d)">%s  </g>`, gridY, p1, gridY, p2, row2Y, p3, row2Y, p4)
+
+	switch school {
+	case domain.SchoolTufte:
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 %d %d" width="%d" height="%d">
+  <style>
+    .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
+    .num { font-family: Georgia, serif; font-variant-numeric: tabular-nums; }
+    .h1 { font-size: 13.5px; font-weight: bold; fill: #526071; letter-spacing: 0.2px; }
+    .sub { font-size: 10px; font-style: italic; fill: #64748b; }
+    .sec { font-size: 10px; font-style: italic; font-weight: bold; fill: #0284c7; }
+    .th { font-size: 9.5px; font-style: italic; font-weight: bold; fill: #0284c7; }
+    .lbl { font-size: 10.5px; fill: #526071; }
+    .val { font-size: 10.5px; font-weight: bold; fill: #526071; }
+    .micro { font-size: 9.2px; fill: #64748b; }
+    .big-num { font-size: 18px; font-weight: bold; fill: #526071; }
+    .body-txt { font-family: Georgia, "Palatino Linotype", serif; font-size: 11px; fill: #526071; }
+  </style>
+%s
+%s%s
+</svg>`, width, totalHeight, width, totalHeight, headerInner, bioInner, quadrants)
+
+	case domain.SchoolFew:
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 %d %d" width="%d" height="%d">
+  <style>
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .hdr { font-size: 12px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tag { font-size: 9.5px; font-weight: 600; fill: #0284c7; }
+    .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
+    .lbl { font-size: 10.5px; font-weight: 500; fill: #526071; }
+    .val { font-size: 10px; font-weight: 600; fill: #64748b; }
+    .kpi-num { font-size: 13.5px; font-weight: 700; fill: #526071; }
+    .kpi-lbl { font-size: 8.5px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
+    .body-txt { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 11px; font-weight: 500; fill: #526071; }
+  </style>
+  <rect x="2" y="2" width="%d" height="%d" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
+%s
+%s%s
+</svg>`, width, totalHeight, width, totalHeight, width-4, totalHeight-4, headerInner, bioInner, quadrants)
+
+	case domain.SchoolCairo:
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 %d %d" width="%d" height="%d">
+  <style>
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .headline { font-size: 12.2px; font-weight: bold; fill: #526071; }
+    .lead { font-size: 10px; fill: #64748b; }
+    .sec { font-size: 9.5px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
+    .lbl { font-size: 10.5px; font-weight: 600; fill: #526071; }
+    .val { font-size: 10px; font-weight: 600; fill: #64748b; }
+    .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
+    .body-txt { font-family: Georgia, "Times New Roman", serif; font-size: 11px; fill: #526071; }
+  </style>
+%s
+%s%s
+</svg>`, width, totalHeight, width, totalHeight, headerInner, bioInner, quadrants)
+
+	default: // SchoolHolmes
+		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 %d %d" width="%d" height="%d">
+  <style>
+    .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
+    .banner { font-size: 11.5px; font-weight: 800; fill: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
+    .sec { font-size: 9.5px; font-weight: 800; fill: #d97706; text-transform: uppercase; letter-spacing: 0.5px; }
+    .lbl { font-size: 10.5px; font-weight: 700; fill: #526071; }
+    .val { font-size: 10.5px; font-weight: 800; fill: #0284c7; }
+    .badge { font-size: 9.5px; font-weight: 700; fill: #526071; }
+    .body-txt { font-family: "Trebuchet MS", Inter, sans-serif; font-size: 11px; font-weight: 600; fill: #526071; }
+  </style>
+  <rect x="3" y="3" width="%d" height="%d" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
+%s
+%s%s
+</svg>`, width, totalHeight, width, totalHeight, width-6, totalHeight-6, headerInner, bioInner, quadrants)
+	}
+}
+
 // RenderOutputREADME generates a bilingual (en / pt-BR) showcase README for the orphan output branch,
 // presenting all 4 visualization Schools, explaining their visual differences, and providing ready-to-copy
 // Markdown/HTML embed snippets interpolated with the Subject's GitHub username.
@@ -2154,13 +2805,17 @@ Every SVG uses the **Universal Dual-Surface Palette** (transparent canvas `+"`fi
 		desc := s.descEN
 		copyGridLabel := "📋 **Copy & Paste — 4-Panel Grid (2×2) for your Profile `README.md`:**"
 		copySumLabel := "📋 **Copy & Paste — Single Consolidated Card (`summary.svg`):**"
+		copyFullLabel := "📋 **Copy & Paste — Full Portfolio Suite (`full.svg` / `header.svg` / `bio.svg` / `bio-full.svg`):**"
 		sumPreviewLabel := "Consolidated Executive Card (`summary.svg`):"
+		fullPreviewLabel := "Full Portfolio Composite (`full.svg`) & Animated Header (`header.svg`):"
 		if isPt {
 			title = s.titlePT
 			desc = s.descPT
 			copyGridLabel = "📋 **Copiar e Colar — Grid 2×2 (4 Painéis) para o seu `README.md` de perfil:**"
 			copySumLabel = "📋 **Copiar e Colar — Card Executivo Único (`summary.svg`):**"
+			copyFullLabel = "📋 **Copiar e Colar — Portfólio Completo (`full.svg` / `header.svg` / `bio.svg` / `bio-full.svg`):**"
 			sumPreviewLabel = "Card Executivo Consolidado (`summary.svg`):"
+			fullPreviewLabel = "Portfólio Completo (`full.svg`) & Header Animado (`header.svg`):"
 		}
 
 		fmt.Fprintf(&b, `
@@ -2168,6 +2823,13 @@ Every SVG uses the **Universal Dual-Surface Palette** (transparent canvas `+"`fi
 
 %s
 
+<p align="center">
+  <img src="generated/%s/header.svg" width="96%%" alt="%s header" />
+</p>
+<p align="center">
+  <img src="generated/%s/bio.svg" width="48%%" alt="%s bio" />
+  <img src="generated/%s/bio-full.svg" width="96%%" alt="%s bio-full" />
+</p>
 <p align="center">
   <img src="generated/%s/languages.svg" width="48%%" alt="%s languages" />
   <img src="generated/%s/stack.svg" width="48%%" alt="%s stack" />
@@ -2179,6 +2841,10 @@ Every SVG uses the **Universal Dual-Surface Palette** (transparent canvas `+"`fi
 <p align="center">
   <em>%s</em><br/>
   <img src="generated/%s/summary.svg" width="65%%" alt="%s summary" />
+</p>
+<p align="center">
+  <em>%s</em><br/>
+  <img src="generated/%s/full.svg" width="96%%" alt="%s full" />
 </p>
 
 %s
@@ -2202,6 +2868,21 @@ Every SVG uses the **Universal Dual-Surface Palette** (transparent canvas `+"`fi
 </p>
 `+"```"+`
 
+%s
+
+`+"```markdown"+`
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/header.svg" width="100%%" alt="DataProfile Animated Header" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/bio.svg" width="48%%" alt="DataProfile Career Bio (Compact)" />
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/bio-full.svg" width="100%%" alt="DataProfile Career Bio (Full Width)" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/%s/output/generated/%s/full.svg" width="100%%" alt="DataProfile Full Portfolio" />
+</p>
+`+"```"+`
+
 ---
 `,
 			title,
@@ -2210,7 +2891,12 @@ Every SVG uses the **Universal Dual-Surface Palette** (transparent canvas `+"`fi
 			s.code, s.code,
 			s.code, s.code,
 			s.code, s.code,
+			s.code, s.code,
+			s.code, s.code,
+			s.code, s.code,
 			sumPreviewLabel,
+			s.code, s.code,
+			fullPreviewLabel,
 			s.code, s.code,
 			copyGridLabel,
 			repoSlug, s.code,
@@ -2218,6 +2904,11 @@ Every SVG uses the **Universal Dual-Surface Palette** (transparent canvas `+"`fi
 			repoSlug, s.code,
 			repoSlug, s.code,
 			copySumLabel,
+			repoSlug, s.code,
+			copyFullLabel,
+			repoSlug, s.code,
+			repoSlug, s.code,
+			repoSlug, s.code,
 			repoSlug, s.code,
 		)
 	}

@@ -144,6 +144,19 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 
 		indent := len(line) - len(strings.TrimLeft(line, " "))
 
+		// Handle YAML block scalar lines (| or >) under subject.bio or subject.headlines
+		if section == "subject" && indent >= 4 && (listKey == "bio_block" || listKey == "headlines_block") {
+			textLine := cleanYAMLScalar(trimmed)
+			if textLine != "" {
+				if listKey == "bio_block" {
+					manifest.Subject.Bio = append(manifest.Subject.Bio, textLine)
+				} else {
+					manifest.Subject.Headlines = append(manifest.Subject.Headlines, textLine)
+				}
+			}
+			continue
+		}
+
 		// Handle list items (- "value")
 		if strings.HasPrefix(trimmed, "-") {
 			val := cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "-")))
@@ -151,6 +164,10 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 				continue
 			}
 			switch {
+			case section == "subject" && listKey == "headlines":
+				manifest.Subject.Headlines = append(manifest.Subject.Headlines, val)
+			case section == "subject" && listKey == "bio":
+				manifest.Subject.Bio = append(manifest.Subject.Bio, val)
 			case section == "sources" && subsection == "github" && listKey == "exclude_repos":
 				manifest.Sources.GitHub.ExcludeRepos = append(manifest.Sources.GitHub.ExcludeRepos, val)
 			case section == "sources" && subsection == "github" && listKey == "exclude_langs":
@@ -191,22 +208,30 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 		}
 
 		if indent == 2 {
-			if items, ok := parseInlineYAMLArray(rawVal); ok && section == "output" {
+			if items, ok := parseInlineYAMLArray(rawVal); ok {
 				listKey = ""
-				switch key {
-				case "schools":
+				switch {
+				case section == "output" && key == "schools":
 					manifest.Output.Schools = nil
 					schoolsSet = true
 					for _, it := range items {
 						manifest.Output.Schools = append(manifest.Output.Schools, domain.School(it))
 					}
-				case "panels":
+				case section == "output" && key == "panels":
 					manifest.Output.Panels = nil
 					panelsSet = true
 					for _, it := range items {
 						manifest.Output.Panels = append(manifest.Output.Panels, domain.Panel(it))
 					}
+				case section == "subject" && key == "headlines":
+					manifest.Subject.Headlines = items
+				case section == "subject" && key == "bio":
+					manifest.Subject.Bio = items
 				}
+				continue
+			}
+			if (val == "|" || val == ">") && section == "subject" && (key == "bio" || key == "headlines") {
+				listKey = key + "_block"
 				continue
 			}
 			if val == "" {
@@ -228,6 +253,14 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 					manifest.Subject.Role = val
 				case "locale":
 					manifest.Subject.Locale = val
+				case "headlines":
+					manifest.Subject.Headlines = []string{val}
+				case "bio":
+					for _, p := range strings.Split(strings.ReplaceAll(val, `\n`, "\n"), "\n") {
+						if p = strings.TrimSpace(p); p != "" {
+							manifest.Subject.Bio = append(manifest.Subject.Bio, p)
+						}
+					}
 				}
 			case "normalization":
 				switch key {

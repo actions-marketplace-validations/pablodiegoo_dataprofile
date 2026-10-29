@@ -25,11 +25,25 @@ const (
 	PanelStack     Panel = "stack"     // Panel 2: Data, ML & Analytics Ecosystem
 	PanelKaggle    Panel = "kaggle"    // Panel 3: Kaggle Competitive Standing & Medals
 	PanelImpact    Panel = "impact"    // Panel 4: Open-Source & AI Community Impact
+	PanelHeader    Panel = "header"    // Animated full-width header banner (900px)
+	PanelBio       Panel = "bio"       // Elastic career bio panel (440px mobile/grid width)
+	PanelBioFull   Panel = "bio-full"  // Elastic career bio panel (900px full width)
+	PanelFull      Panel = "full"      // Full portfolio composite: Animated Header + Dynamic Bio + 4 Complete Panels (900px)
 )
 
 // AllPanels returns the canonical ordered list of supported panels.
 func AllPanels() []Panel {
-	return []Panel{PanelSummary, PanelLanguages, PanelStack, PanelKaggle, PanelImpact}
+	return []Panel{
+		PanelSummary,
+		PanelLanguages,
+		PanelStack,
+		PanelKaggle,
+		PanelImpact,
+		PanelHeader,
+		PanelBio,
+		PanelBioFull,
+		PanelFull,
+	}
 }
 
 // ProfileManifest represents the declarative profile.yaml configuration file.
@@ -42,9 +56,11 @@ type ProfileManifest struct {
 
 // SubjectConfig identifies the practitioner whose portfolio is rendered.
 type SubjectConfig struct {
-	Name   string `json:"name"`
-	Role   string `json:"role"`
-	Locale string `json:"locale"` // "en" (default) or "pt-BR"
+	Name      string   `json:"name"`
+	Role      string   `json:"role"`
+	Locale    string   `json:"locale"`    // "en" (default) or "pt-BR"
+	Headlines []string `json:"headlines"` // Animated typewriter phrases in header/full panels
+	Bio       []string `json:"bio"`       // Career narrative paragraphs/lines with dynamic height adaptation
 }
 
 // SourcesConfig groups the external platforms queried for portfolio metrics.
