@@ -136,9 +136,9 @@ Inspired by **Nigel Holmes** (*Designer's Guide to Creating Charts and Diagrams*
 
 Because the engine layers environment variables over [`profile.yaml`](profile.yaml) (with precedence: process environment variables > local `.env` file > `profile.yaml`), you can operate DataProfile in four ways depending on whether you want a fork, whether you have Go installed locally, and whether you want your `main` branch free of personal curriculum commits.
 
-| Configuration Mode | Requires Fork? | Requires Local Go & `gh` CLI? | Keeps `main` Free of Personal Commits? | Where Your Settings Live |
+| Configuration Mode | Requires Fork? | Requires Local Go & `gh` CLI? | Keeps `main` Free of Personal Commits? | Where Your Profile Manifest & Overrides Live |
 | :--- | :--- | :--- | :--- | :--- |
-| **[Mode A](#mode-a-fork--local-env--dataprofile-sync-clean-main-via-cli)** (Recommended for CLI users) | Yes | Yes | Yes (avoids merge conflicts when syncing upstream) | Local gitignored `.env` synced to GitHub Actions via `dataprofile sync` |
+| **[Mode A](#mode-a-fork--local-env--dataprofile-sync-clean-main-via-cli)** (Recommended for local CLI setup) | Yes | Yes | Yes (avoids merge conflicts when syncing upstream) | Local gitignored `.env` synced to GitHub Actions via `dataprofile sync` |
 | **[Mode B](#mode-b-fork--github-web-ui-variables-and-secrets-clean-main-without-local-tools)** (Recommended for browser-only setup) | Yes | No | Yes | GitHub Actions Repository Variables and Secrets in the web UI |
 | **[Mode C](#mode-c-fork--editing-profileyaml-on-main)** | Yes | No | No (commits changes to `profile.yaml` on `main`) | Tracked [`profile.yaml`](profile.yaml) file in your fork |
 | **[Mode D](#mode-d-github-marketplace-action-in-usernameusername-no-fork)** | No | No | Tracked inside `<username>/<username>` | `profile.yaml` and `.github/workflows/dataprofile.yml` in your profile repo |
@@ -313,7 +313,7 @@ Never commit tokens to `profile.yaml`. Local `.env` files are excluded via [`.gi
 
 ## Embedding the updated SVGs in your profile `README.md`
 
-After your workflow finishes its first run, switch the branch selector on GitHub from `main` to `output`. At the root of the `output` branch, GitHub renders `output/README.md`, which displays all 36 generated SVGs for your account alongside ready-to-copy Markdown blocks already containing your repository path.
+After your workflow finishes its first run, switch the branch selector on GitHub from `main` to `output`. At the root of the `output` branch, GitHub renders `output/README.md`, which displays all 36 generated SVGs for the *Subject* alongside ready-to-copy Markdown blocks already containing your repository path.
 
 In Modes A, B, and C (where the workflow runs inside your `dataprofile` fork), the raw image URL points to `https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/<school>/<panel>.svg`. In Mode D (where the workflow runs inside your `<your-username>/<your-username>` profile repository), replace `/dataprofile/` in the URL with `/<your-username>/` (`https://raw.githubusercontent.com/<your-username>/<your-username>/output/generated/<school>/<panel>.svg`).
 

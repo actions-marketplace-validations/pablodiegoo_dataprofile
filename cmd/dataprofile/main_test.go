@@ -577,16 +577,31 @@ func repoRoot(t *testing.T) string {
 	return root
 }
 
-func assertFileContains(t *testing.T, root, relPath string, requiredTokens []string) {
+func readRepoFile(t *testing.T, root, relPath string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		t.Fatalf("missing %s: %v", relPath, err)
 	}
-	content := string(raw)
+	return string(raw)
+}
+
+func assertFileContains(t *testing.T, root, relPath string, requiredTokens []string) {
+	t.Helper()
+	content := readRepoFile(t, root, relPath)
 	for _, tok := range requiredTokens {
 		if !strings.Contains(content, tok) {
 			t.Errorf("%s missing expected token %q", relPath, tok)
+		}
+	}
+}
+
+func assertFileNotContains(t *testing.T, root, relPath string, forbiddenTokens []string) {
+	t.Helper()
+	content := readRepoFile(t, root, relPath)
+	for _, tok := range forbiddenTokens {
+		if strings.Contains(content, tok) {
+			t.Errorf("%s contains forbidden token %q", relPath, tok)
 		}
 	}
 }
@@ -803,7 +818,6 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"output/showcase/few/languages.svg",
 		"output/showcase/cairo/languages.svg",
 		"output/showcase/holmes/languages.svg",
-		"output/generated/",
 		"output/generated/<school>/<panel>.svg",
 		"output/showcase/<school>/<panel>.svg",
 		"output/README.md",
@@ -811,16 +825,15 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"workflow_dispatch",
 		"60 consecutive days",
 		"Camo",
-		"*Subject*",
 		"the *Subject*'s personal portfolio panels",
 		"How DataProfile works and keeps your images updated",
 		"Choosing how to configure and run DataProfile",
-		"| Configuration Mode | Requires Fork? | Requires Local Go & `gh` CLI? | Keeps `main` Free of Personal Commits? | Where Your Settings Live |",
+		"| Configuration Mode | Requires Fork? | Requires Local Go & `gh` CLI? | Keeps `main` Free of Personal Commits? | Where Your Profile Manifest & Overrides Live |",
+		"(Recommended for local CLI setup)",
 		"### Mode A: Fork + local `.env` + `dataprofile sync` (clean `main` via CLI)",
 		"### Mode B: Fork + GitHub web UI variables and secrets (clean `main` without local tools)",
 		"### Mode C: Fork + editing `profile.yaml` on `main`",
 		"### Mode D: GitHub Marketplace Action in `<username>/<username>` (no fork)",
-		"[`profile.yaml`](profile.yaml) (*Profile Manifest*)",
 		"edit [`profile.yaml`](profile.yaml) (*Profile Manifest*) directly",
 		"pablodiegoo/dataprofile@v1",
 		"Publish SVGs to orphan output branch",
@@ -841,6 +854,7 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"**`browser`**",
 		"**`api`**",
 		"## Embedding the updated SVGs in your profile `README.md`",
+		"displays all 36 generated SVGs for the *Subject*",
 		"https://raw.githubusercontent.com/<your-username>/dataprofile/output/generated/<school>/<panel>.svg",
 		"replace `/dataprofile/` in the URL with `/<your-username>/` (`https://raw.githubusercontent.com/<your-username>/<your-username>/output/generated/<school>/<panel>.svg`)",
 		"<!-- Layout 1: Single full-portfolio composite (animated header + elastic bio + 2x2 grid) -->",
@@ -866,15 +880,13 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"ADR-0005",
 	})
 
-	readmeRaw, err := os.ReadFile(filepath.Join(root, "README.md"))
-	if err != nil {
-		t.Fatalf("failed reading README.md: %v", err)
-	}
-	readmeStr := string(readmeRaw)
-	if strings.Contains(readmeStr, "—") {
-		t.Errorf("README.md contains forbidden em-dash (—); use parentheses, commas, colons, or periods per /escrever rules")
-	}
-	for lineIdx, line := range strings.Split(readmeStr, "\n") {
+	assertFileNotContains(t, root, "README.md", []string{
+		"—",
+		"Where Your Settings Live",
+		"(Recommended for CLI users)",
+		"displays all 36 generated SVGs for your account",
+	})
+	for lineIdx, line := range strings.Split(readRepoFile(t, root, "README.md"), "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "- **") && (strings.Contains(trimmed, ":**") || strings.Contains(trimmed, "**:")) {
 			t.Errorf("README.md line %d contains decorative bold-label list item (%q); use inline prose enumeration or a table per /escrever §19", lineIdx+1, trimmed)
