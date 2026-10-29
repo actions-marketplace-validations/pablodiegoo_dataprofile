@@ -41,7 +41,7 @@ normalization:
 output:
   directory: "default-ignored-dir"
   schools: ["tufte", "few", "cairo", "holmes"]
-  panels: ["languages", "header"]
+  panels: ["languages", "header", "bio", "bio-full"]
 `
 	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
@@ -88,6 +88,24 @@ output:
 				t.Errorf("expected %s in %s", tok, hdrPath)
 			}
 		}
+
+		for _, bc := range []struct {
+			file      string
+			wantWidth string
+		}{
+			{"bio.svg", `width="440"`},
+			{"bio-full.svg", `width="900"`},
+		} {
+			p := filepath.Join(outDir, school, bc.file)
+			raw, err := os.ReadFile(p)
+			if err != nil {
+				t.Fatalf("expected generated %s at %s: %v", bc.file, p, err)
+			}
+			s := string(raw)
+			if !strings.Contains(s, bc.wantWidth) || !strings.Contains(s, "Ada Lovelace is a Data Scientist") {
+				t.Errorf("expected %s and fallback bio narrative in %s", bc.wantWidth, p)
+			}
+		}
 	}
 
 	// 2. Run validate with --config and --output
@@ -115,6 +133,13 @@ output:
 	}
 	if !strings.Contains(string(ptHdrSVG), "Olá! Eu sou Ada Lovelace 👋") || !strings.Contains(string(ptHdrSVG), "↳ 1,428 contribuições anuais") {
 		t.Errorf("expected --locale=pt-BR CLI flag to localize fallback headlines and callout in cairo/header.svg")
+	}
+	ptBioSVG, err := os.ReadFile(filepath.Join(ptOutDir, "cairo", "bio.svg"))
+	if err != nil {
+		t.Fatalf("expected pt-BR generated cairo/bio.svg: %v", err)
+	}
+	if !strings.Contains(string(ptBioSVG), "Ada Lovelace atua como Data Scientist") || !strings.Contains(string(ptBioSVG), "Trajetória Profissional &amp; Resumo Executivo") {
+		t.Errorf("expected --locale=pt-BR CLI flag to localize fallback bio and title in cairo/bio.svg")
 	}
 }
 

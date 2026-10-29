@@ -124,28 +124,47 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 		return manifest, fmt.Errorf("reading manifest %s: %w", path, err)
 	}
 
+	type subjectContinuationMode int
+	const (
+		contNone subjectContinuationMode = iota
+		contBlockScalar
+		contMultilineScalar
+	)
+
 	var (
 		section    string
 		subsection string
 		listKey    string
+		contMode   subjectContinuationMode
 		schoolsSet bool
 		panelsSet  bool
 		langsSet   bool
 	)
 
+	appendSubjectLines := func(field string, linesToAppend ...string) {
+		if field == "bio" {
+			manifest.Subject.Bio = append(manifest.Subject.Bio, linesToAppend...)
+		} else if field == "headlines" {
+			manifest.Subject.Headlines = append(manifest.Subject.Headlines, linesToAppend...)
+		}
+	}
+
 	lines := strings.Split(string(data), "\n")
 	for _, rawLine := range lines {
 		rawIndent := len(rawLine) - len(strings.TrimLeft(rawLine, " "))
 
-		// Handle YAML block scalar lines (| or >) under subject.bio or subject.headlines before comment stripping,
-		// since '#' inside a YAML block scalar is literal text (e.g., "Kaggle Master (#412)").
-		if section == "subject" && rawIndent >= 4 && (listKey == "bio_block" || listKey == "headlines_block") {
-			textLine := cleanYAMLScalar(strings.TrimSpace(rawLine))
-			if textLine != "" {
-				if listKey == "bio_block" {
-					manifest.Subject.Bio = append(manifest.Subject.Bio, textLine)
-				} else {
-					manifest.Subject.Headlines = append(manifest.Subject.Headlines, textLine)
+		// Handle YAML block scalar lines (| or >) or physical multiline scalar continuation lines
+		// under subject.bio or subject.headlines before comment stripping,
+		// since '#' inside a YAML block scalar or multiline string is literal text (e.g., "Kaggle Master (#412)").
+		if section == "subject" && rawIndent >= 4 && contMode != contNone {
+			trimmedRaw := strings.TrimSpace(rawLine)
+			if contMode == contBlockScalar {
+				if textLine := cleanYAMLScalar(trimmedRaw); textLine != "" {
+					appendSubjectLines(listKey, textLine)
+				}
+			} else {
+				if textLine := cleanPartialQuotedScalar(trimmedRaw); textLine != "" {
+					appendSubjectLines(listKey, splitMultilineScalar(textLine)...)
 				}
 			}
 			continue
@@ -207,10 +226,12 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 			section = key
 			subsection = ""
 			listKey = ""
+			contMode = contNone
 			continue
 		}
 
 		if indent == 2 {
+			contMode = contNone
 			if items, ok := parseInlineYAMLArray(rawVal); ok {
 				listKey = ""
 				switch {
@@ -234,7 +255,8 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 				continue
 			}
 			if isYAMLBlockScalarIndicator(val) && section == "subject" && (key == "bio" || key == "headlines") {
-				listKey = key + "_block"
+				listKey = key
+				contMode = contBlockScalar
 				continue
 			}
 			if val == "" {
@@ -256,10 +278,10 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 					manifest.Subject.Role = val
 				case "locale":
 					manifest.Subject.Locale = val
-				case "headlines":
-					manifest.Subject.Headlines = append(manifest.Subject.Headlines, splitMultilineScalar(val)...)
-				case "bio":
-					manifest.Subject.Bio = append(manifest.Subject.Bio, splitMultilineScalar(val)...)
+				case "headlines", "bio":
+					listKey = key
+					contMode = contMultilineScalar
+					appendSubjectLines(key, splitMultilineScalar(cleanPartialQuotedScalar(val))...)
 				}
 			case "normalization":
 				switch key {
@@ -325,23 +347,25 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 	return manifest, nil
 }
 
+func updateQuoteState(ch byte, inSingle, inDouble *bool) {
+	switch ch {
+	case '\'':
+		if !*inDouble {
+			*inSingle = !*inSingle
+		}
+	case '"':
+		if !*inSingle {
+			*inDouble = !*inDouble
+		}
+	}
+}
+
 func stripYAMLComment(s string) string {
-	inSingle := false
-	inDouble := false
+	var inSingle, inDouble bool
 	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '\'':
-			if !inDouble {
-				inSingle = !inSingle
-			}
-		case '"':
-			if !inSingle {
-				inDouble = !inDouble
-			}
-		case '#':
-			if !inSingle && !inDouble {
-				return s[:i]
-			}
+		updateQuoteState(s[i], &inSingle, &inDouble)
+		if s[i] == '#' && !inSingle && !inDouble {
+			return s[:i]
 		}
 	}
 	return s
@@ -357,6 +381,16 @@ func cleanYAMLScalar(s string) string {
 	return s
 }
 
+func cleanPartialQuotedScalar(s string) string {
+	s = cleanYAMLScalar(s)
+	if len(s) >= 1 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] != s[0] {
+		s = strings.TrimSpace(s[1:])
+	} else if len(s) >= 1 && (s[len(s)-1] == '"' || s[len(s)-1] == '\'') && s[0] != s[len(s)-1] {
+		s = strings.TrimSpace(s[:len(s)-1])
+	}
+	return s
+}
+
 func parseInlineYAMLArray(s string) ([]string, bool) {
 	s = strings.TrimSpace(s)
 	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
@@ -366,13 +400,22 @@ func parseInlineYAMLArray(s string) ([]string, bool) {
 	if inner == "" {
 		return nil, true
 	}
-	parts := strings.Split(inner, ",")
-	var out []string
-	for _, p := range parts {
-		v := cleanYAMLScalar(p)
-		if v != "" {
-			out = append(out, v)
+	var (
+		out                []string
+		inSingle, inDouble bool
+		start              int
+	)
+	for i := 0; i < len(inner); i++ {
+		updateQuoteState(inner[i], &inSingle, &inDouble)
+		if inner[i] == ',' && !inSingle && !inDouble {
+			if v := cleanYAMLScalar(inner[start:i]); v != "" {
+				out = append(out, v)
+			}
+			start = i + 1
 		}
+	}
+	if v := cleanYAMLScalar(inner[start:]); v != "" {
+		out = append(out, v)
 	}
 	return out, true
 }

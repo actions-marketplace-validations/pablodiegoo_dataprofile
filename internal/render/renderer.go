@@ -113,11 +113,15 @@ type labels struct {
 	ImpactHolmesBanner   string
 
 	// Header, Bio & Full Panels
-	BioTitle              string
-	BioSubFmt             string
-	BioCairoCalloutFmt    string
-	HeaderCairoCalloutFmt string
-	HeaderTrendLbl        string
+	BioTitle                   string
+	BioSubFmt                  string
+	BioCairoCalloutFmt         string
+	BioFallbackP1Fmt           string
+	BioFallbackP2Fmt           string
+	BioFallbackKaggleFmt       string
+	BioFallbackKaggleMedalsFmt string
+	HeaderCairoCalloutFmt      string
+	HeaderTrendLbl             string
 }
 
 func getLabels(locale string, strippedMB float64, totalRepos int) labels {
@@ -212,11 +216,15 @@ func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 			ImpactCairoLeadFmt:    "Produção contínua de engenharia em %d repositórios públicos e artefatos da comunidade",
 			ImpactCairoCallout:    "↳ Pico de velocidade atingido no Q4 com sequência ativa de %d dias.",
 			ImpactHolmesBanner:    "🚀 %s — %s CONTRIBUIÇÕES",
-			BioTitle:              "Trajetória Profissional & Resumo Executivo",
-			BioSubFmt:             "%d Repositórios · ★ %s Estrelas",
-			BioCairoCalloutFmt:    "↳ Portfólio analítico verificado em %d repositórios com %.1f MB de cache Jupyter removido.",
-			HeaderCairoCalloutFmt: "↳ %s contribuições anuais (+%.0f%% YoY) · Kaggle %s",
-			HeaderTrendLbl:        "Tendência 52 Semanas",
+			BioTitle:                   "Trajetória Profissional & Resumo Executivo",
+			BioSubFmt:                  "%d Repositórios · ★ %s Estrelas",
+			BioCairoCalloutFmt:         "↳ Portfólio analítico verificado em %d repositórios com %.1f MB de cache Jupyter removido.",
+			BioFallbackP1Fmt:           "%s atua como %s, combinando engenharia de software reprodutível, modelagem estatística e arquitetura de dados em %d repositórios verificados.",
+			BioFallbackP2Fmt:           "Especialista em %s (%.1f%%), %s (%.1f%%) e %s, com ecossistema ancorado em %s e %s, %s e %s contribuições anuais.",
+			BioFallbackKaggleFmt:       "nível %s no Kaggle",
+			BioFallbackKaggleMedalsFmt: "nível %s no Kaggle (%d medalhas)",
+			HeaderCairoCalloutFmt:      "↳ %s contribuições anuais (+%.0f%% YoY) · Kaggle %s",
+			HeaderTrendLbl:             "Tendência 52 Semanas",
 		}
 	}
 	return labels{
@@ -309,11 +317,15 @@ func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 		ImpactCairoLeadFmt:    "Sustained engineering output across %d public repositories and community artifacts",
 		ImpactCairoCallout:    "↳ Peak velocity achieved in Q4 with %d-day active engineering streak.",
 		ImpactHolmesBanner:    "🚀 %s — %s CONTRIBUTIONS",
-		BioTitle:              "Career Narrative & Executive Bio",
-		BioSubFmt:             "%d Repositories · ★ %s Stars",
-		BioCairoCalloutFmt:    "↳ Verified analytical portfolio across %d repositories with %.1f MB of Jupyter cache stripped.",
-		HeaderCairoCalloutFmt: "↳ %s annual contributions (+%.0f%% YoY) · Kaggle %s",
-		HeaderTrendLbl:        "52-Week Velocity",
+		BioTitle:                   "Career Narrative & Executive Bio",
+		BioSubFmt:                  "%d Repositories · ★ %s Stars",
+		BioCairoCalloutFmt:         "↳ Verified analytical portfolio across %d repositories with %.1f MB of Jupyter cache stripped.",
+		BioFallbackP1Fmt:           "%s is a %s combining reproducible software engineering, statistical modeling, and analytics architecture across %d verified repositories.",
+		BioFallbackP2Fmt:           "Specializing in %s (%.1f%%), %s (%.1f%%), and %s with a production stack anchored by %s and %s, %s, and %s annual contributions.",
+		BioFallbackKaggleFmt:       "Kaggle %s standing",
+		BioFallbackKaggleMedalsFmt: "Kaggle %s standing (%d medals)",
+		HeaderCairoCalloutFmt:      "↳ %s annual contributions (+%.0f%% YoY) · Kaggle %s",
+		HeaderTrendLbl:             "52-Week Velocity",
 	}
 }
 
@@ -2341,15 +2353,14 @@ func fallbackBioParagraphs(d domain.PortfolioData, l labels) []string {
 	if len(d.Stack.MLAndAI) > 0 && d.Stack.MLAndAI[0].Name != "" {
 		topML = d.Stack.MLAndAI[0].Name
 	}
-	if l.IsPtBR {
-		return []string{
-			fmt.Sprintf("%s atua como %s, combinando engenharia de software reprodutível, modelagem estatística e arquitetura de dados em %d repositórios verificados.", name, role, d.Languages.TotalRepos),
-			fmt.Sprintf("Especialista em %s (%.1f%%), %s (%.1f%%) e %s, com ecossistema ancorado em %s e %s, nível %s no Kaggle (%d medalhas) e %s contribuições anuais.", langs[0].Name, langs[0].Percentage, langs[1].Name, langs[1].Percentage, langs[2].Name, topData, topML, d.Kaggle.OverallTier, d.Kaggle.TotalMedals(), formatInt(d.Impact.AnnualContributions)),
-		}
+	tier := nonEmptyStr(d.Kaggle.OverallTier, domain.KaggleTierContributor)
+	kaggleClause := fmt.Sprintf(l.BioFallbackKaggleFmt, tier)
+	if d.Kaggle.TotalMedals() > 0 {
+		kaggleClause = fmt.Sprintf(l.BioFallbackKaggleMedalsFmt, tier, d.Kaggle.TotalMedals())
 	}
 	return []string{
-		fmt.Sprintf("%s is a %s combining reproducible software engineering, statistical modeling, and analytics architecture across %d verified repositories.", name, role, d.Languages.TotalRepos),
-		fmt.Sprintf("Specializing in %s (%.1f%%), %s (%.1f%%), and %s with a production stack anchored by %s and %s, Kaggle %s standing (%d medals), and %s annual contributions.", langs[0].Name, langs[0].Percentage, langs[1].Name, langs[1].Percentage, langs[2].Name, topData, topML, d.Kaggle.OverallTier, d.Kaggle.TotalMedals(), formatInt(d.Impact.AnnualContributions)),
+		fmt.Sprintf(l.BioFallbackP1Fmt, name, role, d.Languages.TotalRepos),
+		fmt.Sprintf(l.BioFallbackP2Fmt, langs[0].Name, langs[0].Percentage, langs[1].Name, langs[1].Percentage, langs[2].Name, topData, topML, kaggleClause, formatInt(d.Impact.AnnualContributions)),
 	}
 }
 
@@ -2468,6 +2479,12 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 		totalHeight := startY + bodyHeight + 14
 		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "sans body")
 		prodBar := clampInt(int(math.Round((d.Languages.ProductionPct/100.0)*84.0)), 14, 84)
+		tierKPI := esc(nonEmptyStr(k.OverallTier, domain.KaggleTierContributor))
+		if k.PeakRank > 0 {
+			tierKPI = fmt.Sprintf("%s (#%s)", tierKPI, formatInt(k.PeakRank))
+		} else if k.TotalMedals() > 0 {
+			tierKPI = fmt.Sprintf("%s (%dM)", tierKPI, k.TotalMedals())
+		}
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -2486,7 +2503,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
     <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s (%.1f%%)</text>
     <text x="0" y="22" class="sans kpi-lbl">%s</text>
     <line x1="138" y1="0" x2="138" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="150" y="11" class="mono kpi-num" fill="#d97706">%s (#%s)</text>
+    <text x="150" y="11" class="mono kpi-num" fill="#d97706">%s</text>
     <text x="150" y="22" class="sans kpi-lbl">%s</text>
     <line x1="292" y1="0" x2="292" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <rect x="304" y="3" width="84" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
@@ -2501,7 +2518,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 			width-4, totalHeight-4,
 			esc(name), width-14, esc(l.BioTitle), width-2,
 			esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary),
-			esc(k.OverallTier), formatInt(k.PeakRank), esc(l.KaggleOverallTierLbl),
+			tierKPI, esc(l.KaggleOverallTierLbl),
 			prodBar, esc(l.LangFewProdEDA), width-2, linesSVG)
 
 	case domain.SchoolCairo:

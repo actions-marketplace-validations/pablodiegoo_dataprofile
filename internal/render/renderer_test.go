@@ -860,5 +860,172 @@ func TestHeaderPanelFallbackHeadlinesLocalizationAndDynamicTrend(t *testing.T) {
 	}
 }
 
+func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
+	manifestEN := config.DefaultManifest()
+	manifestEN.Subject.Name = "Ada Lovelace"
+	manifestEN.Subject.Role = "Quantitative Researcher"
+	manifestEN.Subject.Locale = "en"
+	manifestEN.Subject.Bio = nil // omitted -> synthesize telemetry-driven narrative
+
+	dataEN := DefaultPortfolioData(manifestEN)
+
+	manifestPT := manifestEN
+	manifestPT.Subject.Locale = "pt-BR"
+	dataPT := DefaultPortfolioData(manifestPT)
+
+	for _, school := range domain.AllSchools() {
+		for _, panel := range []domain.Panel{domain.PanelBio, domain.PanelBioFull} {
+			wantWidth := `width="440"`
+			if panel == domain.PanelBioFull {
+				wantWidth = `width="900"`
+			}
+
+			// 1. English telemetry fallback when Subject.Bio is omitted
+			svgEN, err := Render(school, panel, dataEN)
+			if err != nil {
+				t.Fatalf("Render(%s, %s) en fallback failed: %v", school, panel, err)
+			}
+			if !strings.Contains(svgEN, wantWidth) {
+				t.Errorf("Render(%s, %s) en missing %s", school, panel, wantWidth)
+			}
+			for _, tok := range []string{
+				"Ada Lovelace is a Quantitative Researcher",
+				"32 verified repositories",
+				"Python (58.4%)",
+				"Pandas / Polars",
+				"Scikit-Learn",
+				"39 medals",
+				"1,428",
+				"contributions.",
+			} {
+				if !strings.Contains(svgEN, tok) {
+					t.Errorf("Render(%s, %s) en fallback missing telemetry token %q", school, panel, tok)
+				}
+			}
+
+			// 2. Portuguese (pt-BR) telemetry fallback and localized labels when Subject.Bio is omitted
+			svgPT, err := Render(school, panel, dataPT)
+			if err != nil {
+				t.Fatalf("Render(%s, %s) pt-BR fallback failed: %v", school, panel, err)
+			}
+			for _, tok := range []string{
+				"Ada Lovelace atua como Quantitative Researcher",
+				"32 repositórios verificados",
+				"Python (58.4%)",
+				"Pandas / Polars",
+				"Scikit-Learn",
+				"39 medalhas",
+				"1,428",
+				"contribuições",
+			} {
+				if !strings.Contains(svgPT, tok) {
+					t.Errorf("Render(%s, %s) pt-BR fallback missing telemetry token %q", school, panel, tok)
+				}
+			}
+			if school != domain.SchoolTufte {
+				if !strings.Contains(svgPT, "Trajetória Profissional &amp; Resumo Executivo") || strings.Contains(svgPT, "Career Narrative") {
+					t.Errorf("Render(%s, %s) pt-BR expected localized BioTitle", school, panel)
+				}
+			}
+			if school == domain.SchoolTufte || school == domain.SchoolCairo {
+				if !strings.Contains(svgPT, "32 Repositórios · ★ 342 Estrelas") || strings.Contains(svgPT, "32 Repositories") {
+					t.Errorf("Render(%s, %s) pt-BR expected localized BioSubFmt", school, panel)
+				}
+			}
+			if school == domain.SchoolCairo {
+				if !strings.Contains(svgPT, "↳ Portfólio analítico verificado em 32 repositórios com 14.2 MB de cache Jupyter removido.") {
+					t.Errorf("Render(cairo, %s) pt-BR expected localized ↳ callout", panel)
+				}
+			}
+
+			// 3. School-specific native typography check
+			switch school {
+			case domain.SchoolTufte, domain.SchoolCairo:
+				if !strings.Contains(svgEN, "Georgia") {
+					t.Errorf("Render(%s, %s) expected Georgia serif typography", school, panel)
+				}
+			case domain.SchoolFew:
+				if !strings.Contains(svgEN, "Inter") {
+					t.Errorf("Render(few, %s) expected Inter sans typography", panel)
+				}
+			case domain.SchoolHolmes:
+				if !strings.Contains(svgEN, "Trebuchet MS") {
+					t.Errorf("Render(holmes, %s) expected Trebuchet MS typography", panel)
+				}
+			}
+
+			// 4. Recruiter-First zero handling when Kaggle has 0 medals and 0 peak rank
+			zeroKaggleEN := dataEN
+			zeroKaggleEN.Kaggle.OverallTier = domain.KaggleTierContributor
+			zeroKaggleEN.Kaggle.PeakRank = 0
+			zeroKaggleEN.Kaggle.TotalGold = 0
+			zeroKaggleEN.Kaggle.TotalSilver = 0
+			zeroKaggleEN.Kaggle.TotalBronze = 0
+			svgZeroEN, err := Render(school, panel, zeroKaggleEN)
+			if err != nil {
+				t.Fatalf("Render(%s, %s) zero-kaggle en failed: %v", school, panel, err)
+			}
+			if strings.Contains(svgZeroEN, "(0 medals)") || strings.Contains(svgZeroEN, "(#0)") {
+				t.Errorf("Render(%s, %s) zero-kaggle en leaked '(0 medals)' or '(#0)'", school, panel)
+			}
+
+			zeroKagglePT := dataPT
+			zeroKagglePT.Kaggle = zeroKaggleEN.Kaggle
+			svgZeroPT, err := Render(school, panel, zeroKagglePT)
+			if err != nil {
+				t.Fatalf("Render(%s, %s) zero-kaggle pt-BR failed: %v", school, panel, err)
+			}
+			if strings.Contains(svgZeroPT, "(0 medalhas)") || strings.Contains(svgZeroPT, "(#0)") {
+				t.Errorf("Render(%s, %s) zero-kaggle pt-BR leaked '(0 medalhas)' or '(#0)'", school, panel)
+			}
+		}
+
+		// 5. UTF-8 rune wrapping (~62 chars at 440px vs ~126 chars at 900px) and explicit \n line breaks
+		// A 60-rune accented string (which is >62 UTF-8 bytes) must fit on a single line at 440px
+		runeLine := "Análise estatística avançada e produção científica contínua." // 60 runes, 66 UTF-8 bytes
+		runeData := DefaultPortfolioData(manifestPT)
+		runeData.Subject.Bio = []string{runeLine}
+		svgRune440, err := Render(school, domain.PanelBio, runeData)
+		if err != nil {
+			t.Fatalf("Render(%s, bio) runeLine failed: %v", school, err)
+		}
+		if !strings.Contains(svgRune440, ">"+runeLine+"</text>") {
+			t.Errorf("Render(%s, bio) expected 60-rune UTF-8 string to stay on 1 line at 440px (~62 rune limit)", school)
+		}
+
+		// A 100-rune sentence wraps into 2 lines at 440px (~62 runes/line) but stays on 1 line at 900px (~126 runes/line)
+		sentence100 := "Quantitative researcher building reproducible statistical models and production data pipelines daily." // 101 runes
+		s100Data := DefaultPortfolioData(manifestEN)
+		s100Data.Subject.Bio = []string{sentence100}
+		svg100Compact, err := Render(school, domain.PanelBio, s100Data)
+		if err != nil {
+			t.Fatalf("Render(%s, bio) sentence100 failed: %v", school, err)
+		}
+		svg100Full, err := Render(school, domain.PanelBioFull, s100Data)
+		if err != nil {
+			t.Fatalf("Render(%s, bio-full) sentence100 failed: %v", school, err)
+		}
+		if !strings.Contains(svg100Full, ">"+sentence100+"</text>") {
+			t.Errorf("Render(%s, bio-full) expected 101-rune sentence to fit on 1 line at 900px (~126 rune limit)", school)
+		}
+		// Height at 440px (2 lines) must be strictly greater than height at 900px (1 line) by exactly 1 lineHeight (17px)
+		if gotDiff := extractSVGHeight(t, svg100Compact) - extractSVGHeight(t, svg100Full); gotDiff != 17 {
+			t.Errorf("Render(%s) expected 2-line 440px bio height - 1-line 900px bio-full height == 17px (1 lineHeight), got %d", school, gotDiff)
+		}
+
+		// Explicit \n line break inside a single bio entry increases height by 1 lineHeight (17px) + 1 paraGap (8px) = 25px over 1-line bio
+		explicitBreakData := DefaultPortfolioData(manifestEN)
+		explicitBreakData.Subject.Bio = []string{"First explicit line.\nSecond explicit line."}
+		svgExplicitBreak, err := Render(school, domain.PanelBio, explicitBreakData)
+		if err != nil {
+			t.Fatalf("Render(%s, bio) explicit break failed: %v", school, err)
+		}
+		if gotDiff := extractSVGHeight(t, svgExplicitBreak) - extractSVGHeight(t, svgRune440); gotDiff != 25 {
+			t.Errorf("Render(%s, bio) expected 2-paragraph explicit-break height - 1-line height == 25px (17 lineHeight + 8 paraGap), got %d", school, gotDiff)
+		}
+	}
+}
+
+
 
 

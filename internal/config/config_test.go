@@ -246,14 +246,14 @@ output:
 		t.Errorf("unexpected Output.Panels: %+v", m.Output.Panels)
 	}
 
-	// Test block scalar (|) for bio
+	// Test block scalar (|) for bio (including a line starting with a literal quote)
 	blockPath := filepath.Join(dir, "block.yaml")
 	blockContent := `
 subject:
   name: "Ada Lovelace"
   headlines: ["Analytical Engine", "First Programmer"]
   bio: |
-    First line of career narrative.
+    "Data is key," she wrote in her notes.
     Second line of career narrative.
 `
 	if err := os.WriteFile(blockPath, []byte(blockContent), 0o644); err != nil {
@@ -266,7 +266,7 @@ subject:
 	if len(mb.Subject.Headlines) != 2 || mb.Subject.Headlines[0] != "Analytical Engine" {
 		t.Errorf("unexpected inline Subject.Headlines: %+v", mb.Subject.Headlines)
 	}
-	if len(mb.Subject.Bio) != 2 || mb.Subject.Bio[1] != "Second line of career narrative." {
+	if len(mb.Subject.Bio) != 2 || mb.Subject.Bio[0] != `"Data is key," she wrote in her notes.` || mb.Subject.Bio[1] != "Second line of career narrative." {
 		t.Errorf("unexpected block Subject.Bio: %+v", mb.Subject.Bio)
 	}
 
@@ -311,6 +311,69 @@ subject:
 	}
 	if len(mhe.Subject.Headlines) != 2 || mhe.Subject.Headlines[0] != "Line one" || mhe.Subject.Headlines[1] != "Line two" {
 		t.Errorf("expected 2 escaped headlines [Line one, Line two], got %+v", mhe.Subject.Headlines)
+	}
+
+	// Test inline array with commas inside quotes for subject.bio
+	bioInlineCommasPath := filepath.Join(dir, "bio-inline-commas.yaml")
+	bioInlineCommasContent := `
+subject:
+  name: "Ada Lovelace"
+  bio: ["Economist, Data Scientist, and Engineer.", 'Focused on Python, SQL, Go, and R (#412).']
+`
+	if err := os.WriteFile(bioInlineCommasPath, []byte(bioInlineCommasContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mbic, err := LoadManifest(bioInlineCommasPath)
+	if err != nil {
+		t.Fatalf("LoadManifest bio-inline-commas failed: %v", err)
+	}
+	wantBioCommas := []string{
+		"Economist, Data Scientist, and Engineer.",
+		"Focused on Python, SQL, Go, and R (#412).",
+	}
+	if len(mbic.Subject.Bio) != len(wantBioCommas) {
+		t.Fatalf("expected %d inline bio items with commas, got %d (%+v)", len(wantBioCommas), len(mbic.Subject.Bio), mbic.Subject.Bio)
+	}
+	for i, w := range wantBioCommas {
+		if mbic.Subject.Bio[i] != w {
+			t.Errorf("Subject.Bio[%d] = %q, want %q", i, mbic.Subject.Bio[i], w)
+		}
+	}
+
+	// Test multi-line string scalar (both \n-escaped and physical multi-line continuation) and |- block scalar with '#' for bio
+	bioScalarPath := filepath.Join(dir, "bio-scalar.yaml")
+	bioScalarContent := `
+subject:
+  name: "Grace Hopper"
+  bio: "First paragraph with Python, SQL, and Go.\nSecond paragraph with Kaggle Master (#412)."
+`
+	if err := os.WriteFile(bioScalarPath, []byte(bioScalarContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mbs, err := LoadManifest(bioScalarPath)
+	if err != nil {
+		t.Fatalf("LoadManifest bio-scalar failed: %v", err)
+	}
+	if len(mbs.Subject.Bio) != 2 || mbs.Subject.Bio[0] != "First paragraph with Python, SQL, and Go." || mbs.Subject.Bio[1] != "Second paragraph with Kaggle Master (#412)." {
+		t.Errorf("unexpected scalar Subject.Bio: %+v", mbs.Subject.Bio)
+	}
+
+	bioMultilinePath := filepath.Join(dir, "bio-multiline.yaml")
+	bioMultilineContent := `
+subject:
+  name: "Katherine Johnson"
+  bio: "Orbital mechanics pioneer at NASA.
+    Computed trajectories for Project Mercury and Apollo 11."
+`
+	if err := os.WriteFile(bioMultilinePath, []byte(bioMultilineContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mbm, err := LoadManifest(bioMultilinePath)
+	if err != nil {
+		t.Fatalf("LoadManifest bio-multiline failed: %v", err)
+	}
+	if len(mbm.Subject.Bio) != 2 || mbm.Subject.Bio[0] != "Orbital mechanics pioneer at NASA." || mbm.Subject.Bio[1] != "Computed trajectories for Project Mercury and Apollo 11." {
+		t.Errorf("unexpected physical multiline Subject.Bio: %+v", mbm.Subject.Bio)
 	}
 }
 
