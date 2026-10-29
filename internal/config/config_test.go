@@ -516,6 +516,82 @@ GITHUB_TOKEN="ghp_ignored_by_sync"
 	}
 }
 
+func TestPlanGitHubSyncClassificationAndPrecedence(t *testing.T) {
+	envMap := map[string]string{
+		"SUBJECT_NAME":                 "Pablo Diego",
+		"SUBJECT_ROLE":                 "Data Scientist",
+		"SUBJECT_LOCALE":               "pt-BR",
+		"SUBJECT_HEADLINES":            "[Line 1; Line 2]",
+		"SUBJECT_BIO":                  "[Bio 1; Bio 2]",
+		"GITHUB_USERNAME":              "canonical-gh-user",
+		"GH_USERNAME":                  "fallback-gh-user",
+		"GITHUB_INCLUDE_FORKS":         "true",
+		"GITHUB_INCLUDE_PRIVATE_COUNT": "true",
+		"GITHUB_INCLUDE_PRIVATE":       "false",
+		"GITHUB_EXCLUDE_REPOS":         "[fork-a; fork-b]",
+		"GITHUB_EXCLUDE_LANGS":         "[HTML; CSS]",
+		"KAGGLE_USERNAME":              "pablodiegoo",
+		"KAGGLE_ENABLED":               "true",
+		"KAGGLE_MODE":                  "hybrid",
+		"HF_USERNAME":                  "canonical-hf-user",
+		"HUGGINGFACE_USERNAME":         "fallback-hf-user",
+		"HF_ENABLED":                   "true",
+		"HUGGINGFACE_ENABLED":          "false",
+		"DEFLATE_NOTEBOOKS":            "true",
+		"DETECT_DATA_STACK":            "true",
+		"OUTPUT_DIRECTORY":             "generated",
+		"OUTPUT_SCHOOLS":               "[tufte; few]",
+		"OUTPUT_PANELS":                "[summary; full]",
+		"ACCESS_TOKEN":                 "ghp_pat_secret",
+		"GITHUB_TOKEN":                 "ghs_actions_token_must_be_omitted",
+		"KAGGLE_KEY":                   "KGAT_canonical_key",
+		"KAGGLE_API_TOKEN":             "KGAT_fallback_key",
+		"HF_TOKEN":                     "hf_canonical_secret",
+		"HUGGINGFACE_TOKEN":            "hf_fallback_secret",
+		"EMPTY_VAR":                    "   ",
+		"UNRECOGNIZED_KEY":             "ignored",
+	}
+
+	want := []SyncTarget{
+		{Name: "DEFLATE_NOTEBOOKS", Value: "true", IsSecret: false},
+		{Name: "DETECT_DATA_STACK", Value: "true", IsSecret: false},
+		{Name: "GH_EXCLUDE_LANGS", Value: "[HTML; CSS]", IsSecret: false},
+		{Name: "GH_EXCLUDE_REPOS", Value: "[fork-a; fork-b]", IsSecret: false},
+		{Name: "GH_INCLUDE_FORKS", Value: "true", IsSecret: false},
+		{Name: "GH_INCLUDE_PRIVATE_COUNT", Value: "true", IsSecret: false},
+		{Name: "GH_USERNAME", Value: "canonical-gh-user", IsSecret: false},
+		{Name: "HF_ENABLED", Value: "true", IsSecret: false},
+		{Name: "HF_USERNAME", Value: "canonical-hf-user", IsSecret: false},
+		{Name: "KAGGLE_ENABLED", Value: "true", IsSecret: false},
+		{Name: "KAGGLE_MODE", Value: "hybrid", IsSecret: false},
+		{Name: "KAGGLE_USERNAME", Value: "pablodiegoo", IsSecret: false},
+		{Name: "OUTPUT_DIRECTORY", Value: "generated", IsSecret: false},
+		{Name: "OUTPUT_PANELS", Value: "[summary; full]", IsSecret: false},
+		{Name: "OUTPUT_SCHOOLS", Value: "[tufte; few]", IsSecret: false},
+		{Name: "SUBJECT_BIO", Value: "[Bio 1; Bio 2]", IsSecret: false},
+		{Name: "SUBJECT_HEADLINES", Value: "[Line 1; Line 2]", IsSecret: false},
+		{Name: "SUBJECT_LOCALE", Value: "pt-BR", IsSecret: false},
+		{Name: "SUBJECT_NAME", Value: "Pablo Diego", IsSecret: false},
+		{Name: "SUBJECT_ROLE", Value: "Data Scientist", IsSecret: false},
+		{Name: "ACCESS_TOKEN", Value: "ghp_pat_secret", IsSecret: true},
+		{Name: "HF_TOKEN", Value: "hf_canonical_secret", IsSecret: true},
+		{Name: "KAGGLE_KEY", Value: "KGAT_canonical_key", IsSecret: true},
+	}
+
+	for iter := 0; iter < 50; iter++ {
+		got := PlanGitHubSync(envMap)
+		if len(got) != len(want) {
+			t.Fatalf("iter %d: expected %d targets, got %d: %+v", iter, len(want), len(got), got)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Fatalf("iter %d: target[%d] = %+v, want %+v", iter, i, got[i], want[i])
+			}
+		}
+	}
+}
+
+
 
 
 

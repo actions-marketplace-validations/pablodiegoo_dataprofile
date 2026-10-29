@@ -187,6 +187,10 @@ func runSync() {
 	}
 
 	varsSynced, secretsSynced := 0, 0
+	repoSuffix := ""
+	if repo != "" {
+		repoSuffix = " --repo " + repo
+	}
 	for _, t := range targets {
 		kind := "variable"
 		displayVal := t.Value
@@ -199,7 +203,7 @@ func runSync() {
 			args = append(args, "--repo", repo)
 		}
 		if dryRun {
-			fmt.Printf("[dry-run] gh %s set %s --body %q\n", kind, t.Name, displayVal)
+			fmt.Printf("[dry-run] gh %s set %s --body %q%s\n", kind, t.Name, displayVal, repoSuffix)
 		} else {
 			cmd := exec.Command("gh", args...)
 			if out, err := cmd.CombinedOutput(); err != nil {
@@ -221,7 +225,7 @@ func runSync() {
 			wfArgs = append(wfArgs, "--repo", repo)
 		}
 		if dryRun {
-			fmt.Printf("[dry-run] gh workflow run %s\n", workflow)
+			fmt.Printf("[dry-run] gh workflow run %s%s\n", workflow, repoSuffix)
 		} else {
 			cmd := exec.Command("gh", wfArgs...)
 			if out, err := cmd.CombinedOutput(); err != nil {

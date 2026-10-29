@@ -226,73 +226,52 @@ func ApplyEnvOverrides(manifest *domain.ProfileManifest, dotenvPath string) {
 // `GITHUB_USERNAME` etc. are automatically mapped to `GH_USERNAME` etc. for GitHub Actions Variables,
 // and `GITHUB_TOKEN` is omitted (as GitHub Actions provides `secrets.GITHUB_TOKEN` natively).
 func PlanGitHubSync(envMap map[string]string) []SyncTarget {
-	secretKeys := map[string]string{
-		"ACCESS_TOKEN":      "ACCESS_TOKEN",
-		"KAGGLE_KEY":        "KAGGLE_KEY",
-		"KAGGLE_API_TOKEN":  "KAGGLE_KEY",
-		"HF_TOKEN":          "HF_TOKEN",
-		"HUGGINGFACE_TOKEN": "HF_TOKEN",
+	type targetRule struct {
+		name     string
+		isSecret bool
+		keys     []string
 	}
 
-	varKeys := map[string]string{
-		"SUBJECT_NAME":                 "SUBJECT_NAME",
-		"SUBJECT_ROLE":                 "SUBJECT_ROLE",
-		"SUBJECT_LOCALE":               "SUBJECT_LOCALE",
-		"SUBJECT_HEADLINES":            "SUBJECT_HEADLINES",
-		"SUBJECT_BIO":                  "SUBJECT_BIO",
-		"GITHUB_USERNAME":              "GH_USERNAME",
-		"GH_USERNAME":                  "GH_USERNAME",
-		"GITHUB_INCLUDE_FORKS":         "GH_INCLUDE_FORKS",
-		"GH_INCLUDE_FORKS":             "GH_INCLUDE_FORKS",
-		"GITHUB_INCLUDE_PRIVATE_COUNT": "GH_INCLUDE_PRIVATE_COUNT",
-		"GITHUB_INCLUDE_PRIVATE":       "GH_INCLUDE_PRIVATE_COUNT",
-		"GH_INCLUDE_PRIVATE_COUNT":     "GH_INCLUDE_PRIVATE_COUNT",
-		"GH_INCLUDE_PRIVATE":           "GH_INCLUDE_PRIVATE_COUNT",
-		"GITHUB_EXCLUDE_REPOS":         "GH_EXCLUDE_REPOS",
-		"GH_EXCLUDE_REPOS":             "GH_EXCLUDE_REPOS",
-		"GITHUB_EXCLUDE_LANGS":         "GH_EXCLUDE_LANGS",
-		"GH_EXCLUDE_LANGS":             "GH_EXCLUDE_LANGS",
-		"KAGGLE_USERNAME":              "KAGGLE_USERNAME",
-		"KAGGLE_ENABLED":               "KAGGLE_ENABLED",
-		"KAGGLE_MODE":                  "KAGGLE_MODE",
-		"HF_USERNAME":                  "HF_USERNAME",
-		"HUGGINGFACE_USERNAME":         "HF_USERNAME",
-		"HF_ENABLED":                   "HF_ENABLED",
-		"HUGGINGFACE_ENABLED":          "HF_ENABLED",
-		"DEFLATE_NOTEBOOKS":            "DEFLATE_NOTEBOOKS",
-		"DETECT_DATA_STACK":            "DETECT_DATA_STACK",
-		"OUTPUT_DIRECTORY":             "OUTPUT_DIRECTORY",
-		"OUTPUT_SCHOOLS":               "OUTPUT_SCHOOLS",
-		"OUTPUT_PANELS":                "OUTPUT_PANELS",
+	rules := []targetRule{
+		{name: "SUBJECT_NAME", keys: []string{"SUBJECT_NAME"}},
+		{name: "SUBJECT_ROLE", keys: []string{"SUBJECT_ROLE"}},
+		{name: "SUBJECT_LOCALE", keys: []string{"SUBJECT_LOCALE"}},
+		{name: "SUBJECT_HEADLINES", keys: []string{"SUBJECT_HEADLINES"}},
+		{name: "SUBJECT_BIO", keys: []string{"SUBJECT_BIO"}},
+		{name: "GH_USERNAME", keys: []string{"GITHUB_USERNAME", "GH_USERNAME"}},
+		{name: "GH_INCLUDE_FORKS", keys: []string{"GITHUB_INCLUDE_FORKS", "GH_INCLUDE_FORKS"}},
+		{name: "GH_INCLUDE_PRIVATE_COUNT", keys: []string{"GITHUB_INCLUDE_PRIVATE_COUNT", "GITHUB_INCLUDE_PRIVATE", "GH_INCLUDE_PRIVATE_COUNT", "GH_INCLUDE_PRIVATE"}},
+		{name: "GH_EXCLUDE_REPOS", keys: []string{"GITHUB_EXCLUDE_REPOS", "GH_EXCLUDE_REPOS"}},
+		{name: "GH_EXCLUDE_LANGS", keys: []string{"GITHUB_EXCLUDE_LANGS", "GH_EXCLUDE_LANGS"}},
+		{name: "KAGGLE_USERNAME", keys: []string{"KAGGLE_USERNAME"}},
+		{name: "KAGGLE_ENABLED", keys: []string{"KAGGLE_ENABLED"}},
+		{name: "KAGGLE_MODE", keys: []string{"KAGGLE_MODE"}},
+		{name: "HF_USERNAME", keys: []string{"HF_USERNAME", "HUGGINGFACE_USERNAME"}},
+		{name: "HF_ENABLED", keys: []string{"HF_ENABLED", "HUGGINGFACE_ENABLED"}},
+		{name: "DEFLATE_NOTEBOOKS", keys: []string{"DEFLATE_NOTEBOOKS"}},
+		{name: "DETECT_DATA_STACK", keys: []string{"DETECT_DATA_STACK"}},
+		{name: "OUTPUT_DIRECTORY", keys: []string{"OUTPUT_DIRECTORY"}},
+		{name: "OUTPUT_SCHOOLS", keys: []string{"OUTPUT_SCHOOLS"}},
+		{name: "OUTPUT_PANELS", keys: []string{"OUTPUT_PANELS"}},
+		{name: "ACCESS_TOKEN", isSecret: true, keys: []string{"ACCESS_TOKEN"}},
+		{name: "KAGGLE_KEY", isSecret: true, keys: []string{"KAGGLE_KEY", "KAGGLE_API_TOKEN"}},
+		{name: "HF_TOKEN", isSecret: true, keys: []string{"HF_TOKEN", "HUGGINGFACE_TOKEN"}},
 	}
 
-	resolved := make(map[string]SyncTarget)
-	for rawKey, rawVal := range envMap {
-		val := strings.TrimSpace(rawVal)
-		if val == "" {
-			continue
-		}
-		if targetName, ok := secretKeys[rawKey]; ok {
-			resolved["secret:"+targetName] = SyncTarget{
-				Name:     targetName,
-				Value:    val,
-				IsSecret: true,
-			}
-			continue
-		}
-		if targetName, ok := varKeys[rawKey]; ok {
-			resolved["var:"+targetName] = SyncTarget{
-				Name:     targetName,
-				Value:    val,
-				IsSecret: false,
+	var out []SyncTarget
+	for _, r := range rules {
+		for _, k := range r.keys {
+			if val := strings.TrimSpace(envMap[k]); val != "" {
+				out = append(out, SyncTarget{
+					Name:     r.name,
+					Value:    val,
+					IsSecret: r.isSecret,
+				})
+				break
 			}
 		}
 	}
 
-	out := make([]SyncTarget, 0, len(resolved))
-	for _, t := range resolved {
-		out = append(out, t)
-	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].IsSecret != out[j].IsSecret {
 			return !out[i].IsSecret // variables first, then secrets

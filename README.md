@@ -162,7 +162,7 @@ jobs:
 
 1. Click **Fork** at the top-right of this page.
 2. Open the **Actions** tab in your fork and click **"I understand my workflows, go ahead and enable them"** (GitHub disables scheduled workflows on fresh forks by default).
-3. Either edit [`profile.yaml`](profile.yaml) on `main` with your usernames and commit, **or** keep `profile.yaml` untouched (to avoid personal curriculum commits on `main` and merge conflicts when syncing your fork) by setting your overrides in a local gitignored `.env` file using `[item 1; item 2]` syntax and running `go run ./cmd/dataprofile sync`. The bundled workflow ([`.github/workflows/generate.yml`](.github/workflows/generate.yml)) will compile the engine, validate all SVGs, and publish them (along with a ready-to-copy catalog `README.md`) to the orphan `output` branch using `GITHUB_TOKEN`.
+3. Either edit [`profile.yaml`](profile.yaml) on `main` with your usernames and commit, **or** keep `profile.yaml` untouched (to avoid personal curriculum commits on `main` and merge conflicts when syncing your fork) by setting your overrides in a local gitignored `.env` file using `[item 1; item 2]` syntax and running `go run ./cmd/dataprofile sync`. `dataprofile sync` maps `GITHUB_*` keys to `GH_*` repository variables (avoiding GitHub Actions' reserved `GITHUB_` prefix), omits `GITHUB_TOKEN`, pushes credential tokens (`ACCESS_TOKEN`, `KAGGLE_KEY`, `HF_TOKEN`) via `gh secret set` (masked as `***` under `--dry-run`), and triggers the bundled workflow ([`.github/workflows/generate.yml`](.github/workflows/generate.yml)) to compile the engine, validate all SVGs, and publish them (along with a ready-to-copy catalog `README.md`) to the orphan `output` branch using `GITHUB_TOKEN`.
 
 ### Optional secrets for private metrics and Kaggle REST API v1
 
@@ -212,6 +212,7 @@ Because the engine uses only the Go 1.23+ standard library, you can run and test
 go run ./cmd/dataprofile generate --config=profile.yaml
 
 # Sync local .env curriculum & secret overrides to GitHub Actions and trigger regeneration
+# (supports --env=.env, --repo=owner/repo, --workflow=generate.yml, --trigger=true, and --dry-run)
 go run ./cmd/dataprofile sync
 
 # Generate deterministic Showcase SVGs in offline demo mode (ignoring .env overrides)

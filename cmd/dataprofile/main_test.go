@@ -278,6 +278,131 @@ ACCESS_TOKEN="ghp_test_token"
 	}
 }
 
+func TestCLISyncFlagsSecretMaskingAndExecution(t *testing.T) {
+	dir := t.TempDir()
+	binPath := filepath.Join(dir, "dataprofile-bin")
+	buildCmd := exec.Command("go", "build", "-o", binPath, ".")
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build CLI binary: %v\n%s", err, string(out))
+	}
+
+	envFile := filepath.Join(dir, "sync.env")
+	envContent := `
+SUBJECT_NAME="Pablo Diego"
+GITHUB_USERNAME="pablodiegoo"
+KAGGLE_USERNAME="pablodiegoo"
+KAGGLE_ENABLED=true
+KAGGLE_MODE="hybrid"
+HF_USERNAME="pablodiegoo"
+HF_ENABLED=true
+DEFLATE_NOTEBOOKS=true
+DETECT_DATA_STACK=true
+OUTPUT_SCHOOLS=[tufte; few]
+ACCESS_TOKEN="ghp_super_secret_pat"
+GITHUB_TOKEN="ghs_actions_token_ignored"
+KAGGLE_KEY="KGAT_super_secret_kaggle"
+HF_TOKEN="hf_super_secret_token"
+`
+	if err := os.WriteFile(envFile, []byte(envContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Verify --dry-run with --repo and --workflow masks all secrets as *** and prints --repo
+	dryCmd := exec.Command(binPath, "sync",
+		"--env", envFile,
+		"--repo", "pablodiegoo/dataprofile",
+		"--workflow", "custom-generate.yml",
+		"--dry-run",
+	)
+	dryOutBytes, err := dryCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("sync --dry-run with --repo and --workflow failed: %v\n%s", err, string(dryOutBytes))
+	}
+	dryOut := string(dryOutBytes)
+	for _, want := range []string{
+		`[dry-run] gh variable set GH_USERNAME --body "pablodiegoo" --repo pablodiegoo/dataprofile`,
+		`[dry-run] gh variable set KAGGLE_USERNAME --body "pablodiegoo" --repo pablodiegoo/dataprofile`,
+		`[dry-run] gh variable set OUTPUT_SCHOOLS --body "[tufte; few]" --repo pablodiegoo/dataprofile`,
+		`[dry-run] gh secret set ACCESS_TOKEN --body "***" --repo pablodiegoo/dataprofile`,
+		`[dry-run] gh secret set HF_TOKEN --body "***" --repo pablodiegoo/dataprofile`,
+		`[dry-run] gh secret set KAGGLE_KEY --body "***" --repo pablodiegoo/dataprofile`,
+		`[dry-run] gh workflow run custom-generate.yml --repo pablodiegoo/dataprofile`,
+		`✓ Sync complete (10 variables, 3 secrets from `,
+	} {
+		if !strings.Contains(dryOut, want) {
+			t.Errorf("expected %q in sync --dry-run output, got:\n%s", want, dryOut)
+		}
+	}
+	for _, secretVal := range []string{
+		"ghp_super_secret_pat",
+		"ghs_actions_token_ignored",
+		"KGAT_super_secret_kaggle",
+		"hf_super_secret_token",
+		"GITHUB_TOKEN",
+		"GITHUB_USERNAME",
+	} {
+		if strings.Contains(dryOut, secretVal) {
+			t.Errorf("sync --dry-run leaked forbidden token %q in output:\n%s", secretVal, dryOut)
+		}
+	}
+
+	// 2. Verify --trigger=false skips workflow dispatch
+	noTrigCmd := exec.Command(binPath, "sync", "--env", envFile, "--trigger=false", "--dry-run")
+	noTrigOut, err := noTrigCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("sync --trigger=false --dry-run failed: %v\n%s", err, string(noTrigOut))
+	}
+	if strings.Contains(string(noTrigOut), "gh workflow run") {
+		t.Errorf("expected --trigger=false to omit workflow run, got:\n%s", string(noTrigOut))
+	}
+
+	// 3. Verify live execution invokes gh CLI with real arguments while keeping stdout free of secret values
+	ghLog := filepath.Join(dir, "gh-calls.log")
+	ghStub := filepath.Join(dir, "gh")
+	stubScript := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + ghLog + "\n"
+	if err := os.WriteFile(ghStub, []byte(stubScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	liveCmd := exec.Command(binPath, "sync", "--env", envFile, "--repo", "pablodiegoo/dataprofile")
+	liveCmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	liveOutBytes, err := liveCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("live sync with stub gh failed: %v\n%s", err, string(liveOutBytes))
+	}
+	liveOut := string(liveOutBytes)
+	for _, secretVal := range []string{"ghp_super_secret_pat", "KGAT_super_secret_kaggle", "hf_super_secret_token"} {
+		if strings.Contains(liveOut, secretVal) {
+			t.Errorf("live sync leaked secret value %q to stdout:\n%s", secretVal, liveOut)
+		}
+	}
+	loggedBytes, err := os.ReadFile(ghLog)
+	if err != nil {
+		t.Fatalf("expected stub gh log at %s: %v", ghLog, err)
+	}
+	logged := string(loggedBytes)
+	for _, wantCall := range []string{
+		"variable set GH_USERNAME --body pablodiegoo --repo pablodiegoo/dataprofile",
+		"secret set ACCESS_TOKEN --body ghp_super_secret_pat --repo pablodiegoo/dataprofile",
+		"secret set KAGGLE_KEY --body KGAT_super_secret_kaggle --repo pablodiegoo/dataprofile",
+		"secret set HF_TOKEN --body hf_super_secret_token --repo pablodiegoo/dataprofile",
+		"workflow run generate.yml --repo pablodiegoo/dataprofile",
+	} {
+		if !strings.Contains(logged, wantCall) {
+			t.Errorf("expected gh invocation %q in log, got:\n%s", wantCall, logged)
+		}
+	}
+
+	// 4. Verify non-zero exit when .env has no syncable keys
+	emptyEnv := filepath.Join(dir, "empty.env")
+	if err := os.WriteFile(emptyEnv, []byte("# comments only\nGITHUB_TOKEN=ignored\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	emptyCmd := exec.Command(binPath, "sync", "--env", emptyEnv, "--dry-run")
+	if out, err := emptyCmd.CombinedOutput(); err == nil {
+		t.Errorf("expected non-zero exit for empty .env, got success:\n%s", string(out))
+	}
+}
+
 func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {
 	ghMux := http.NewServeMux()
 	ghMux.HandleFunc("/users/adalovelace/repos", func(w http.ResponseWriter, r *http.Request) {
@@ -670,6 +795,11 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 		"[item 1; item 2]",
 		"go run ./cmd/dataprofile generate",
 		"go run ./cmd/dataprofile sync",
+		"--dry-run",
+		"--repo",
+		"--workflow",
+		"--trigger",
+		"GH_",
 		"go run ./cmd/dataprofile validate",
 		"--demo",
 		"--no-env",

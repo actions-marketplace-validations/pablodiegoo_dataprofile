@@ -20,7 +20,7 @@ In GitHub Actions workflows, credentials are supplied through encrypted **GitHub
 3. `KAGGLE_USERNAME` (Variable or Secret) and `KAGGLE_KEY` (optional Secret): Kaggle API credentials (`KGAT_...` Bearer token or classic key) used for REST API v1 enrichment and private artifact counts.
 4. `HF_TOKEN` (optional Secret): Hugging Face Hub token used to include private models, datasets, and spaces in aggregate counts.
 
-For local CLI runs and curriculum management, place credentials and `[item 1; item 2]` manifest overrides in a local `.env` file based on [`.env.example`](.env.example). When running `go run ./cmd/dataprofile sync`, `PlanGitHubSync` routes tokens (`ACCESS_TOKEN`, `KAGGLE_KEY`, `HF_TOKEN`) exclusively to `gh secret set`, maps public configuration fields to `gh variable set`, and masks secret values as `***` during `--dry-run`.
+For local CLI runs and curriculum management, place credentials and `[item 1; item 2]` manifest overrides in a local `.env` file based on [`.env.example`](.env.example). When running `go run ./cmd/dataprofile sync`, `PlanGitHubSync` routes tokens (`ACCESS_TOKEN`, `KAGGLE_KEY`, `HF_TOKEN`) exclusively to `gh secret set`, maps `GITHUB_*` and public configuration fields to `GH_*` and other repository variables via `gh variable set` (omitting `GITHUB_TOKEN`), and masks secret values as `***` during `--dry-run`.
 
 The [`.gitignore`](.gitignore) file blocks `.env`, `.env.*`, `kaggle.json`, `/generated/`, and `/showcase/` from being tracked on `main`, and the automated test `TestGitHubActionWorkflowAndSecretHygiene` in [`cmd/dataprofile/main_test.go`](cmd/dataprofile/main_test.go) verifies these exclusion rules on every commit.
 
