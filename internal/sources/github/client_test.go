@@ -878,3 +878,159 @@ dependencies = ["geopandas>=0.14", "scipy>=1.12", "typer>=0.9", "scikit-learn>=1
 	}
 }
 
+func TestCollectContributedRepositoriesReachAndMultiYearAllTimeContributions(t *testing.T) {
+	mux := http.NewServeMux()
+	var capturedQueries []string
+
+	mux.HandleFunc("/user/repos", func(w http.ResponseWriter, r *http.Request) {
+		repos := []restRepo{
+			{
+				Name:          "owned-public",
+				FullName:      "pablodiegoo/owned-public",
+				Private:       false,
+				Fork:          false,
+				Stargazers:    25,
+				Forks:         4,
+				Language:      "Python",
+				DefaultBranch: "main",
+			},
+			{
+				Name:          "owned-private",
+				FullName:      "pablodiegoo/owned-private",
+				Private:       true,
+				Fork:          false,
+				Stargazers:    0,
+				Forks:         0,
+				Language:      "R",
+				DefaultBranch: "main",
+			},
+			{
+				Name:          "iota-sdk",
+				FullName:      "pablodiegoo/iota-sdk",
+				Private:       false,
+				Fork:          true,
+				Stargazers:    1200,
+				Forks:         310,
+				Language:      "Go",
+				DefaultBranch: "main",
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(repos)
+	})
+
+	mux.HandleFunc("/repos/pablodiegoo/owned-public/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"Python": 90000})
+	})
+	mux.HandleFunc("/repos/pablodiegoo/owned-private/languages", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]int64{"R": 45000})
+	})
+
+	mux.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
+		var reqBody struct {
+			Query string `json:"query"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&reqBody)
+		capturedQueries = append(capturedQueries, reqBody.Query)
+		w.Header().Set("Content-Type", "application/json")
+
+		if !strings.Contains(reqBody.Query, "y2026:") {
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": map[string]interface{}{
+					"user": map[string]interface{}{
+						"contributionsCollection": map[string]interface{}{
+							"contributionYears": []int{2026, 2025, 2024},
+							"contributionCalendar": map[string]interface{}{
+								"totalContributions": 8144,
+								"weeks": []map[string]interface{}{
+									{"contributionDays": []map[string]int{{"contributionCount": 15}}},
+									{"contributionDays": []map[string]int{{"contributionCount": 30}}},
+								},
+							},
+						},
+						"repositoriesContributedTo": map[string]interface{}{
+							"totalCount": 3,
+							"nodes": []map[string]string{
+								{"nameWithOwner": "iota-uz/iota-sdk"},
+								{"nameWithOwner": "Agora-Pesquisa/agora-pesquisa.github.io"},
+								{"nameWithOwner": "some-org/noisy-sandbox"},
+							},
+						},
+					},
+				},
+			})
+			return
+		}
+
+		// Multi-year aliased query response
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": map[string]interface{}{
+				"user": map[string]interface{}{
+					"y2026": map[string]interface{}{"contributionCalendar": map[string]int{"totalContributions": 8144}},
+					"y2025": map[string]interface{}{"contributionCalendar": map[string]int{"totalContributions": 933}},
+					"y2024": map[string]interface{}{"contributionCalendar": map[string]int{"totalContributions": 423}},
+				},
+			},
+		})
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := NewClient("pat_token")
+	client.BaseURL = srv.URL
+
+	lp, _, im, err := client.Collect(
+		context.Background(),
+		domain.GitHubSourceConfig{
+			Username:            "pablodiegoo",
+			IncludeForks:        false,
+			IncludePrivateCount: true,
+			ExcludeRepos:        []string{"noisy-sandbox"},
+		},
+		domain.NormalizationConfig{DeflateNotebooks: true},
+	)
+	if err != nil {
+		t.Fatalf("Collect failed: %v", err)
+	}
+
+	if len(capturedQueries) < 2 {
+		t.Fatalf("expected 2 GraphQL queries (initial + multi-year), got %d", len(capturedQueries))
+	}
+	for _, token := range []string{
+		"contributionYears",
+		"repositoriesContributedTo",
+		"includeUserRepositories: false",
+		"contributionTypes: [COMMIT, PULL_REQUEST, REPOSITORY, PULL_REQUEST_REVIEW]",
+	} {
+		if !strings.Contains(capturedQueries[0], token) {
+			t.Errorf("initial GraphQL query missing required clause %q:\n%s", token, capturedQueries[0])
+		}
+	}
+	for _, alias := range []string{"y2026:", "y2025:", "y2024:"} {
+		if !strings.Contains(capturedQueries[1], alias) {
+			t.Errorf("multi-year GraphQL query missing year alias %q:\n%s", alias, capturedQueries[1])
+		}
+	}
+
+	// All-time contributions = 8144 + 933 + 423 = 9500
+	if im.AnnualContributions != 9500 {
+		t.Errorf("expected multi-year AnnualContributions=9500, got %d", im.AnnualContributions)
+	}
+
+	// 2 Owned Repositories (owned-public + owned-private; iota-sdk fork excluded)
+	if lp.TotalRepos != 2 {
+		t.Errorf("expected lp.TotalRepos=2 Owned Repositories, got %d", lp.TotalRepos)
+	}
+	if im.TotalStars != 25 || im.TotalForks != 4 {
+		t.Errorf("expected Owned Repository stars=25 forks=4 (without claiming fork/upstream stars), got stars=%d forks=%d",
+			im.TotalStars, im.TotalForks)
+	}
+
+	// 2 Contributed Repositories after excluding "noisy-sandbox" by short name -> impact.PublicRepos = 2 Owned + 2 Contributed = 4
+	if im.ContributedRepos != 2 || im.PublicRepos != 4 {
+		t.Errorf("expected ContributedRepos=2 and PublicRepos=4 after excluding noisy-sandbox, got ContributedRepos=%d PublicRepos=%d",
+			im.ContributedRepos, im.PublicRepos)
+	}
+}
+

@@ -248,14 +248,14 @@ func (c *Client) Collect(ctx context.Context, cfg domain.GitHubSourceConfig, nor
 
 	// Enrich all-time contributions, 52-week trend, velocity metrics, and Contributed Repositories via GraphQL if token is available
 	if c.Token != "" {
-		if contribs, weekly, streak, growth, contribRepos, err := c.fetchGraphQLContributionsAndVelocityWithReach(ctx, cfg.Username, excludeRepoMap); err == nil && contribs > 0 {
-			impact.AnnualContributions = contribs
-			impact.WeeklyTrend = weekly
-			impact.ActiveStreakDays = streak
-			impact.YoYGrowthPct = growth
-			if contribRepos > 0 {
-				impact.ContributedRepos = contribRepos
-				impact.PublicRepos += contribRepos
+		if gql, err := c.fetchGraphQLContributionsAndVelocityWithReach(ctx, cfg.Username, excludeRepoMap); err == nil && gql.totalContributions > 0 {
+			impact.AnnualContributions = gql.totalContributions
+			impact.WeeklyTrend = gql.weeklyTrend
+			impact.ActiveStreakDays = gql.activeStreakDays
+			impact.YoYGrowthPct = gql.yoyGrowthPct
+			if gql.contributedRepos > 0 {
+				impact.ContributedRepos = gql.contributedRepos
+				impact.PublicRepos += gql.contributedRepos
 			}
 		}
 	}
@@ -838,12 +838,46 @@ func extractRelevantCodeText(path, raw string) string {
 	return raw
 }
 
-func (c *Client) fetchGraphQLContributions(ctx context.Context, username string) (int, []int, error) {
-	total, weekly, _, _, _, err := c.fetchGraphQLContributionsAndVelocityWithReach(ctx, username, nil)
-	return total, weekly, err
+type graphQLImpactEnrichment struct {
+	totalContributions int
+	weeklyTrend        []int
+	activeStreakDays   int
+	yoyGrowthPct       float64
+	contributedRepos   int
 }
 
-func (c *Client) fetchGraphQLContributionsAndVelocityWithReach(ctx context.Context, username string, excludeRepoMap map[string]bool) (int, []int, int, float64, int, error) {
+func (c *Client) fetchGraphQLContributions(ctx context.Context, username string) (int, []int, error) {
+	gql, err := c.fetchGraphQLContributionsAndVelocityWithReach(ctx, username, nil)
+	return gql.totalContributions, gql.weeklyTrend, err
+}
+
+func (c *Client) postGraphQL(ctx context.Context, query string, variables map[string]string, out interface{}) error {
+	payload := map[string]interface{}{
+		"query":     query,
+		"variables": variables,
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/graphql", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("github graphql status %d", resp.StatusCode)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+func (c *Client) fetchGraphQLContributionsAndVelocityWithReach(ctx context.Context, username string, excludeRepoMap map[string]bool) (graphQLImpactEnrichment, error) {
 	query := `query($login: String!) {
 		user(login: $login) {
 			contributionsCollection {
@@ -870,34 +904,6 @@ func (c *Client) fetchGraphQLContributionsAndVelocityWithReach(ctx context.Conte
 		}
 	}`
 
-	payload := map[string]interface{}{
-		"query":     query,
-		"variables": map[string]string{"login": username},
-	}
-	body, _ := json.Marshal(payload)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/graphql", bytes.NewReader(body))
-	if err != nil {
-		return 0, nil, 0, 0, 0, err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return 0, nil, 0, 0, 0, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, nil, 0, 0, 0, fmt.Errorf("github graphql status %d", resp.StatusCode)
-	}
-
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, nil, 0, 0, 0, err
-	}
-
 	var parsed struct {
 		Data struct {
 			User struct {
@@ -922,8 +928,8 @@ func (c *Client) fetchGraphQLContributionsAndVelocityWithReach(ctx context.Conte
 		} `json:"data"`
 	}
 
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return 0, nil, 0, 0, 0, err
+	if err := c.postGraphQL(ctx, query, map[string]string{"login": username}, &parsed); err != nil {
+		return graphQLImpactEnrichment{}, err
 	}
 
 	cal := parsed.Data.User.ContributionsCollection.ContributionCalendar
@@ -940,12 +946,16 @@ func (c *Client) fetchGraphQLContributionsAndVelocityWithReach(ctx context.Conte
 		if full == "" {
 			continue
 		}
-		if excludeRepoMap != nil && excludeRepoMap[full] {
+		short := full
+		if slash := strings.LastIndexByte(full, '/'); slash >= 0 && slash+1 < len(full) {
+			short = full[slash+1:]
+		}
+		if excludeRepoMap != nil && (excludeRepoMap[full] || excludeRepoMap[short]) {
 			continue
 		}
 		contributedCount++
 	}
-	if contributedCount == 0 && parsed.Data.User.RepositoriesContributedTo.TotalCount > 0 {
+	if len(parsed.Data.User.RepositoriesContributedTo.Nodes) == 0 && parsed.Data.User.RepositoriesContributedTo.TotalCount > 0 {
 		contributedCount = parsed.Data.User.RepositoriesContributedTo.TotalCount
 	}
 
@@ -987,7 +997,13 @@ func (c *Client) fetchGraphQLContributionsAndVelocityWithReach(ctx context.Conte
 	if bestStreak == 0 && totalContribs > 0 {
 		bestStreak = 7
 	}
-	return totalContribs, weekly, bestStreak, growth, contributedCount, nil
+	return graphQLImpactEnrichment{
+		totalContributions: totalContribs,
+		weeklyTrend:        weekly,
+		activeStreakDays:   bestStreak,
+		yoyGrowthPct:       growth,
+		contributedRepos:   contributedCount,
+	}, nil
 }
 
 func (c *Client) fetchAllTimeContributionsByYears(ctx context.Context, username string, years []int) (int, error) {
@@ -1006,28 +1022,6 @@ func (c *Client) fetchAllTimeContributionsByYears(ctx context.Context, username 
 	}
 
 	query := fmt.Sprintf(`query($login: String!) { user(login: $login) { %s } }`, strings.Join(parts, "\n"))
-	payload := map[string]interface{}{
-		"query":     query,
-		"variables": map[string]string{"login": username},
-	}
-	body, _ := json.Marshal(payload)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/graphql", bytes.NewReader(body))
-	if err != nil {
-		return 0, err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("status %d", resp.StatusCode)
-	}
 
 	var parsed struct {
 		Data struct {
@@ -1038,7 +1032,7 @@ func (c *Client) fetchAllTimeContributionsByYears(ctx context.Context, username 
 			} `json:"user"`
 		} `json:"data"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	if err := c.postGraphQL(ctx, query, map[string]string{"login": username}, &parsed); err != nil {
 		return 0, err
 	}
 

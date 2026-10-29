@@ -125,3 +125,84 @@ func TestCollectReturnsErrorWhenAllEndpointsFail(t *testing.T) {
 		t.Fatalf("expected error when all Hugging Face endpoints return 503, got nil")
 	}
 }
+
+func TestCollectAuthenticatedPrivateModelsDatasetsAndSpacesWithDeduplication(t *testing.T) {
+	var authHeaders []string
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/models", func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		authHeaders = append(authHeaders, auth)
+		w.Header().Set("Content-Type", "application/json")
+		if auth == "Bearer hf_secret_pat" {
+			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"id": "pablodiegoo/public-llm", "downloads": 900, "likes": 12},
+				{"id": "pablodiegoo/private-client-classifier", "downloads": 50, "likes": 3},
+				{"id": "pablodiegoo/private-client-classifier", "downloads": 50, "likes": 3}, // duplicate entry to verify deduplication
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+			{"id": "pablodiegoo/public-llm", "downloads": 900, "likes": 12},
+		})
+	})
+	mux.HandleFunc("/api/datasets", func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		authHeaders = append(authHeaders, auth)
+		w.Header().Set("Content-Type", "application/json")
+		if auth == "Bearer hf_secret_pat" {
+			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"id": "pablodiegoo/public-corpus", "downloads": 400, "likes": 6},
+				{"id": "pablodiegoo/private-proprietary-survey", "downloads": 20, "likes": 1},
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+			{"id": "pablodiegoo/public-corpus", "downloads": 400, "likes": 6},
+		})
+	})
+	mux.HandleFunc("/api/spaces", func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		authHeaders = append(authHeaders, auth)
+		w.Header().Set("Content-Type", "application/json")
+		if auth == "Bearer hf_secret_pat" {
+			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"id": "pablodiegoo/public-demo", "likes": 8},
+				{"id": "pablodiegoo/private-internal-dashboard", "likes": 2},
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+			{"id": "pablodiegoo/public-demo", "likes": 8},
+		})
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	authClient := NewClientWithToken("  hf_secret_pat  ")
+	authClient.BaseURL = srv.URL
+
+	summary, err := authClient.Collect(context.Background(), domain.HuggingFaceSourceConfig{
+		Username: "pablodiegoo",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("Authenticated Collect failed: %v", err)
+	}
+
+	for i, h := range authHeaders {
+		if h != "Bearer hf_secret_pat" {
+			t.Errorf("request %d expected Authorization 'Bearer hf_secret_pat', got %q", i, h)
+		}
+	}
+	if summary.Models != 2 || summary.Datasets != 2 || summary.Spaces != 2 {
+		t.Errorf("expected deduplicated public+private Models=2 Datasets=2 Spaces=2, got %+v", summary)
+	}
+	if summary.Downloads30d != 1370 {
+		t.Errorf("expected deduplicated Downloads30d=1370, got %d", summary.Downloads30d)
+	}
+	if summary.Likes != 32 {
+		t.Errorf("expected deduplicated Likes=32, got %d", summary.Likes)
+	}
+}

@@ -120,6 +120,7 @@ func TestLoadSecrets(t *testing.T) {
 export GITHUB_TOKEN="ghp_from_dotenv" # inline comment
 KAGGLE_USERNAME='kaggle_dotenv_user'
 KAGGLE_KEY=kaggle_dotenv_key
+HUGGINGFACE_TOKEN="hf_dotenv_fallback"
 `
 	if err := os.WriteFile(dotenvPath, []byte(dotenvContent), 0o600); err != nil {
 		t.Fatal(err)
@@ -129,6 +130,8 @@ KAGGLE_KEY=kaggle_dotenv_key
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("KAGGLE_USERNAME", "")
 	t.Setenv("KAGGLE_KEY", "")
+	t.Setenv("HF_TOKEN", "")
+	t.Setenv("HUGGINGFACE_TOKEN", "")
 
 	// 1. Fallback to .env when process env vars are unset
 	s := LoadSecrets(dotenvPath)
@@ -138,19 +141,30 @@ KAGGLE_KEY=kaggle_dotenv_key
 	if s.KaggleUsername != "kaggle_dotenv_user" || s.KaggleKey != "kaggle_dotenv_key" {
 		t.Errorf("unexpected Kaggle secrets from .env: %+v", s)
 	}
+	if s.HFToken != "hf_dotenv_fallback" {
+		t.Errorf("expected HFToken hf_dotenv_fallback from .env HUGGINGFACE_TOKEN, got %q", s.HFToken)
+	}
 
 	// 2. Process env overrides .env
 	t.Setenv("GITHUB_TOKEN", "ghp_from_env")
+	t.Setenv("HUGGINGFACE_TOKEN", "hf_from_env_alias")
 	s = LoadSecrets(dotenvPath)
 	if s.GitHubToken != "ghp_from_env" {
 		t.Errorf("expected env GITHUB_TOKEN to override .env, got %q", s.GitHubToken)
 	}
+	if s.HFToken != "hf_from_env_alias" {
+		t.Errorf("expected env HUGGINGFACE_TOKEN to override .env, got %q", s.HFToken)
+	}
 
-	// 3. ACCESS_TOKEN takes precedence over GITHUB_TOKEN
+	// 3. ACCESS_TOKEN takes precedence over GITHUB_TOKEN, and HF_TOKEN takes precedence over HUGGINGFACE_TOKEN
 	t.Setenv("ACCESS_TOKEN", "pat_access_token")
+	t.Setenv("HF_TOKEN", "hf_primary_token")
 	s = LoadSecrets(dotenvPath)
 	if s.GitHubToken != "pat_access_token" {
 		t.Errorf("expected ACCESS_TOKEN to take precedence over GITHUB_TOKEN, got %q", s.GitHubToken)
+	}
+	if s.HFToken != "hf_primary_token" {
+		t.Errorf("expected HF_TOKEN to take precedence over HUGGINGFACE_TOKEN, got %q", s.HFToken)
 	}
 }
 

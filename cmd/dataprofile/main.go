@@ -66,7 +66,7 @@ func runGenerate() {
 
 		ghClient := github.NewClient(secrets.GitHubToken)
 		kgClient := kaggle.NewClient(secrets.KaggleUsername, secrets.KaggleKey)
-		hfClient := huggingface.NewClient()
+		hfClient := huggingface.NewClientWithToken(secrets.HFToken)
 		collectLiveSources(ctx, manifest, &data, ghClient, kgClient, hfClient)
 	}
 
@@ -159,6 +159,7 @@ func collectLiveSources(
 				data.Stack = sp
 			}
 			data.Impact.PublicRepos = im.PublicRepos
+			data.Impact.ContributedRepos = im.ContributedRepos
 			data.Impact.TotalStars = im.TotalStars
 			data.Impact.TotalForks = im.TotalForks
 			data.Impact.AnnualContributions = im.AnnualContributions

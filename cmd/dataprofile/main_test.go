@@ -125,6 +125,13 @@ func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {
 							},
 						},
 					},
+					"repositoriesContributedTo": map[string]interface{}{
+						"totalCount": 2,
+						"nodes": []map[string]string{
+							{"nameWithOwner": "iota-uz/iota-sdk"},
+							{"nameWithOwner": "Agora-Pesquisa/agora-pesquisa.github.io"},
+						},
+					},
 				},
 			},
 		})
@@ -148,7 +155,7 @@ func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {
 	ghClient := github.NewClient("ghp_live_token")
 	ghClient.BaseURL = ghSrv.URL
 
-	hfClient := huggingface.NewClient()
+	hfClient := huggingface.NewClientWithToken("hf_live_token")
 	hfClient.BaseURL = hfZeroSrv.URL
 
 	data := render.DefaultPortfolioData(manifest)
@@ -156,6 +163,10 @@ func TestLiveCollectionImpactWiringAndZeroHFFallback(t *testing.T) {
 
 	if data.Impact.AnnualContributions != 2150 {
 		t.Errorf("expected AnnualContributions=2150, got %d", data.Impact.AnnualContributions)
+	}
+	if data.Impact.ContributedRepos != 2 || data.Impact.PublicRepos != 3 || data.Languages.TotalRepos != 1 {
+		t.Errorf("expected ContributedRepos=2, Impact.PublicRepos=3 (1 Owned + 2 Contributed), Languages.TotalRepos=1, got ContributedRepos=%d PublicRepos=%d TotalRepos=%d",
+			data.Impact.ContributedRepos, data.Impact.PublicRepos, data.Languages.TotalRepos)
 	}
 	if len(data.Impact.WeeklyTrend) != 4 || data.Impact.WeeklyTrend[3] != 55 {
 		t.Errorf("expected WeeklyTrend=[10 25 40 55], got %v", data.Impact.WeeklyTrend)
@@ -301,6 +312,7 @@ func TestGitHubActionWorkflowAndSecretHygiene(t *testing.T) {
 		`GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`,
 		`KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}`,
 		`KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}`,
+		`HF_TOKEN: ${{ secrets.HF_TOKEN }}`,
 		`go run ./cmd/dataprofile generate`,
 		`go run ./cmd/dataprofile validate`,
 		`git checkout --orphan`,
@@ -330,7 +342,7 @@ func TestGitHubActionWorkflowAndSecretHygiene(t *testing.T) {
 		t.Fatalf("missing .env.example: %v", err)
 	}
 	envExStr := string(envExRaw)
-	for _, key := range []string{"ACCESS_TOKEN=", "GITHUB_TOKEN=", "KAGGLE_USERNAME=", "KAGGLE_KEY="} {
+	for _, key := range []string{"ACCESS_TOKEN=", "GITHUB_TOKEN=", "KAGGLE_USERNAME=", "KAGGLE_KEY=", "HF_TOKEN="} {
 		if !strings.Contains(envExStr, key) {
 			t.Errorf(".env.example missing documented variable %q", key)
 		}

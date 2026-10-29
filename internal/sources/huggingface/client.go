@@ -11,10 +11,11 @@ import (
 	"github.com/pablodiegoo/dataprofile/internal/domain"
 )
 
-// Client queries the public Hugging Face Hub REST API.
+// Client queries the Hugging Face Hub REST API (including private artifacts when Token is set).
 type Client struct {
 	HTTPClient *http.Client
 	BaseURL    string
+	Token      string
 }
 
 // NewClient returns a Hugging Face Hub client.
@@ -23,6 +24,13 @@ func NewClient() *Client {
 		HTTPClient: &http.Client{Timeout: 12 * time.Second},
 		BaseURL:    "https://huggingface.co",
 	}
+}
+
+// NewClientWithToken returns an authenticated Hugging Face Hub client for public + private aggregation.
+func NewClientWithToken(token string) *Client {
+	c := NewClient()
+	c.Token = strings.TrimSpace(token)
+	return c
 }
 
 // Summary holds aggregated counts across models, datasets, and spaces.
@@ -86,6 +94,9 @@ func (c *Client) fetchEndpoint(ctx context.Context, url string) ([]hfItem, error
 	if err != nil {
 		return nil, err
 	}
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -100,5 +111,21 @@ func (c *Client) fetchEndpoint(ctx context.Context, url string) ([]hfItem, error
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		return nil, err
 	}
-	return list, nil
+	return dedupeHFItems(list), nil
+}
+
+func dedupeHFItems(items []hfItem) []hfItem {
+	seen := make(map[string]bool, len(items))
+	out := make([]hfItem, 0, len(items))
+	for _, it := range items {
+		key := strings.ToLower(strings.TrimSpace(it.ID))
+		if key != "" {
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+		}
+		out = append(out, it)
+	}
+	return out
 }

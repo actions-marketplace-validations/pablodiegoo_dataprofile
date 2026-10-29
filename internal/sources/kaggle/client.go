@@ -112,6 +112,16 @@ func (c *Client) fetchAPIStanding(ctx context.Context, username string) (domain.
 		return domain.KaggleStanding{Available: false, Username: username}, err
 	}
 
+	// When authenticated as the Subject, also aggregate private kernels and datasets via ?mine=true
+	if strings.EqualFold(c.APIUsername, username) || (c.APIUsername == "" && strings.HasPrefix(c.APIKey, "KGAT_")) {
+		if privKernels, err := c.fetchMineAPIArtifacts(ctx, "/api/v1/kernels/list"); err == nil {
+			kernels = mergeKaggleArtifacts(kernels, privKernels)
+		}
+		if privDatasets, err := c.fetchMineAPIArtifacts(ctx, "/api/v1/datasets/list"); err == nil {
+			datasets = mergeKaggleArtifacts(datasets, privDatasets)
+		}
+	}
+
 	nbGold, nbSilver, nbBronze := tallyArtifactMedals(kernels)
 	dsGold, dsSilver, dsBronze := tallyArtifactMedals(datasets)
 
@@ -142,11 +152,19 @@ func (c *Client) fetchAPIStanding(ctx context.Context, username string) (domain.
 }
 
 func (c *Client) fetchAPIArtifacts(ctx context.Context, endpoint, username string) ([]kaggleAPIArtifact, error) {
+	return c.fetchAPIArtifactsWithQuery(ctx, endpoint, "user="+url.QueryEscape(username))
+}
+
+func (c *Client) fetchMineAPIArtifacts(ctx context.Context, endpoint string) ([]kaggleAPIArtifact, error) {
+	return c.fetchAPIArtifactsWithQuery(ctx, endpoint, "mine=true")
+}
+
+func (c *Client) fetchAPIArtifactsWithQuery(ctx context.Context, endpoint, rawQuery string) ([]kaggleAPIArtifact, error) {
 	base := strings.TrimRight(c.BaseURL, "/")
 	if base == "" {
 		base = "https://www.kaggle.com"
 	}
-	reqURL := fmt.Sprintf("%s%s?user=%s", base, endpoint, url.QueryEscape(username))
+	reqURL := fmt.Sprintf("%s%s?%s", base, endpoint, rawQuery)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, err
@@ -171,7 +189,7 @@ func (c *Client) fetchAPIArtifacts(ctx context.Context, endpoint, username strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("kaggle API %s returned status %d", endpoint, resp.StatusCode)
+		return nil, fmt.Errorf("kaggle API %s?%s returned status %d", endpoint, rawQuery, resp.StatusCode)
 	}
 
 	var items []kaggleAPIArtifact
@@ -179,6 +197,29 @@ func (c *Client) fetchAPIArtifacts(ctx context.Context, endpoint, username strin
 		return nil, err
 	}
 	return items, nil
+}
+
+func mergeKaggleArtifacts(base, extra []kaggleAPIArtifact) []kaggleAPIArtifact {
+	combined := make([]kaggleAPIArtifact, 0, len(base)+len(extra))
+	combined = append(combined, base...)
+	combined = append(combined, extra...)
+
+	seen := make(map[string]bool, len(combined))
+	out := make([]kaggleAPIArtifact, 0, len(combined))
+	for _, it := range combined {
+		key := strings.ToLower(strings.TrimSpace(it.Ref))
+		if key == "" {
+			key = strings.ToLower(strings.TrimSpace(it.Title))
+		}
+		if key != "" {
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+		}
+		out = append(out, it)
+	}
+	return out
 }
 
 func tallyArtifactMedals(items []kaggleAPIArtifact) (gold, silver, bronze int) {

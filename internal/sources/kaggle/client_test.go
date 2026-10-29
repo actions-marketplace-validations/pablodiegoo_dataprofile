@@ -5,9 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/pablodiegoo/dataprofile/internal/domain"
+	"github.com/pablodiegoo/dataprofile/internal/render"
 )
 
 func TestParseKaggleAchievementsText(t *testing.T) {
@@ -319,6 +321,114 @@ func TestClientCollectModesAndAPIEnrichment(t *testing.T) {
 			t.Errorf("unexpected fallback standing: %+v", st)
 		}
 	})
+}
+
+func TestClientCollectMinePrivateArtifactsDeduplicationAndPrivacy(t *testing.T) {
+	ctx := context.Background()
+
+	var mineKernelsCalls, mineDatasetsCalls int
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		isMine := r.URL.Query().Get("mine") == "true"
+
+		switch r.URL.Path {
+		case "/api/v1/kernels/list":
+			if isMine {
+				mineKernelsCalls++
+				// Returns 1 duplicate public notebook + 1 private notebook with a Bronze medal
+				_, _ = w.Write([]byte(`[
+					{"ref": "pablodiegoo/public-eda-kernel", "title": "Public EDA Kernel", "medal": "silver", "totalVotes": 45},
+					{"ref": "pablodiegoo/secret-proprietary-alpha-model", "title": "Secret Proprietary Alpha Model", "medal": "bronze", "totalVotes": 12}
+				]`))
+				return
+			}
+			// Public ?user=pablodiegoo endpoint
+			_, _ = w.Write([]byte(`[
+				{"ref": "pablodiegoo/public-eda-kernel", "title": "Public EDA Kernel", "medal": "silver", "totalVotes": 45}
+			]`))
+
+		case "/api/v1/datasets/list":
+			if isMine {
+				mineDatasetsCalls++
+				// Returns 1 private dataset (no public datasets exist)
+				_, _ = w.Write([]byte(`[
+					{"ref": "pablodiegoo/private-hospital-records", "title": "Private Hospital Records", "medal": "", "totalVotes": 3}
+				]`))
+				return
+			}
+			// Public ?user=pablodiegoo has 0 public datasets
+			_, _ = w.Write([]byte(`[]`))
+
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	// 1. When authenticated as the Subject (APIUsername matches cfg.Username), ?mine=true is queried and deduplicated
+	c := NewClient("pablodiegoo", "kaggle_secret_key")
+	c.BaseURL = srv.URL
+	c.DOMDumper = func(ctx context.Context, username string) (string, error) {
+		return `Notebooks Novice Datasets Novice Competitions Novice Discussions Novice`, nil
+	}
+
+	st, err := c.Collect(ctx, domain.KaggleSourceConfig{
+		Username: "pablodiegoo",
+		Enabled:  true,
+		Mode:     domain.KaggleModeHybrid,
+	})
+	if err != nil {
+		t.Fatalf("Collect failed: %v", err)
+	}
+	if mineKernelsCalls != 1 || mineDatasetsCalls != 1 {
+		t.Errorf("expected 1 mine kernels call and 1 mine datasets call when authenticated as Subject, got kernels=%d datasets=%d",
+			mineKernelsCalls, mineDatasetsCalls)
+	}
+	// Public silver medal is NOT double-counted; private bronze medal is merged -> 0 Gold, 1 Silver, 1 Bronze
+	if st.TotalGold != 0 || st.TotalSilver != 1 || st.TotalBronze != 1 {
+		t.Errorf("expected deduplicated medals G=0 S=1 B=1, got G=%d S=%d B=%d", st.TotalGold, st.TotalSilver, st.TotalBronze)
+	}
+	// Datasets had 0 public artifacts, but 1 private dataset via ?mine=true upgrades Datasets from Novice to Contributor
+	if len(st.Categories) < 2 || st.Categories[1].Name != "Datasets" || st.Categories[1].Tier != domain.KaggleTierContributor {
+		t.Errorf("expected Datasets track upgraded to Contributor from private dataset count, got %+v", st.Categories)
+	}
+
+	// 2. When APIUsername belongs to a different user, ?mine=true must NOT be called even with a KGAT_ token
+	mineKernelsCalls, mineDatasetsCalls = 0, 0
+	otherClient := NewClient("different_user", "KGAT_some_token")
+	otherClient.BaseURL = srv.URL
+	otherClient.DOMDumper = c.DOMDumper
+	if _, err := otherClient.Collect(ctx, domain.KaggleSourceConfig{
+		Username: "pablodiegoo",
+		Enabled:  true,
+		Mode:     domain.KaggleModeHybrid,
+	}); err != nil {
+		t.Fatalf("Collect with non-matching APIUsername failed: %v", err)
+	}
+	if mineKernelsCalls != 0 || mineDatasetsCalls != 0 {
+		t.Errorf("expected 0 ?mine=true calls when APIUsername != Subject username, got kernels=%d datasets=%d",
+			mineKernelsCalls, mineDatasetsCalls)
+	}
+
+	// 3. Privacy-preserving guarantee: private Kaggle refs/titles never leak into rendered SVGs
+	portfolio := render.DefaultPortfolioData(domain.ProfileManifest{
+		Subject: domain.SubjectConfig{Name: "Pablo Diego", Locale: "en"},
+	})
+	portfolio.Kaggle = st
+	for _, school := range domain.AllSchools() {
+		for _, panel := range []domain.Panel{domain.PanelKaggle, domain.PanelSummary} {
+			svg, err := render.Render(school, panel, portfolio)
+			if err != nil {
+				t.Fatalf("Render(%s, %s) failed: %v", school, panel, err)
+			}
+			for _, secret := range []string{"secret-proprietary-alpha-model", "Secret Proprietary Alpha Model", "private-hospital-records", "Private Hospital Records"} {
+				if strings.Contains(svg, secret) {
+					t.Errorf("privacy leak: Render(%s, %s) leaked private Kaggle artifact %q", school, panel, secret)
+				}
+			}
+		}
+	}
 }
 
 
