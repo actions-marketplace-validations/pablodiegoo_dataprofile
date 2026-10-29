@@ -135,18 +135,12 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 
 	lines := strings.Split(string(data), "\n")
 	for _, rawLine := range lines {
-		// Strip inline comments outside quotes
-		line := stripYAMLComment(rawLine)
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
+		rawIndent := len(rawLine) - len(strings.TrimLeft(rawLine, " "))
 
-		indent := len(line) - len(strings.TrimLeft(line, " "))
-
-		// Handle YAML block scalar lines (| or >) under subject.bio or subject.headlines
-		if section == "subject" && indent >= 4 && (listKey == "bio_block" || listKey == "headlines_block") {
-			textLine := cleanYAMLScalar(trimmed)
+		// Handle YAML block scalar lines (| or >) under subject.bio or subject.headlines before comment stripping,
+		// since '#' inside a YAML block scalar is literal text (e.g., "Kaggle Master (#412)").
+		if section == "subject" && rawIndent >= 4 && (listKey == "bio_block" || listKey == "headlines_block") {
+			textLine := cleanYAMLScalar(strings.TrimSpace(rawLine))
 			if textLine != "" {
 				if listKey == "bio_block" {
 					manifest.Subject.Bio = append(manifest.Subject.Bio, textLine)
@@ -156,6 +150,15 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 			}
 			continue
 		}
+
+		// Strip inline comments outside quotes
+		line := stripYAMLComment(rawLine)
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		indent := len(line) - len(strings.TrimLeft(line, " "))
 
 		// Handle list items (- "value")
 		if strings.HasPrefix(trimmed, "-") {
@@ -230,7 +233,7 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 				}
 				continue
 			}
-			if (val == "|" || val == ">") && section == "subject" && (key == "bio" || key == "headlines") {
+			if isYAMLBlockScalarIndicator(val) && section == "subject" && (key == "bio" || key == "headlines") {
 				listKey = key + "_block"
 				continue
 			}
@@ -254,13 +257,9 @@ func LoadManifest(path string) (domain.ProfileManifest, error) {
 				case "locale":
 					manifest.Subject.Locale = val
 				case "headlines":
-					manifest.Subject.Headlines = []string{val}
+					manifest.Subject.Headlines = append(manifest.Subject.Headlines, splitMultilineScalar(val)...)
 				case "bio":
-					for _, p := range strings.Split(strings.ReplaceAll(val, `\n`, "\n"), "\n") {
-						if p = strings.TrimSpace(p); p != "" {
-							manifest.Subject.Bio = append(manifest.Subject.Bio, p)
-						}
-					}
+					manifest.Subject.Bio = append(manifest.Subject.Bio, splitMultilineScalar(val)...)
 				}
 			case "normalization":
 				switch key {
@@ -378,6 +377,25 @@ func parseInlineYAMLArray(s string) ([]string, bool) {
 	return out, true
 }
 
+
+func isYAMLBlockScalarIndicator(s string) bool {
+	switch strings.TrimSpace(s) {
+	case "|", "|-", "|+", ">", ">-", ">+":
+		return true
+	default:
+		return false
+	}
+}
+
+func splitMultilineScalar(val string) []string {
+	var out []string
+	for _, p := range strings.Split(strings.ReplaceAll(val, `\n`, "\n"), "\n") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
 func parseBool(s string, fallback bool) bool {
 	switch strings.ToLower(strings.TrimSpace(s)) {

@@ -54,12 +54,12 @@ output:
     - "cairo"   # Alberto Cairo: Functional Art journalism, Waffle 10x5, Lollipops & Callouts
     - "holmes"  # Nigel Holmes: Pictorial Isotypes, stepped podium & Trophy storytelling
   panels:
-    - "summary"   # Consolidated 4-quadrant overview card
+    - "summary"   # Consolidated 4-quadrant overview panel
     - "languages" # Panel 1: Code, Notebooks & Production Engineering
     - "stack"     # Panel 2: Data, ML & Analytics Ecosystem
     - "kaggle"    # Panel 3: Kaggle Competitive Standing & Medals
     - "impact"    # Panel 4: Open-Source & AI Community Impact
-    - "header"    # Animated full-width header banner (900px)
-    - "bio"       # Elastic career bio card (440px mobile/grid width)
-    - "bio-full"  # Elastic career bio banner (900px full width)
+    - "header"    # Animated full-width header panel (900px)
+    - "bio"       # Elastic career bio panel (440px mobile/grid width)
+    - "bio-full"  # Elastic career bio panel (900px full width)
     - "full"      # Full portfolio composite: Header + Bio + 4 Complete Panels (900px)

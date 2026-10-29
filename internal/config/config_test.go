@@ -269,6 +269,49 @@ subject:
 	if len(mb.Subject.Bio) != 2 || mb.Subject.Bio[1] != "Second line of career narrative." {
 		t.Errorf("unexpected block Subject.Bio: %+v", mb.Subject.Bio)
 	}
+
+	// Test block scalar (|- and >) with literal '#' and \n-escaped scalar for headlines
+	headlinesBlockPath := filepath.Join(dir, "headlines-block.yaml")
+	headlinesBlockContent := `
+subject:
+  name: "Grace Hopper"
+  headlines: |-
+    First compiler pioneer
+    Kaggle Master (#412) & COBOL
+    Debugging since 1947
+`
+	if err := os.WriteFile(headlinesBlockPath, []byte(headlinesBlockContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mhb, err := LoadManifest(headlinesBlockPath)
+	if err != nil {
+		t.Fatalf("LoadManifest headlines-block failed: %v", err)
+	}
+	wantHeadlines := []string{
+		"First compiler pioneer",
+		"Kaggle Master (#412) & COBOL",
+		"Debugging since 1947",
+	}
+	if len(mhb.Subject.Headlines) != len(wantHeadlines) {
+		t.Fatalf("expected %d block headlines, got %d (%+v)", len(wantHeadlines), len(mhb.Subject.Headlines), mhb.Subject.Headlines)
+	}
+	for i, w := range wantHeadlines {
+		if mhb.Subject.Headlines[i] != w {
+			t.Errorf("Subject.Headlines[%d] = %q, want %q", i, mhb.Subject.Headlines[i], w)
+		}
+	}
+
+	headlinesEscapedPath := filepath.Join(dir, "headlines-escaped.yaml")
+	if err := os.WriteFile(headlinesEscapedPath, []byte("subject:\n  headlines: \"Line one\\nLine two\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mhe, err := LoadManifest(headlinesEscapedPath)
+	if err != nil {
+		t.Fatalf("LoadManifest headlines-escaped failed: %v", err)
+	}
+	if len(mhe.Subject.Headlines) != 2 || mhe.Subject.Headlines[0] != "Line one" || mhe.Subject.Headlines[1] != "Line two" {
+		t.Errorf("expected 2 escaped headlines [Line one, Line two], got %+v", mhe.Subject.Headlines)
+	}
 }
 
 

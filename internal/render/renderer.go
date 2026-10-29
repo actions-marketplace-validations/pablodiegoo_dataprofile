@@ -441,7 +441,7 @@ func Render(school domain.School, panel domain.Panel, data domain.PortfolioData)
 	case domain.PanelImpact:
 		svg = renderImpact(school, data, lbl)
 	case domain.PanelHeader:
-		svg = renderHeader(school, data, lbl)
+		svg = renderHeaderSection(school, data, lbl, "hdr-", true)
 	case domain.PanelBio:
 		svg = renderBio(school, data, lbl, false)
 	case domain.PanelBioFull:
@@ -463,17 +463,23 @@ func Render(school domain.School, panel domain.Panel, data domain.PortfolioData)
 	return svg, nil
 }
 
-// ValidateSVG checks that the SVG string is well-formed XML, contains no low-contrast washed-out pale greys,
-// and contains zero School meta-labels inside the artwork.
+// ValidateSVG checks that the SVG string is well-formed XML, contains no external scripts or <foreignObject> tags (ADR-0004),
+// contains no low-contrast washed-out pale greys, and contains zero School meta-labels inside the artwork.
 func ValidateSVG(svg string) error {
 	decoder := xml.NewDecoder(strings.NewReader(svg))
 	for {
-		_, err := decoder.Token()
+		tok, err := decoder.Token()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return err
+		}
+		if se, ok := tok.(xml.StartElement); ok {
+			tag := strings.ToLower(se.Name.Local)
+			if tag == "script" || tag == "foreignobject" {
+				return fmt.Errorf("SVG contains forbidden <%s> element (violates ADR-0004)", se.Name.Local)
+			}
 		}
 	}
 	forbiddenPaleGreys := []string{"#e6edf3", "#e2e8f0", "#f8fafc", "#c9d1d9", "#cbd5e1", "#8b949e", "#94a3b8"}
@@ -2157,10 +2163,6 @@ func buildTrendPathD(weekly []int, x0, y0, width, height int) (string, int, int)
 		b.WriteString(pt)
 	}
 	return b.String(), lastX, lastY
-}
-
-func renderHeader(school domain.School, d domain.PortfolioData, l labels) string {
-	return renderHeaderSection(school, d, l, "hdr-", true)
 }
 
 func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels, idPrefix string, standalone bool) string {

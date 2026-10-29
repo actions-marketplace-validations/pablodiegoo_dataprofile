@@ -40,8 +40,8 @@ normalization:
   deflate_notebooks: true
 output:
   directory: "default-ignored-dir"
-  schools: ["tufte"]
-  panels: ["languages"]
+  schools: ["tufte", "few", "cairo", "holmes"]
+  panels: ["languages", "header"]
 `
 	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
@@ -72,6 +72,24 @@ output:
 		t.Errorf("expected Tufte languages.svg to have zero outer box/cage (<rect>), found one")
 	}
 
+	for _, school := range []string{"tufte", "few", "cairo", "holmes"} {
+		hdrPath := filepath.Join(outDir, school, "header.svg")
+		hdrBytes, err := os.ReadFile(hdrPath)
+		if err != nil {
+			t.Fatalf("expected generated header.svg at %s: %v", hdrPath, err)
+		}
+		hdrStr := string(hdrBytes)
+		for _, tok := range []string{
+			`viewBox="0 0 900 115"`,
+			`<textPath xlink:href="#hdr-path0">Welcome! I&#39;m Ada Lovelace 👋</textPath>`,
+			`attributeName="stroke-dasharray"`,
+		} {
+			if !strings.Contains(hdrStr, tok) {
+				t.Errorf("expected %s in %s", tok, hdrPath)
+			}
+		}
+	}
+
 	// 2. Run validate with --config and --output
 	valCmd := exec.Command(binPath, "validate", "--config", manifestPath, "--output", outDir)
 	if out, err := valCmd.CombinedOutput(); err != nil {
@@ -90,6 +108,13 @@ output:
 	}
 	if !strings.Contains(string(ptSVG), "Distribuição de Código") {
 		t.Errorf("expected --locale=pt-BR CLI flag to render Portuguese title in languages.svg")
+	}
+	ptHdrSVG, err := os.ReadFile(filepath.Join(ptOutDir, "cairo", "header.svg"))
+	if err != nil {
+		t.Fatalf("expected pt-BR generated cairo/header.svg: %v", err)
+	}
+	if !strings.Contains(string(ptHdrSVG), "Olá! Eu sou Ada Lovelace 👋") || !strings.Contains(string(ptHdrSVG), "↳ 1,428 contribuições anuais") {
+		t.Errorf("expected --locale=pt-BR CLI flag to localize fallback headlines and callout in cairo/header.svg")
 	}
 }
 

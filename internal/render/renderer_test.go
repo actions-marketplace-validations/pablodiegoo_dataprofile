@@ -305,6 +305,16 @@ func TestValidateSVGInvariants(t *testing.T) {
 			t.Errorf("expected forbidden School meta-label %q to fail ValidateSVG", meta)
 		}
 	}
+
+	// 4. Forbidden <script> and <foreignObject> elements must fail (ADR-0004)
+	for _, forbiddenTag := range []string{
+		`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`,
+		`<svg xmlns="http://www.w3.org/2000/svg"><foreignObject width="100" height="50"><div>html</div></foreignObject></svg>`,
+	} {
+		if err := ValidateSVG(forbiddenTag); err == nil {
+			t.Errorf("expected forbidden tag in %s to fail ValidateSVG", forbiddenTag)
+		}
+	}
 }
 
 func TestRenderStackPanelAllSchoolsAndLeaderHighlighting(t *testing.T) {
@@ -758,6 +768,96 @@ func extractSVGHeight(t *testing.T, svg string) int {
 		}
 	}
 	return h
+}
+
+func TestHeaderPanelFallbackHeadlinesLocalizationAndDynamicTrend(t *testing.T) {
+	manifestEN := config.DefaultManifest()
+	manifestEN.Subject.Name = "Ada Lovelace"
+	manifestEN.Subject.Role = "Quantitative Researcher"
+	manifestEN.Subject.Locale = "en"
+	manifestEN.Subject.Headlines = nil // omitted -> synthesize fallback headlines
+
+	dataEN := DefaultPortfolioData(manifestEN)
+
+	manifestPT := manifestEN
+	manifestPT.Subject.Locale = "pt-BR"
+	dataPT := DefaultPortfolioData(manifestPT)
+
+	for _, school := range domain.AllSchools() {
+		// 1. Omitted headlines in English
+		svgEN, err := Render(school, domain.PanelHeader, dataEN)
+		if err != nil {
+			t.Fatalf("Render(%s, header) en fallback failed: %v", school, err)
+		}
+		for _, want := range []string{
+			`viewBox="0 0 900 115" width="900" height="115"`,
+			`<textPath xlink:href="#hdr-path0">Welcome! I&#39;m Ada Lovelace 👋</textPath>`,
+			`<textPath xlink:href="#hdr-path1">Python (58.4%) · Pandas / Polars · 32 Repositories</textPath>`,
+			`<textPath xlink:href="#hdr-path2">Kaggle Master (#412) · 1,428 Contributions (+34% YoY)</textPath>`,
+			`<animate id="hdr-d0" attributeName="d" begin="0s;hdr-d2.end"`,
+			`<animate id="hdr-d1" attributeName="d" begin="hdr-d0.end"`,
+			`<animate id="hdr-d2" attributeName="d" begin="hdr-d1.end"`,
+		} {
+			if !strings.Contains(svgEN, want) {
+				t.Errorf("Render(%s, header) en fallback missing %q", school, want)
+			}
+		}
+
+		// 2. Omitted headlines in Portuguese (pt-BR)
+		svgPT, err := Render(school, domain.PanelHeader, dataPT)
+		if err != nil {
+			t.Fatalf("Render(%s, header) pt-BR fallback failed: %v", school, err)
+		}
+		for _, want := range []string{
+			`<textPath xlink:href="#hdr-path0">Olá! Eu sou Ada Lovelace 👋</textPath>`,
+			`<textPath xlink:href="#hdr-path1">Python (58.4%) · Pandas / Polars · 32 Repositórios</textPath>`,
+			`<textPath xlink:href="#hdr-path2">Kaggle Master (#412) · 1,428 Contribuições (+34% YoY)</textPath>`,
+		} {
+			if !strings.Contains(svgPT, want) {
+				t.Errorf("Render(%s, header) pt-BR fallback missing %q", school, want)
+			}
+		}
+		if school == domain.SchoolTufte || school == domain.SchoolFew {
+			if !strings.Contains(svgPT, "Tendência 52 Semanas") || strings.Contains(svgPT, "52-Week Velocity") {
+				t.Errorf("Render(%s, header) pt-BR expected localized 'Tendência 52 Semanas'", school)
+			}
+		}
+		if school == domain.SchoolCairo {
+			if !strings.Contains(svgPT, "↳ 1,428 contribuições anuais (+34% YoY) · Kaggle Master") {
+				t.Errorf("Render(cairo, header) pt-BR expected localized ↳ callout")
+			}
+		}
+
+		// 3. Single custom headline loops on its own animation end (0s;hdr-d0.end)
+		singleData := DefaultPortfolioData(manifestEN)
+		singleData.Subject.Headlines = []string{"Solo headline loop"}
+		svgSingle, err := Render(school, domain.PanelHeader, singleData)
+		if err != nil {
+			t.Fatalf("Render(%s, header) single headline failed: %v", school, err)
+		}
+		if !strings.Contains(svgSingle, `<animate id="hdr-d0" attributeName="d" begin="0s;hdr-d0.end"`) {
+			t.Errorf("Render(%s, header) single headline expected self-loop begin=\"0s;hdr-d0.end\"", school)
+		}
+
+		// 4. Dynamic WeeklyTrend geometry across all 4 Schools (including Holmes)
+		trendRising := DefaultPortfolioData(manifestEN)
+		trendRising.Impact.WeeklyTrend = []int{5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60}
+
+		trendFalling := DefaultPortfolioData(manifestEN)
+		trendFalling.Impact.WeeklyTrend = []int{60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5}
+
+		svgRising, err := Render(school, domain.PanelHeader, trendRising)
+		if err != nil {
+			t.Fatalf("Render(%s, header) rising trend failed: %v", school, err)
+		}
+		svgFalling, err := Render(school, domain.PanelHeader, trendFalling)
+		if err != nil {
+			t.Fatalf("Render(%s, header) falling trend failed: %v", school, err)
+		}
+		if svgRising == svgFalling {
+			t.Errorf("Render(%s, header) produced identical SVG for different WeeklyTrend slices", school)
+		}
+	}
 }
 
 
