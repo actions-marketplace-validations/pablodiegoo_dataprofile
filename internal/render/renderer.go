@@ -1705,7 +1705,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     <line x1="58" y1="46" x2="%d" y2="46" stroke="#64748b" stroke-width="1.1"/>
     <circle cx="%d" cy="46" r="2.5" fill="#00ADD8"/>
     <text x="200" y="50" text-anchor="end" class="num val">%.1f%%</text>
-    <text x="0" y="66" class="serif lbl">%s</text>
+    <text x="0" y="66" class="serif lbl">Prod vs. EDA</text>
     <text x="200" y="66" text-anchor="end" class="num val" fill="#059669">%.0f%% Prod / %.0f%% EDA</text>
   </g>
 
@@ -1747,7 +1747,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 			esc(langs[0].Name), l0End, l0End, langs[0].Percentage,
 			esc(langs[1].Name), l1End, l1End, langs[1].Percentage,
 			esc(langs[2].Name), l2End, l2End, langs[2].Percentage,
-			esc(l.LangSecEDAProd), d.Languages.ProductionPct, d.Languages.ExplorationPct,
+			d.Languages.ProductionPct, d.Languages.ExplorationPct,
 			esc(l.StackTitle),
 			esc(dataCol[0].Name), dataCol[0].RepoCount,
 			esc(mlCol[0].Name), mlCol[0].RepoCount,
@@ -1770,7 +1770,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
-    .hdr { font-size: 12px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.5px; }
+    .hdr { font-size: 10.5px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.3px; }
     .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
     .lbl { font-size: 10px; font-weight: 500; fill: #526071; }
     .val { font-size: 10px; font-weight: 700; fill: #64748b; }
@@ -1885,7 +1885,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
     .headline { font-size: 12.5px; font-weight: bold; fill: #526071; }
-    .lead { font-size: 9.8px; fill: #64748b; }
+    .lead { font-size: 9px; fill: #64748b; }
     .sec { font-size: 9px; font-weight: 700; fill: #e11d48; text-transform: uppercase; letter-spacing: 0.4px; }
     .lbl { font-size: 10px; font-weight: 600; fill: #526071; }
     .val { font-size: 10px; font-weight: 700; fill: #64748b; }
@@ -1909,7 +1909,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     <circle cx="%d" cy="32" r="3.5" fill="#d97706"/>
     <text x="202" y="36" text-anchor="end" class="mono val">%.1f%%</text>
 
-    <text x="0" y="54" class="sans lbl">%s</text>
+    <text x="0" y="54" class="sans lbl">Prod vs. EDA</text>
     <text x="202" y="54" text-anchor="end" class="mono val" fill="#059669">%.0f%% Prod / %.0f%% EDA</text>
   </g>
 
@@ -1948,7 +1948,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 			esc(l.LangSecTrueProp),
 			esc(langs[0].Name), l0End, l0End, langs[0].Percentage,
 			esc(langs[1].Name), l1End, l1End, langs[1].Percentage,
-			esc(l.LangSecEDAProd), d.Languages.ProductionPct, d.Languages.ExplorationPct,
+			d.Languages.ProductionPct, d.Languages.ExplorationPct,
 			esc(l.StackTitle),
 			esc(dataCol[0].Name), dataCol[0].RepoCount,
 			esc(mlCol[0].Name), mlCol[0].RepoCount,
@@ -1968,9 +1968,9 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
-    .banner { font-size: 12px; font-weight: 800; fill: #ffffff; letter-spacing: 0.6px; text-transform: uppercase; }
+    .banner { font-size: 10.5px; font-weight: 800; fill: #ffffff; letter-spacing: 0.3px; text-transform: uppercase; }
     .sec { font-size: 9.5px; font-weight: 800; fill: #d97706; text-transform: uppercase; letter-spacing: 0.4px; }
-    .lbl { font-size: 10px; font-weight: 700; fill: #526071; }
+    .lbl { font-size: 9.5px; font-weight: 700; fill: #526071; }
     .val { font-size: 10px; font-weight: 800; fill: #0284c7; }
   </style>
   <rect x="3" y="3" width="459" height="249" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
