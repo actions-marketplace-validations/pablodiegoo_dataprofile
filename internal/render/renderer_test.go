@@ -1,6 +1,7 @@
 package render
 
 import (
+	"encoding/xml"
 	"strings"
 	"testing"
 
@@ -766,6 +767,23 @@ func TestHeaderBioAndFullPanelsDynamicHeightAndAnimations(t *testing.T) {
 	}
 }
 
+func extractJoinedSVGText(svg string) string {
+	var parts []string
+	decoder := xml.NewDecoder(strings.NewReader(svg))
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		if cd, ok := tok.(xml.CharData); ok {
+			if s := strings.TrimSpace(string(cd)); s != "" {
+				parts = append(parts, s)
+			}
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
 func extractSVGHeight(t *testing.T, svg string) int {
 	t.Helper()
 	marker := `height="`
@@ -811,9 +829,9 @@ func TestHeaderPanelFallbackHeadlinesLocalizationAndDynamicTrend(t *testing.T) {
 			`<textPath xlink:href="#hdr-path0">Welcome! I&#39;m Ada Lovelace 👋</textPath>`,
 			`<textPath xlink:href="#hdr-path1">Python (58.4%) · Pandas / Polars · 32 Repositories</textPath>`,
 			`<textPath xlink:href="#hdr-path2">Kaggle Master (#412) · 1,428 Contributions (+34% YoY)</textPath>`,
-			`<animate id="hdr-d0" attributeName="d" begin="0s;hdr-d2.end"`,
-			`<animate id="hdr-d1" attributeName="d" begin="hdr-d0.end"`,
-			`<animate id="hdr-d2" attributeName="d" begin="hdr-d1.end"`,
+			`<animate id="hdrd0" attributeName="d" begin="0s;hdrd2.end"`,
+			`<animate id="hdrd1" attributeName="d" begin="hdrd0.end"`,
+			`<animate id="hdrd2" attributeName="d" begin="hdrd1.end"`,
 		} {
 			if !strings.Contains(svgEN, want) {
 				t.Errorf("Render(%s, header) en fallback missing %q", school, want)
@@ -845,15 +863,28 @@ func TestHeaderPanelFallbackHeadlinesLocalizationAndDynamicTrend(t *testing.T) {
 			}
 		}
 
-		// 3. Single custom headline loops on its own animation end (0s;hdr-d0.end)
+		// 3. Single custom headline loops on its own animation end (0s;hdrd0.end) and long headlines scale down font-size
 		singleData := DefaultPortfolioData(manifestEN)
 		singleData.Subject.Headlines = []string{"Solo headline loop"}
 		svgSingle, err := Render(school, domain.PanelHeader, singleData)
 		if err != nil {
 			t.Fatalf("Render(%s, header) single headline failed: %v", school, err)
 		}
-		if !strings.Contains(svgSingle, `<animate id="hdr-d0" attributeName="d" begin="0s;hdr-d0.end"`) {
-			t.Errorf("Render(%s, header) single headline expected self-loop begin=\"0s;hdr-d0.end\"", school)
+		if !strings.Contains(svgSingle, `<animate id="hdrd0" attributeName="d" begin="0s;hdrd0.end"`) {
+			t.Errorf("Render(%s, header) single headline expected self-loop begin=\"0s;hdrd0.end\"", school)
+		}
+
+		longHlData := DefaultPortfolioData(manifestEN)
+		longHlData.Subject.Headlines = []string{
+			"Short headline",
+			"Quantitative Finance, Combinatorial Optimization & Analytics Engineering",
+		}
+		svgLongHl, err := Render(school, domain.PanelHeader, longHlData)
+		if err != nil {
+			t.Fatalf("Render(%s, header) long headline failed: %v", school, err)
+		}
+		if !strings.Contains(svgLongHl, `font-size="13.5px"><textPath xlink:href="#hdr-path1">`) {
+			t.Errorf("Render(%s, header) expected long 72-char headline to scale down font-size to fit 555px path", school)
 		}
 
 		// 4. Dynamic WeeklyTrend geometry across all 4 Schools (including Holmes)
@@ -905,6 +936,7 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 			if !strings.Contains(svgEN, wantWidth) {
 				t.Errorf("Render(%s, %s) en missing %s", school, panel, wantWidth)
 			}
+			joinedEN := extractJoinedSVGText(svgEN)
 			for _, tok := range []string{
 				"Ada Lovelace is a Quantitative Researcher",
 				"32 verified repositories",
@@ -915,7 +947,7 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 				"1,428",
 				"contributions.",
 			} {
-				if !strings.Contains(svgEN, tok) {
+				if !strings.Contains(joinedEN, tok) {
 					t.Errorf("Render(%s, %s) en fallback missing telemetry token %q", school, panel, tok)
 				}
 			}
@@ -925,6 +957,7 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Render(%s, %s) pt-BR fallback failed: %v", school, panel, err)
 			}
+			joinedPT := extractJoinedSVGText(svgPT)
 			for _, tok := range []string{
 				"Ada Lovelace atua como Quantitative Researcher",
 				"32 repositórios verificados",
@@ -935,7 +968,7 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 				"1,428",
 				"contribuições",
 			} {
-				if !strings.Contains(svgPT, tok) {
+				if !strings.Contains(joinedPT, tok) {
 					t.Errorf("Render(%s, %s) pt-BR fallback missing telemetry token %q", school, panel, tok)
 				}
 			}
@@ -997,9 +1030,9 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 			}
 		}
 
-		// 5. UTF-8 rune wrapping (~62 chars at 440px vs ~126 chars at 900px) and explicit \n line breaks
-		// A 60-rune accented string (which is >62 UTF-8 bytes) must fit on a single line at 440px
-		runeLine := "Análise estatística avançada e produção científica contínua." // 60 runes, 66 UTF-8 bytes
+		// 5. UTF-8 rune wrapping (~52 chars at 440px vs ~90 chars at 900px) and explicit \n line breaks
+		// A 49-rune accented string (which is 54 UTF-8 bytes > 52) must fit on a single line at 440px
+		runeLine := "Análise estatística avançada e produção contínua." // 49 runes, 54 UTF-8 bytes
 		runeData := DefaultPortfolioData(manifestPT)
 		runeData.Subject.Bio = []string{runeLine}
 		svgRune440, err := Render(school, domain.PanelBio, runeData)
@@ -1007,38 +1040,38 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 			t.Fatalf("Render(%s, bio) runeLine failed: %v", school, err)
 		}
 		if !strings.Contains(svgRune440, ">"+runeLine+"</text>") {
-			t.Errorf("Render(%s, bio) expected 60-rune UTF-8 string to stay on 1 line at 440px (~62 rune limit)", school)
+			t.Errorf("Render(%s, bio) expected 49-rune UTF-8 string to stay on 1 line at 440px (~52 rune limit)", school)
 		}
 
-		// A 100-rune sentence wraps into 2 lines at 440px (~62 runes/line) but stays on 1 line at 900px (~126 runes/line)
-		sentence100 := "Quantitative researcher building reproducible statistical models and production data pipelines daily." // 101 runes
-		s100Data := DefaultPortfolioData(manifestEN)
-		s100Data.Subject.Bio = []string{sentence100}
-		svg100Compact, err := Render(school, domain.PanelBio, s100Data)
+		// An 84-rune sentence wraps into 2 lines at 440px (~52 runes/line, bodyHeight=40) but stays on 1 line at 900px (~90 runes/line, bodyHeight=24)
+		sentence84 := "Quantitative researcher building reproducible statistical models and data pipelines." // 84 runes
+		s84Data := DefaultPortfolioData(manifestEN)
+		s84Data.Subject.Bio = []string{sentence84}
+		svg84Compact, err := Render(school, domain.PanelBio, s84Data)
 		if err != nil {
-			t.Fatalf("Render(%s, bio) sentence100 failed: %v", school, err)
+			t.Fatalf("Render(%s, bio) sentence84 failed: %v", school, err)
 		}
-		svg100Full, err := Render(school, domain.PanelBioFull, s100Data)
+		svg84Full, err := Render(school, domain.PanelBioFull, s84Data)
 		if err != nil {
-			t.Fatalf("Render(%s, bio-full) sentence100 failed: %v", school, err)
+			t.Fatalf("Render(%s, bio-full) sentence84 failed: %v", school, err)
 		}
-		if !strings.Contains(svg100Full, ">"+sentence100+"</text>") {
-			t.Errorf("Render(%s, bio-full) expected 101-rune sentence to fit on 1 line at 900px (~126 rune limit)", school)
+		if !strings.Contains(svg84Full, ">"+sentence84+"</text>") {
+			t.Errorf("Render(%s, bio-full) expected 84-rune sentence to fit on 1 line at 900px (~90 rune limit)", school)
 		}
-		// Height at 440px (2 lines) must be strictly greater than height at 900px (1 line) by exactly 1 lineHeight (17px)
-		if gotDiff := extractSVGHeight(t, svg100Compact) - extractSVGHeight(t, svg100Full); gotDiff != 17 {
-			t.Errorf("Render(%s) expected 2-line 440px bio height - 1-line 900px bio-full height == 17px (1 lineHeight), got %d", school, gotDiff)
+		// Height at 440px (2 lines * 20px = 40px) minus height at 900px (1 line * 24px = 24px) == 16px
+		if gotDiff := extractSVGHeight(t, svg84Compact) - extractSVGHeight(t, svg84Full); gotDiff != 16 {
+			t.Errorf("Render(%s) expected 2-line 440px bio height - 1-line 900px bio-full height == 16px, got %d", school, gotDiff)
 		}
 
-		// Explicit \n line break inside a single bio entry increases height by 1 lineHeight (17px) + 1 paraGap (8px) = 25px over 1-line bio
+		// Explicit \n line break inside a single bio entry increases height by 1 lineHeight (20px) + 1 paraGap (10px) = 30px over 1-line bio
 		explicitBreakData := DefaultPortfolioData(manifestEN)
 		explicitBreakData.Subject.Bio = []string{"First explicit line.\nSecond explicit line."}
 		svgExplicitBreak, err := Render(school, domain.PanelBio, explicitBreakData)
 		if err != nil {
 			t.Fatalf("Render(%s, bio) explicit break failed: %v", school, err)
 		}
-		if gotDiff := extractSVGHeight(t, svgExplicitBreak) - extractSVGHeight(t, svgRune440); gotDiff != 25 {
-			t.Errorf("Render(%s, bio) expected 2-paragraph explicit-break height - 1-line height == 25px (17 lineHeight + 8 paraGap), got %d", school, gotDiff)
+		if gotDiff := extractSVGHeight(t, svgExplicitBreak) - extractSVGHeight(t, svgRune440); gotDiff != 30 {
+			t.Errorf("Render(%s, bio) expected 2-paragraph explicit-break height - 1-line height == 30px (20 lineHeight + 10 paraGap), got %d", school, gotDiff)
 		}
 	}
 }
@@ -1050,8 +1083,8 @@ func TestFullPanelCompositionCoordinateReflowAndLocalization(t *testing.T) {
 	manifestEN.Subject.Locale = "en"
 	manifestEN.Subject.Headlines = nil // omitted -> fallback headlines inside full.svg
 
-	// 125-rune line must stay on 1 line at 900px in full.svg (matching bio-full.svg's 126-rune wrap limit)
-	line125 := strings.Repeat("a", 120) + " data" // 125 runes
+	// 89-rune line must stay on 1 line at 900px in full.svg (matching bio-full.svg's 90-rune wrap limit)
+	line89 := strings.Repeat("a", 84) + " data" // 89 runes
 
 	for _, school := range domain.AllSchools() {
 		// 1. Omitted/empty bio: bioSectionHeight collapses to 0 (gridY = 121, row2Y = 359, height = 595),
@@ -1065,6 +1098,7 @@ func TestFullPanelCompositionCoordinateReflowAndLocalization(t *testing.T) {
 		for _, want := range []string{
 			`viewBox="0 0 900 595" width="900" height="595"`,
 			`<textPath xlink:href="#full-hdr-path0">Welcome! I&#39;m Ada Lovelace 👋</textPath>`,
+			`<animate id="fullhdrd0" attributeName="d" begin="0s;fullhdrd2.end"`,
 			`<g transform="translate(8, 121)">`,
 			`<g transform="translate(452, 121)">`,
 			`<g transform="translate(8, 359)">`,
@@ -1078,24 +1112,24 @@ func TestFullPanelCompositionCoordinateReflowAndLocalization(t *testing.T) {
 			t.Errorf("Render(%s, full) empty bio should collapse bio section to 0 without fallback bio text or BioTitle", school)
 		}
 
-		// 2. 1-line 125-rune bio: stays on 1 line at 900px; bioSectionHeight = 17 + 18 = 35px,
-		// shifting gridY (121 -> 156), row2Y (359 -> 394), and height (595 -> 630) by exactly 35px.
+		// 2. 1-line 89-rune bio: stays on 1 line at 900px; bioSectionHeight = 24 + 20 = 44px,
+		// shifting gridY (121 -> 165), row2Y (359 -> 403), and height (595 -> 639) by exactly 44px.
 		oneLineData := DefaultPortfolioData(manifestEN)
-		oneLineData.Subject.Bio = []string{line125}
+		oneLineData.Subject.Bio = []string{line89}
 		svgOneLine, err := Render(school, domain.PanelFull, oneLineData)
 		if err != nil {
 			t.Fatalf("Render(%s, full) 1-line bio failed: %v", school, err)
 		}
 		for _, want := range []string{
-			`viewBox="0 0 900 630" width="900" height="630"`,
-			`<text x="18" y="133" class="body-txt">` + line125 + `</text>`,
-			`<g transform="translate(8, 156)">`,
-			`<g transform="translate(452, 156)">`,
-			`<g transform="translate(8, 394)">`,
-			`<g transform="translate(452, 394)">`,
+			`viewBox="0 0 900 639" width="900" height="639"`,
+			`<text x="18" y="137" class="body-txt">` + line89 + `</text>`,
+			`<g transform="translate(8, 165)">`,
+			`<g transform="translate(452, 165)">`,
+			`<g transform="translate(8, 403)">`,
+			`<g transform="translate(452, 403)">`,
 		} {
 			if !strings.Contains(svgOneLine, want) {
-				t.Errorf("Render(%s, full) 1-line 125-rune bio missing %q", school, want)
+				t.Errorf("Render(%s, full) 1-line 89-rune bio missing %q", school, want)
 			}
 		}
 		if strings.Contains(svgOneLine, "Career Narrative") {
@@ -1108,21 +1142,21 @@ func TestFullPanelCompositionCoordinateReflowAndLocalization(t *testing.T) {
 			"First paragraph line one.",
 			"Second paragraph line one.\nThird paragraph from explicit break.",
 		}
-		// 3 paragraphs, 1 line each -> totalLines=3, bodyHeight = 3*17 + 2*8 = 67 -> bioSectionHeight = 67 + 18 = 85
-		// gridY = 121 + 85 = 206, row2Y = 359 + 85 = 444, totalHeight = 595 + 85 = 680
+		// 3 paragraphs, 1 line each -> totalLines=3, bodyHeight = 3*24 + 2*12 = 96 -> bioSectionHeight = 96 + 20 = 116
+		// gridY = 121 + 116 = 237, row2Y = 359 + 116 = 475, totalHeight = 595 + 116 = 711
 		svgMulti, err := Render(school, domain.PanelFull, multiParaData)
 		if err != nil {
 			t.Fatalf("Render(%s, full) multi-para bio failed: %v", school, err)
 		}
 		for _, want := range []string{
-			`viewBox="0 0 900 680" width="900" height="680"`,
-			`<text x="18" y="133" class="body-txt">First paragraph line one.</text>`,
-			`<text x="18" y="158" class="body-txt">Second paragraph line one.</text>`,
-			`<text x="18" y="183" class="body-txt">Third paragraph from explicit break.</text>`,
-			`<g transform="translate(8, 206)">`,
-			`<g transform="translate(452, 206)">`,
-			`<g transform="translate(8, 444)">`,
-			`<g transform="translate(452, 444)">`,
+			`viewBox="0 0 900 711" width="900" height="711"`,
+			`<text x="18" y="137" class="body-txt">First paragraph line one.</text>`,
+			`<text x="18" y="173" class="body-txt">Second paragraph line one.</text>`,
+			`<text x="18" y="209" class="body-txt">Third paragraph from explicit break.</text>`,
+			`<g transform="translate(8, 237)">`,
+			`<g transform="translate(452, 237)">`,
+			`<g transform="translate(8, 475)">`,
+			`<g transform="translate(452, 475)">`,
 			// All 4 complete panels preserved:
 			"Python", "58.4%", // Panel 1: Languages
 			"Pandas / Polars", "Scikit-Learn", "Plotly / Dash", // Panel 2: Stack
@@ -1145,7 +1179,7 @@ func TestFullPanelCompositionCoordinateReflowAndLocalization(t *testing.T) {
 		}
 		for _, want := range []string{
 			`<textPath xlink:href="#full-hdr-path0">Olá! Eu sou Ada Lovelace 👋</textPath>`,
-			`<text x="18" y="133" class="body-txt">Economista e Cientista de Dados.</text>`,
+			`<text x="18" y="137" class="body-txt">Economista e Cientista de Dados.</text>`,
 			"Proporção Real de Código-Fonte",
 			"Dados &amp; Engenharia",
 			"Machine Learning &amp; IA",
@@ -1154,6 +1188,70 @@ func TestFullPanelCompositionCoordinateReflowAndLocalization(t *testing.T) {
 			if !strings.Contains(svgPT, want) {
 				t.Errorf("Render(%s, full) pt-BR missing %q", school, want)
 			}
+		}
+	}
+}
+
+func TestBioTypographicScalesAndTufteLongRoleProtection(t *testing.T) {
+	manifest := config.DefaultManifest()
+	manifest.Subject.Name = "Pablo Diego Pereira"
+	manifest.Subject.Role = "Economist & Investment Advisor (ANCORD) | Data Science & Operations Research"
+	manifest.Subject.Bio = []string{
+		"Economist graduated from UFRJ and Wealth & Investment Advisor accredited by ANCORD.",
+	}
+	data := DefaultPortfolioData(manifest)
+
+	for _, school := range domain.AllSchools() {
+		bioCompact, err := Render(school, domain.PanelBio, data)
+		if err != nil {
+			t.Fatalf("Render(%s, bio) failed: %v", school, err)
+		}
+		bioFull, err := Render(school, domain.PanelBioFull, data)
+		if err != nil {
+			t.Fatalf("Render(%s, bio-full) failed: %v", school, err)
+		}
+		fullSVG, err := Render(school, domain.PanelFull, data)
+		if err != nil {
+			t.Fatalf("Render(%s, full) failed: %v", school, err)
+		}
+
+		wantCompactBody := "font-size: 12.5px;"
+		wantFullBody := "font-size: 15.0px;"
+		if school == domain.SchoolTufte || school == domain.SchoolCairo {
+			wantCompactBody = "font-size: 13.5px;"
+			wantFullBody = "font-size: 16.0px;"
+		}
+		if !strings.Contains(bioCompact, ".body { "+wantCompactBody) {
+			t.Errorf("Render(%s, bio) expected %s in .body", school, wantCompactBody)
+		}
+		if !strings.Contains(bioFull, ".body { "+wantFullBody) {
+			t.Errorf("Render(%s, bio-full) expected %s in .body", school, wantFullBody)
+		}
+		if !strings.Contains(fullSVG, wantFullBody) {
+			t.Errorf("Render(%s, full) expected %s in .body-txt", school, wantFullBody)
+		}
+
+		// Verify no hyphenated SMIL syncbase IDs in header or full
+		hdrSVG, err := Render(school, domain.PanelHeader, data)
+		if err != nil {
+			t.Fatalf("Render(%s, header) failed: %v", school, err)
+		}
+		for _, s := range []string{hdrSVG, fullSVG} {
+			if strings.Contains(s, `id="hdr-d`) || strings.Contains(s, `id="full-hdr-d`) || strings.Contains(s, `hdr-d0.end`) || strings.Contains(s, `full-hdr-d0.end`) {
+				t.Errorf("Render(%s) leaked hyphenated SMIL syncbase ID that breaks browser infinite loop", school)
+			}
+		}
+	}
+
+	// Verify Tufte places long Role on dedicated subtitle row y=37 without colliding with top-right counter
+	tufteBioFull, _ := Render(domain.SchoolTufte, domain.PanelBioFull, data)
+	for _, want := range []string{
+		`<text x="14" y="21" class="serif h1">Pablo Diego Pereira</text>`,
+		`<text x="886" y="21" text-anchor="end" class="num sub">32 Repositories · ★ 342 Stars</text>`,
+		`<text x="14" y="37" class="serif sub">Economist &amp; Investment Advisor (ANCORD) | Data Science &amp; Operations Research</text>`,
+	} {
+		if !strings.Contains(tufteBioFull, want) {
+			t.Errorf("Render(tufte, bio-full) missing expected separated header/subtitle element %q", want)
 		}
 	}
 }

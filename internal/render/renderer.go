@@ -2133,28 +2133,52 @@ func resolveHeadlines(d domain.PortfolioData, l labels) []string {
 	}
 }
 
+func headlineFontSize(msg string, baseSize float64, x, maxW int) float64 {
+	availW := float64(maxW - x - 6)
+	if availW < 200 {
+		availW = 200
+	}
+	runes := float64(utf8.RuneCountInString(msg))
+	if runes <= 0 {
+		return baseSize
+	}
+	estW := runes * baseSize * 0.56
+	if estW <= availW {
+		return baseSize
+	}
+	scaled := availW / (runes * 0.56)
+	if scaled < 13.5 {
+		return 13.5
+	}
+	return math.Round(scaled*10) / 10
+}
+
 func buildAnimatedHeadlinesSVG(headlines []string, idPrefix string, x, y, maxW int, textClass, fillColor string, fontSizePx float64) string {
 	if len(headlines) == 0 {
 		return ""
 	}
+	// SMIL syncbase timing treats '-' inside an element ID (e.g., begin="hdr-d0.end") as a clock-offset
+	// subtraction operator in browsers, breaking sequential chaining and infinite looping after the first line.
+	animPrefix := strings.ReplaceAll(idPrefix, "-", "")
 	var b bytes.Buffer
 	n := len(headlines)
 	for i, msg := range headlines {
 		pathID := fmt.Sprintf("%spath%d", idPrefix, i)
-		animID := fmt.Sprintf("%sd%d", idPrefix, i)
+		animID := fmt.Sprintf("%sd%d", animPrefix, i)
 		var beginAttr string
 		if n == 1 {
 			beginAttr = fmt.Sprintf("0s;%s.end", animID)
 		} else if i == 0 {
-			beginAttr = fmt.Sprintf("0s;%sd%d.end", idPrefix, n-1)
+			beginAttr = fmt.Sprintf("0s;%sd%d.end", animPrefix, n-1)
 		} else {
-			beginAttr = fmt.Sprintf("%sd%d.end", idPrefix, i-1)
+			beginAttr = fmt.Sprintf("%sd%d.end", animPrefix, i-1)
 		}
+		lineFontPx := headlineFontSize(msg, fontSizePx, x, maxW)
 		fmt.Fprintf(&b, `  <path id="%s">
     <animate id="%s" attributeName="d" begin="%s" dur="6000ms" fill="remove" values="m0,%d h0 ; m0,%d h%d ; m0,%d h%d ; m0,%d h0" keyTimes="0;0.666667;0.833333;1"/>
   </path>
   <text x="%d" class="%s" font-weight="bold" fill="%s" font-size="%.1fpx"><textPath xlink:href="#%s">%s</textPath></text>
-`, pathID, animID, beginAttr, y, y, maxW, y, maxW, y, x, textClass, fillColor, fontSizePx, pathID, esc(msg))
+`, pathID, animID, beginAttr, y, y, maxW, y, maxW, y, x, textClass, fillColor, lineFontPx, pathID, esc(msg))
 	}
 	return b.String()
 }
@@ -2422,18 +2446,32 @@ func renderBioLinesSVG(wrapped [][]string, x, startY, lineHeight, paraGap int, t
 }
 
 const (
-	bioCompactMaxChars = 62
-	bioFullMaxChars    = 126
-	bioLineHeight      = 17
-	bioParaGap         = 8
+	bioCompactMaxChars   = 52
+	bioFullMaxChars      = 90
+	bioCompactLineHeight = 20
+	bioCompactParaGap    = 10
+	bioFullLineHeight    = 24
+	bioFullParaGap       = 12
 )
+
+func truncateRunes(s string, maxRunes int) string {
+	if utf8.RuneCountInString(s) <= maxRunes {
+		return s
+	}
+	runes := []rune(s)
+	return strings.TrimSpace(string(runes[:maxRunes-1])) + "…"
+}
 
 func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth bool) string {
 	width := 440
 	maxChars := bioCompactMaxChars
+	lineHeight := bioCompactLineHeight
+	paraGap := bioCompactParaGap
 	if fullWidth {
 		width = 900
 		maxChars = bioFullMaxChars
+		lineHeight = bioFullLineHeight
+		paraGap = bioFullParaGap
 	}
 
 	rawParas := d.Subject.Bio
@@ -2445,7 +2483,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 		wrapped = wrapBioParagraphs(fallbackBioParagraphs(d, l), maxChars)
 	}
 
-	_, bodyHeight := computeBioLayout(wrapped, bioLineHeight, bioParaGap)
+	_, bodyHeight := computeBioLayout(wrapped, lineHeight, paraGap)
 
 	name := nonEmptyStr(d.Subject.Name, "Data Practitioner")
 	role := nonEmptyStr(d.Subject.Role, "Data Scientist & Analytics Engineer")
@@ -2456,31 +2494,58 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 
 	switch school {
 	case domain.SchoolTufte:
-		startY := 48
-		totalHeight := startY + bodyHeight + 16
-		linesSVG := renderBioLinesSVG(wrapped, 14, startY, bioLineHeight, bioParaGap, "serif body")
-		headerTitle := fmt.Sprintf("%s — %s", name, role)
-		if !fullWidth && utf8.RuneCountInString(headerTitle) > 42 {
-			headerTitle = name
+		h1Size := 14.5
+		subSize := 11.0
+		bodySize := 13.5
+		maxInlineHeaderRunes := 40
+		if fullWidth {
+			h1Size = 16.0
+			subSize = 12.0
+			bodySize = 16.0
+			maxInlineHeaderRunes = 68
 		}
+		headerTitle := fmt.Sprintf("%s — %s", name, role)
+		startY := 50
+		ruleY := 29
+		var roleSubRow string
+		if utf8.RuneCountInString(headerTitle) > maxInlineHeaderRunes {
+			headerTitle = name
+			displayRole := role
+			if !fullWidth {
+				displayRole = truncateRunes(role, 58)
+			}
+			roleSubRow = fmt.Sprintf("  <text x=\"14\" y=\"37\" class=\"serif sub\">%s</text>\n", esc(displayRole))
+			ruleY = 44
+			startY = 66
+		}
+		totalHeight := startY + bodyHeight + 16
+		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "serif body")
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
     .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
     .num { font-family: Georgia, serif; font-variant-numeric: tabular-nums; }
-    .h1 { font-size: 13.5px; font-weight: bold; fill: #526071; letter-spacing: 0.2px; }
-    .sub { font-size: 10px; font-style: italic; fill: #64748b; }
-    .body { font-size: 11px; fill: #526071; }
+    .h1 { font-size: %.1fpx; font-weight: bold; fill: #526071; letter-spacing: 0.2px; }
+    .sub { font-size: %.1fpx; font-style: italic; fill: #64748b; }
+    .body { font-size: %.1fpx; fill: #526071; }
   </style>
   <text x="14" y="21" class="serif h1">%s</text>
   <text x="%d" y="21" text-anchor="end" class="num sub">%s</text>
-  <line x1="14" y1="28" x2="%d" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 %s  <line x1="14" y1="%d" x2="%d" y2="%d" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
-</svg>`, width, totalHeight, width, totalHeight, esc(headerTitle), width-14, esc(subRight), width-14, linesSVG, totalHeight-8, width-14, totalHeight-8)
+%s  <line x1="14" y1="%d" x2="%d" y2="%d" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
+</svg>`, width, totalHeight, width, totalHeight, h1Size, subSize, bodySize, esc(headerTitle), width-14, esc(subRight), roleSubRow, ruleY, width-14, ruleY, linesSVG, totalHeight-8, width-14, totalHeight-8)
 
 	case domain.SchoolFew:
-		startY := 82
+		hdrSize := 12.0
+		tagSize := 9.5
+		bodySize := 12.5
+		if fullWidth {
+			hdrSize = 13.5
+			tagSize = 10.5
+			bodySize = 15.0
+		}
+		startY := 84
 		totalHeight := startY + bodyHeight + 14
-		linesSVG := renderBioLinesSVG(wrapped, 14, startY, bioLineHeight, bioParaGap, "sans body")
+		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "sans body")
 		prodBar := clampInt(int(math.Round((d.Languages.ProductionPct/100.0)*84.0)), 14, 84)
 		tierKPI := esc(nonEmptyStr(k.OverallTier, domain.KaggleTierContributor))
 		if k.PeakRank > 0 {
@@ -2492,9 +2557,9 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
-    .hdr { font-size: 12px; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.5px; }
-    .tag { font-size: 9.5px; font-weight: 600; fill: #0284c7; }
-    .body { font-size: 10.8px; font-weight: 500; fill: #526071; }
+    .hdr { font-size: %.1fpx; font-weight: 700; fill: #526071; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tag { font-size: %.1fpx; font-weight: 600; fill: #0284c7; }
+    .body { font-size: %.1fpx; font-weight: 500; fill: #526071; }
     .kpi-num { font-size: 12.5px; font-weight: 700; fill: #526071; }
     .kpi-lbl { font-size: 8px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
@@ -2518,6 +2583,7 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
   <line x1="2" y1="63" x2="%d" y2="63" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
 %s</svg>`,
 			width, totalHeight, width, totalHeight,
+			hdrSize, tagSize, bodySize,
 			width-4, totalHeight-4,
 			esc(name), width-14, esc(l.BioTitle), width-2,
 			esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary),
@@ -2525,45 +2591,65 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 			prodBar, esc(l.LangFewProdEDA), width-2, linesSVG)
 
 	case domain.SchoolCairo:
-		startY := 66
+		headlineSize := 13.5
+		leadSize := 10.5
+		bodySize := 13.5
+		calloutSize := 9.5
+		displayRole := truncateRunes(role, 44)
+		if fullWidth {
+			headlineSize = 15.5
+			leadSize = 12.0
+			bodySize = 16.0
+			calloutSize = 10.5
+			displayRole = role
+		}
+		startY := 68
 		totalHeight := startY + bodyHeight + 28
-		linesSVG := renderBioLinesSVG(wrapped, 20, startY, bioLineHeight, bioParaGap, "serif body")
+		linesSVG := renderBioLinesSVG(wrapped, 20, startY, lineHeight, paraGap, "serif body")
 		callout := fmt.Sprintf(l.BioCairoCalloutFmt, d.Languages.TotalRepos, d.Languages.StrippedBase64MB)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .headline { font-size: 13px; font-weight: bold; fill: #526071; }
-    .lead { font-size: 10px; fill: #64748b; }
-    .body { font-size: 11px; fill: #526071; }
-    .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
+    .headline { font-size: %.1fpx; font-weight: bold; fill: #526071; }
+    .lead { font-size: %.1fpx; fill: #64748b; }
+    .body { font-size: %.1fpx; fill: #526071; }
+    .callout { font-size: %.1fpx; font-style: italic; fill: #0284c7; }
   </style>
   <rect x="12" y="6" width="%d" height="3" fill="#e11d48"/>
   <text x="12" y="25" class="serif headline">%s — %s</text>
-  <text x="12" y="39" class="sans lead">%s · %s</text>
-  <line x1="12" y1="46" x2="%d" y2="46" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
+  <text x="12" y="40" class="sans lead">%s · %s</text>
+  <line x1="12" y1="47" x2="%d" y2="47" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
   <line x1="12" y1="54" x2="12" y2="%d" stroke="#0284c7" stroke-width="2.2"/>
 %s  <text x="12" y="%d" class="serif callout">%s</text>
 </svg>`,
 			width, totalHeight, width, totalHeight,
-			width-24, esc(name), esc(l.BioTitle), esc(role), esc(subRight),
+			headlineSize, leadSize, bodySize, calloutSize,
+			width-24, esc(name), esc(l.BioTitle), esc(displayRole), esc(subRight),
 			width-12, startY+bodyHeight-10, linesSVG, totalHeight-10, esc(callout))
 
 	default: // SchoolHolmes
-		startY := 54
+		bannerSize := 11.5
+		bodySize := 12.5
+		if fullWidth {
+			bannerSize = 13.0
+			bodySize = 15.0
+		}
+		startY := 56
 		totalHeight := startY + bodyHeight + 16
-		linesSVG := renderBioLinesSVG(wrapped, 16, startY, bioLineHeight, bioParaGap, "sans body")
+		linesSVG := renderBioLinesSVG(wrapped, 16, startY, lineHeight, paraGap, "sans body")
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
-    .banner { font-size: 11.5px; font-weight: 800; fill: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
-    .body { font-size: 11px; font-weight: 600; fill: #526071; }
+    .banner { font-size: %.1fpx; font-weight: 800; fill: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
+    .body { font-size: %.1fpx; font-weight: 600; fill: #526071; }
   </style>
   <rect x="3" y="3" width="%d" height="%d" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L %d,3 Q %d,3 %d,13 L %d,32 L 3,32 Z" fill="#0284c7"/>
   <text x="16" y="22" class="sans banner">⚡ %s — %s</text>
 %s</svg>`,
 			width, totalHeight, width, totalHeight,
+			bannerSize, bodySize,
 			width-6, totalHeight-6,
 			width-13, width-3, width-3, width-3,
 			esc(name), esc(l.BioTitle), linesSVG)
@@ -2608,10 +2694,10 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
 
 	// 1. Dynamic Bio section: collapses to height 0 when Subject.Bio is empty; expands to exact line count when present
 	wrappedBio := wrapBioParagraphs(d.Subject.Bio, bioFullMaxChars)
-	_, bioBodyHeight := computeBioLayout(wrappedBio, bioLineHeight, bioParaGap)
+	_, bioBodyHeight := computeBioLayout(wrappedBio, bioFullLineHeight, bioFullParaGap)
 	bioSectionHeight := 0
 	if bioBodyHeight > 0 {
-		bioSectionHeight = bioBodyHeight + 18
+		bioSectionHeight = bioBodyHeight + 20
 	}
 
 	gridY := headerHeight + bioSectionHeight + 6
@@ -2621,8 +2707,8 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
 	headerInner := renderHeaderSection(school, d, l, "full-hdr-", false)
 	var bioInner string
 	if bioSectionHeight > 0 {
-		bioStartY := headerHeight + 18
-		bioLines := renderBioLinesSVG(wrappedBio, 18, bioStartY, bioLineHeight, bioParaGap, "body-txt")
+		bioStartY := headerHeight + 22
+		bioLines := renderBioLinesSVG(wrappedBio, 18, bioStartY, bioFullLineHeight, bioFullParaGap, "body-txt")
 		bioSepY := headerHeight + bioSectionHeight
 		switch school {
 		case domain.SchoolTufte:
@@ -2660,7 +2746,7 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
     .val { font-size: 10.5px; font-weight: bold; fill: #526071; }
     .micro { font-size: 9.2px; fill: #64748b; }
     .big-num { font-size: 18px; font-weight: bold; fill: #526071; }
-    .body-txt { font-family: Georgia, "Palatino Linotype", serif; font-size: 11px; fill: #526071; }
+    .body-txt { font-family: Georgia, "Palatino Linotype", serif; font-size: 16.0px; fill: #526071; }
   </style>
 %s
 %s%s
@@ -2678,7 +2764,7 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
     .val { font-size: 10px; font-weight: 600; fill: #64748b; }
     .kpi-num { font-size: 13.5px; font-weight: 700; fill: #526071; }
     .kpi-lbl { font-size: 8.5px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
-    .body-txt { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 11px; font-weight: 500; fill: #526071; }
+    .body-txt { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15.0px; font-weight: 500; fill: #526071; }
   </style>
   <rect x="2" y="2" width="%d" height="%d" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
 %s
@@ -2697,7 +2783,7 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
     .lbl { font-size: 10.5px; font-weight: 600; fill: #526071; }
     .val { font-size: 10px; font-weight: 600; fill: #64748b; }
     .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
-    .body-txt { font-family: Georgia, "Times New Roman", serif; font-size: 11px; fill: #526071; }
+    .body-txt { font-family: Georgia, "Times New Roman", serif; font-size: 16.0px; fill: #526071; }
   </style>
 %s
 %s%s
@@ -2713,7 +2799,7 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
     .lbl { font-size: 10.5px; font-weight: 700; fill: #526071; }
     .val { font-size: 10.5px; font-weight: 800; fill: #0284c7; }
     .badge { font-size: 9.5px; font-weight: 700; fill: #526071; }
-    .body-txt { font-family: "Trebuchet MS", Inter, sans-serif; font-size: 11px; font-weight: 600; fill: #526071; }
+    .body-txt { font-family: "Trebuchet MS", Inter, sans-serif; font-size: 15.0px; font-weight: 600; fill: #526071; }
   </style>
   <rect x="3" y="3" width="%d" height="%d" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
 %s
