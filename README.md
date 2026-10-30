@@ -16,6 +16,9 @@
 
 </div>
 
+> [!WARNING]
+> Upvote my post please: https://www.kaggle.com/discussions/general/754125
+
 ## Contents
 
 1. [Why DataProfile exists](#why-dataprofile-exists)
