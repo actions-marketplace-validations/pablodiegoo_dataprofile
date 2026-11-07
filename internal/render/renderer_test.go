@@ -40,7 +40,7 @@ func TestRecruiterFirstGracefulDegradation(t *testing.T) {
 	manifest := config.DefaultManifest()
 	data := DefaultPortfolioData(manifest)
 
-	// Case 1: 0 Gold medals -> should show "4 Tracks" instead of "0 Gold" across all 4 Schools
+	// Case 1: 0 Gold medals -> should show "3 Tracks" instead of "0 Gold" across all 4 Schools
 	data.Kaggle.TotalGold = 0
 	for _, school := range domain.AllSchools() {
 		svgKaggle, err := Render(school, domain.PanelKaggle, data)
@@ -53,13 +53,16 @@ func TestRecruiterFirstGracefulDegradation(t *testing.T) {
 		if strings.Contains(svgKaggle, "0 Gold") {
 			t.Errorf("Render(%s, kaggle): expected Recruiter-First degradation to avoid highlighting '0 Gold'", school)
 		}
-		if !strings.Contains(svgKaggle, "4 Tracks") {
-			t.Errorf("Render(%s, kaggle): expected '4 Tracks' fallback KPI when TotalGold == 0", school)
+		if !strings.Contains(svgKaggle, "3 Tracks") {
+			t.Errorf("Render(%s, kaggle): expected '3 Tracks' fallback KPI when TotalGold == 0", school)
 		}
-		for _, cat := range []string{"Notebooks", "Datasets", "Competitions", "Discussions"} {
+		for _, cat := range []string{"Code", "Datasets", "Competitions"} {
 			if !strings.Contains(svgKaggle, cat) {
 				t.Errorf("Render(%s, kaggle): expected category track %q in SVG", school, cat)
 			}
+		}
+		if strings.Contains(svgKaggle, "Discussions") {
+			t.Errorf("Render(%s, kaggle): legacy Discussions track must not appear in SVG", school)
 		}
 	}
 
@@ -178,13 +181,13 @@ func TestBilingualPtBRRendering(t *testing.T) {
 		{
 			school:       domain.SchoolFew,
 			panel:        domain.PanelKaggle,
-			wantContains: []string{"Desempenho Competitivo no Kaggle", "NÍVEL: MASTER (#412 Pico)", "Total Acumulado", "Finais Top 5%", "(Gráficos de Bala)", "Marcador vertical", "indica o limiar necessário"},
-			forbid:       []string{"TIER: MASTER (#412 Peak)", "Top 5% Finishes", "(Bullet Graphs)", "Vertical marker", "indicates the threshold"},
+			wantContains: []string{"Desempenho Competitivo no Kaggle", "NÍVEL: MASTER (#412 Pico)", "Total Acumulado", "Medalhas de Ouro", "Medalhas de Prata", "Medalhas de Bronze", "(Gráficos de Bala)", "Marcador vertical", "indica o limiar necessário"},
+			forbid:       []string{"TIER: MASTER (#412 Peak)", "Gold Medals", "Silver Medals", "Bronze Medals", "(Bullet Graphs)", "Vertical marker", "indicates the threshold"},
 		},
 		{
 			school:       domain.SchoolCairo,
 			panel:        domain.PanelKaggle,
-			wantContains: []string{"Nível", "Percentil nas 4 trilhas oficiais", "REFERÊNCIA GLOBAL TOP 1%", "↳ Desempenho consistente"},
+			wantContains: []string{"Nível", "Percentil nas 3 trilhas oficiais", "REFERÊNCIA GLOBAL TOP 1%", "↳ Desempenho consistente"},
 			forbid:       []string{"TOP 1% GLOBAL BENCHMARK", "↳ Consistent top-percentile"},
 		},
 		{
@@ -274,8 +277,8 @@ func TestBilingualPtBRRendering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render(few, kaggle) zero-gold pt-BR failed: %v", err)
 	}
-	if !strings.Contains(svgZeroGoldPt, "4 Trilhas") || strings.Contains(svgZeroGoldPt, "4 Tracks") {
-		t.Errorf("Render(few, kaggle) zero-gold pt-BR expected '4 Trilhas' instead of '4 Tracks'")
+	if !strings.Contains(svgZeroGoldPt, "3 Trilhas") || strings.Contains(svgZeroGoldPt, "3 Tracks") {
+		t.Errorf("Render(few, kaggle) zero-gold pt-BR expected '3 Trilhas' instead of '3 Tracks'")
 	}
 }
 
@@ -757,7 +760,7 @@ func TestHeaderBioAndFullPanelsDynamicHeightAndAnimations(t *testing.T) {
 			`<textPath xlink:href="#full-hdr-path0">`,
 			`Pandas / Polars`,
 			`Scikit-Learn`,
-			`Notebooks`,
+			`Code`,
 			`Competitions`,
 		} {
 			if !strings.Contains(fullLongBio, want) {
@@ -943,7 +946,7 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 				"Python (58.4%)",
 				"Pandas / Polars",
 				"Scikit-Learn",
-				"39 medals",
+				"32 medals",
 				"1,428",
 				"contributions.",
 			} {
@@ -964,7 +967,7 @@ func TestBioAndBioFullFallbackLocalizationReflowAndZeroHandling(t *testing.T) {
 				"Python (58.4%)",
 				"Pandas / Polars",
 				"Scikit-Learn",
-				"39 medalhas",
+				"32 medalhas",
 				"1,428",
 				"contribuições",
 			} {
@@ -1160,7 +1163,7 @@ func TestFullPanelCompositionCoordinateReflowAndLocalization(t *testing.T) {
 			// All 4 complete panels preserved:
 			"Python", "58.4%", // Panel 1: Languages
 			"Pandas / Polars", "Scikit-Learn", "Plotly / Dash", // Panel 2: Stack
-			"Notebooks", "Datasets", "Competitions", "Discussions", // Panel 3: Kaggle
+			"Code", "Datasets", "Competitions", // Panel 3: Kaggle
 			"1,428", "342", // Panel 4: Impact
 		} {
 			if !strings.Contains(svgMulti, want) {
@@ -1255,6 +1258,93 @@ func TestBioTypographicScalesAndTufteLongRoleProtection(t *testing.T) {
 		}
 	}
 }
+
+func TestKagglePanelZeroRankAndEmptyPercentileCleanRendering(t *testing.T) {
+	for _, locale := range []string{"en", "pt-BR"} {
+		manifest := config.DefaultManifest()
+		manifest.Subject.Name = "Pablo Diego Pereira"
+		manifest.Subject.Locale = locale
+		manifest.Subject.Headlines = nil
+		manifest.Subject.Bio = nil
+
+		data := DefaultPortfolioData(manifest)
+		data.Kaggle = domain.KaggleStanding{
+			Available:   true,
+			Username:    "pablodiegoo",
+			OverallTier: domain.KaggleTierKaggler,
+			PeakRank:    0,
+			TotalGold:   0,
+			TotalSilver: 0,
+			TotalBronze: 3,
+			Categories: []domain.KaggleCategory{
+				{
+					Name:          "Code",
+					Tier:          domain.KaggleTierKaggler,
+					Rank:          0,
+					TopPct:        "3/5 Expert",
+					Gold:          0,
+					Silver:        0,
+					Bronze:        3,
+					ArtifactCount: 23,
+					ProgressPct:   60,
+				},
+				{
+					Name:          "Datasets",
+					Tier:          domain.KaggleTierKaggler,
+					Rank:          0,
+					TopPct:        "",
+					Gold:          0,
+					Silver:        0,
+					Bronze:        0,
+					ArtifactCount: 5,
+					ProgressPct:   15,
+				},
+				{
+					Name:          "Competitions",
+					Tier:          domain.KaggleTierKaggler,
+					Rank:          0,
+					TopPct:        "",
+					Gold:          0,
+					Silver:        0,
+					Bronze:        0,
+					ArtifactCount: 14,
+					ProgressPct:   15,
+				},
+			},
+		}
+
+		for _, school := range domain.AllSchools() {
+			for _, panel := range domain.AllPanels() {
+				svg, err := Render(school, panel, data)
+				if err != nil {
+					t.Fatalf("Render(%s, %s) locale=%s failed: %v", school, panel, locale, err)
+				}
+				if err := ValidateSVG(svg); err != nil {
+					t.Errorf("ValidateSVG(%s, %s) locale=%s failed: %v", school, panel, locale, err)
+				}
+				for _, forbidden := range []string{"#0 ", "#0)", "#0<", "(#0", "()", "Discussions"} {
+					if strings.Contains(svg, forbidden) {
+						t.Errorf("Render(%s, %s) locale=%s leaked forbidden zero/legacy token %q:\n%s", school, panel, locale, forbidden, svg)
+					}
+				}
+				if panel == domain.PanelKaggle {
+					for _, want := range []string{"Code", "Datasets", "Competitions", "23 notebooks", "5 datasets", "14 comps"} {
+						if !strings.Contains(svg, want) {
+							t.Errorf("Render(%s, kaggle) locale=%s missing %q:\n%s", school, locale, want, svg)
+						}
+					}
+					if (school == domain.SchoolTufte || school == domain.SchoolCairo) && !strings.Contains(svg, "3/5 Expert") {
+						t.Errorf("Render(%s, kaggle) locale=%s missing '3/5 Expert':\n%s", school, locale, svg)
+					}
+					if school == domain.SchoolFew && !strings.Contains(svg, "(0G 0S 3B)") {
+						t.Errorf("Render(few, kaggle) locale=%s missing '(0G 0S 3B)':\n%s", locale, svg)
+					}
+				}
+			}
+		}
+	}
+}
+
 
 
 

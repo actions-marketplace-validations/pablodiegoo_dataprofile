@@ -57,35 +57,40 @@ type labels struct {
 	StackCairoCallout string
 
 	// Panel 3: Kaggle
-	KaggleTitle          string
-	KaggleCumulative     string
-	KaggleGold           string
-	KaggleSilver         string
-	KaggleBronze         string
-	KaggleActive         string
-	KaggleTracksFmt      string
-	KaggleTrack          string
-	KaggleGMReq          string
-	KaggleTufteSubFmt    string
-	KaggleThCat          string
-	KaggleThStanding     string
-	KaggleThRank         string
-	KaggleThPct          string
-	KaggleThMedals       string
-	KaggleTotalTally     string
-	KaggleMedalsWord     string
-	KaggleFewTierTagFmt  string
-	KaggleTop5Finishes   string
-	KaggleTop10Finishes  string
-	KaggleFewMarkerNote  string
-	KaggleCairoHeadFmt   string
-	KaggleCairoLeadFmt   string
-	KaggleCairoBench     string
-	KaggleCairoCallout   string
-	KaggleHolmesPodium   string
-	KaggleHolmesMedals   string
-	KaggleOverallTierLbl string
-	KaggleTotalMedalsLbl string
+	KaggleTitle              string
+	KaggleCumulative         string
+	KaggleGold               string
+	KaggleSilver             string
+	KaggleBronze             string
+	KaggleActive             string
+	KaggleTracksFmt          string
+	KaggleTrack              string
+	KaggleGMReq              string
+	KaggleGoldMedalsLbl      string
+	KaggleSilverMedalsLbl    string
+	KaggleBronzeMedalsLbl    string
+	KaggleTufteSubFmt        string
+	KaggleThCat              string
+	KaggleThStanding         string
+	KaggleThRank             string
+	KaggleThPct              string
+	KaggleThMedals           string
+	KaggleTotalTally         string
+	KaggleMedalsWord         string
+	KaggleFewTierTagFmt      string
+	KaggleFewTierNoRankFmt   string
+	KaggleTop5Finishes       string
+	KaggleTop10Finishes      string
+	KaggleFewMarkerNote      string
+	KaggleCairoHeadFmt       string
+	KaggleCairoHeadNoRankFmt string
+	KaggleCairoLeadFmt       string
+	KaggleCairoBench         string
+	KaggleCairoCallout       string
+	KaggleHolmesPodium       string
+	KaggleHolmesMedals       string
+	KaggleOverallTierLbl     string
+	KaggleTotalMedalsLbl     string
 
 	// Panel 4: Impact
 	ImpactTitle          string
@@ -164,35 +169,40 @@ func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 			StackCairoHeadFmt:     "Ecossistema Completo de Dados & ML Ancorado por %s e %s",
 			StackCairoLeadFmt:     "%s · Cobertura ponta a ponta da ingestão a aplicações interativas",
 			StackCairoCallout:     "↳ Ecossistema principal verificado nos manifestos dos repositórios.",
-			KaggleTitle:           "Desempenho Competitivo no Kaggle",
-			KaggleCumulative:      "Total Acumulado",
-			KaggleGold:            "Ouro",
-			KaggleSilver:          "Prata",
-			KaggleBronze:          "Bronze",
-			KaggleActive:          "Trilhas Ativas",
-			KaggleTracksFmt:       "%d Trilhas",
-			KaggleTrack:           "Progressão por Categoria",
-			KaggleGMReq:           "Requisito GM: 5",
-			KaggleTufteSubFmt:     "Tier: %s · %d Medalhas Totais",
-			KaggleThCat:           "Categoria",
-			KaggleThStanding:      "Nível",
-			KaggleThRank:          "Rank Global",
-			KaggleThPct:           "Percentil",
-			KaggleThMedals:        "Medalhas (O / P / B)",
-			KaggleTotalTally:      "Total Acumulado no Portfólio",
-			KaggleMedalsWord:      "Medalhas",
-			KaggleFewTierTagFmt:   "NÍVEL: %s (#%d Pico)",
-			KaggleTop5Finishes:    "Finais Top 5%",
-			KaggleTop10Finishes:   "Finais Top 10%",
-			KaggleFewMarkerNote:   "indica o limiar necessário para o próximo Kaggle Tier.",
-			KaggleCairoHeadFmt:    "Nível %s no Kaggle com Rank Global #%s e %d Medalhas",
-			KaggleCairoLeadFmt:    "Percentil nas 4 trilhas oficiais de progressão do Kaggle (%s · %d Prata · %d Bronze)",
-			KaggleCairoBench:      "REFERÊNCIA GLOBAL TOP 1%",
-			KaggleCairoCallout:    "↳ Desempenho consistente no topo percentual em notebooks, datasets e competições.",
-			KaggleHolmesPodium:    "Pódio de Progressão",
-			KaggleHolmesMedals:    "★ %d Medalhas Conquistadas",
-			KaggleOverallTierLbl:  "Nível Geral",
-			KaggleTotalMedalsLbl:  "Medalhas Totais",
+			KaggleTitle:              "Desempenho Competitivo no Kaggle",
+			KaggleCumulative:         "Total Acumulado",
+			KaggleGold:               "Ouro",
+			KaggleSilver:             "Prata",
+			KaggleBronze:             "Bronze",
+			KaggleActive:             "Trilhas Ativas",
+			KaggleTracksFmt:          "%d Trilhas",
+			KaggleTrack:              "Progressão por Categoria",
+			KaggleGMReq:              "Requisito GM: 5",
+			KaggleGoldMedalsLbl:      "Medalhas de Ouro",
+			KaggleSilverMedalsLbl:    "Medalhas de Prata",
+			KaggleBronzeMedalsLbl:    "Medalhas de Bronze",
+			KaggleTufteSubFmt:        "Tier: %s · %d Medalhas Totais",
+			KaggleThCat:              "Categoria",
+			KaggleThStanding:         "Nível",
+			KaggleThRank:             "Rank Global",
+			KaggleThPct:              "Percentil",
+			KaggleThMedals:           "Medalhas (O / P / B)",
+			KaggleTotalTally:         "Total Acumulado no Portfólio",
+			KaggleMedalsWord:         "Medalhas",
+			KaggleFewTierTagFmt:      "NÍVEL: %s (#%d Pico)",
+			KaggleFewTierNoRankFmt:   "NÍVEL: %s",
+			KaggleTop5Finishes:       "Finais Top 5%",
+			KaggleTop10Finishes:      "Finais Top 10%",
+			KaggleFewMarkerNote:      "indica o limiar necessário para o próximo Kaggle Tier.",
+			KaggleCairoHeadFmt:       "Nível %s no Kaggle com Rank Global #%s e %d Medalhas",
+			KaggleCairoHeadNoRankFmt: "Nível %s no Kaggle com %d Medalhas nas 3 Trilhas Oficiais",
+			KaggleCairoLeadFmt:       "Percentil nas 3 trilhas oficiais de progressão do Kaggle (%s · %d Prata · %d Bronze)",
+			KaggleCairoBench:         "REFERÊNCIA GLOBAL TOP 1%",
+			KaggleCairoCallout:       "↳ Desempenho consistente no topo percentual em código, datasets e competições.",
+			KaggleHolmesPodium:       "Pódio de Progressão",
+			KaggleHolmesMedals:       "★ %d Medalhas Conquistadas",
+			KaggleOverallTierLbl:     "Nível Geral",
+			KaggleTotalMedalsLbl:     "Medalhas Totais",
 			ImpactTitle:           "Impacto Open-Source & Comunidade de IA",
 			ImpactContribs:        "Contribuições Anuais",
 			ImpactGitHubSec:       "Alcance no GitHub",
@@ -265,35 +275,40 @@ func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 		StackCairoHeadFmt:     "Full-Cycle Data & ML Stack Anchored by %s and %s",
 		StackCairoLeadFmt:     "%s · End-to-end coverage from ingestion to interactive apps",
 		StackCairoCallout:     "↳ Core production stack verified across repository manifests.",
-		KaggleTitle:           "Kaggle Competitive Performance",
-		KaggleCumulative:      "Cumulative Tally",
-		KaggleGold:            "Gold",
-		KaggleSilver:          "Silver",
-		KaggleBronze:          "Bronze",
-		KaggleActive:          "Active Tracks",
-		KaggleTracksFmt:       "%d Tracks",
-		KaggleTrack:           "Category Progression",
-		KaggleGMReq:           "GM Requirement: 5",
-		KaggleTufteSubFmt:     "Tier: %s · %d Total Medals",
-		KaggleThCat:           "Category",
-		KaggleThStanding:      "Standing",
-		KaggleThRank:          "Global Rank",
-		KaggleThPct:           "Percentile",
-		KaggleThMedals:        "Medals (G / S / B)",
-		KaggleTotalTally:      "Total Portfolio Tally",
-		KaggleMedalsWord:      "Medals",
-		KaggleFewTierTagFmt:   "TIER: %s (#%d Peak)",
-		KaggleTop5Finishes:    "Top 5% Finishes",
-		KaggleTop10Finishes:   "Top 10% Finishes",
-		KaggleFewMarkerNote:   "indicates the threshold required to unlock the next Kaggle Tier.",
-		KaggleCairoHeadFmt:    "Kaggle %s Standing Ranked #%s Globally with %d Medals",
-		KaggleCairoLeadFmt:    "Percentile standing across all 4 official Kaggle progression tracks (%s · %d Silver · %d Bronze)",
-		KaggleCairoBench:      "TOP 1% GLOBAL BENCHMARK",
-		KaggleCairoCallout:    "↳ Consistent top-percentile standing across notebooks, datasets, and competitive modeling.",
-		KaggleHolmesPodium:    "Tier Climb Podium",
-		KaggleHolmesMedals:    "★ %d Total Medals Earned",
-		KaggleOverallTierLbl:  "Overall Tier",
-		KaggleTotalMedalsLbl:  "Total Medals",
+		KaggleTitle:              "Kaggle Competitive Performance",
+		KaggleCumulative:         "Cumulative Tally",
+		KaggleGold:               "Gold",
+		KaggleSilver:             "Silver",
+		KaggleBronze:             "Bronze",
+		KaggleActive:             "Active Tracks",
+		KaggleTracksFmt:          "%d Tracks",
+		KaggleTrack:              "Category Progression",
+		KaggleGMReq:              "GM Requirement: 5",
+		KaggleGoldMedalsLbl:      "Gold Medals",
+		KaggleSilverMedalsLbl:    "Silver Medals",
+		KaggleBronzeMedalsLbl:    "Bronze Medals",
+		KaggleTufteSubFmt:        "Tier: %s · %d Total Medals",
+		KaggleThCat:              "Category",
+		KaggleThStanding:         "Standing",
+		KaggleThRank:             "Global Rank",
+		KaggleThPct:              "Percentile",
+		KaggleThMedals:           "Medals (G / S / B)",
+		KaggleTotalTally:         "Total Portfolio Tally",
+		KaggleMedalsWord:         "Medals",
+		KaggleFewTierTagFmt:      "TIER: %s (#%d Peak)",
+		KaggleFewTierNoRankFmt:   "TIER: %s",
+		KaggleTop5Finishes:       "Top 5% Finishes",
+		KaggleTop10Finishes:      "Top 10% Finishes",
+		KaggleFewMarkerNote:      "indicates the threshold required to unlock the next Kaggle Tier.",
+		KaggleCairoHeadFmt:       "Kaggle %s Standing Ranked #%s Globally with %d Medals",
+		KaggleCairoHeadNoRankFmt: "Kaggle %s Standing with %d Medals Across 3 Official Tracks",
+		KaggleCairoLeadFmt:       "Percentile standing across all 3 official Kaggle progression tracks (%s · %d Silver · %d Bronze)",
+		KaggleCairoBench:         "TOP 1% GLOBAL BENCHMARK",
+		KaggleCairoCallout:       "↳ Consistent top-percentile standing across code, datasets, and competitive modeling.",
+		KaggleHolmesPodium:       "Tier Climb Podium",
+		KaggleHolmesMedals:       "★ %d Total Medals Earned",
+		KaggleOverallTierLbl:     "Overall Tier",
+		KaggleTotalMedalsLbl:     "Total Medals",
 		ImpactTitle:           "Open-Source & AI Community Impact",
 		ImpactContribs:        "Annual Contributions",
 		ImpactGitHubSec:       "GitHub Open-Source Reach",
@@ -380,13 +395,12 @@ func DefaultPortfolioData(manifest domain.ProfileManifest) domain.PortfolioData 
 			OverallTier: "Master",
 			PeakRank:    412,
 			TotalGold:   3,
-			TotalSilver: 12,
-			TotalBronze: 24,
+			TotalSilver: 11,
+			TotalBronze: 18,
 			Categories: []domain.KaggleCategory{
-				{Name: "Notebooks", Tier: "Master", Rank: 412, TotalUsers: 310000, TopPct: "Top 0.2%", Gold: 2, Silver: 6, Bronze: 9, ProgressPct: 82, TargetPct: 90},
-				{Name: "Datasets", Tier: "Expert", Rank: 910, TotalUsers: 140000, TopPct: "Top 0.7%", Gold: 1, Silver: 3, Bronze: 4, ProgressPct: 64, TargetPct: 74},
-				{Name: "Competitions", Tier: "Expert", Rank: 1842, TotalUsers: 220000, TopPct: "Top 0.9%", Gold: 0, Silver: 2, Bronze: 5, ProgressPct: 57, TargetPct: 74},
-				{Name: "Discussions", Tier: "Contributor", Rank: 6210, TotalUsers: 450000, TopPct: "Top 1.4%", Gold: 0, Silver: 1, Bronze: 6, ProgressPct: 36, TargetPct: 50},
+				{Name: "Code", Tier: "Master", Rank: 412, TotalUsers: 310000, TopPct: "Top 0.2%", Gold: 2, Silver: 6, Bronze: 9, ArtifactCount: 24, ProgressPct: 82, TargetPct: 90},
+				{Name: "Datasets", Tier: "Expert", Rank: 910, TotalUsers: 140000, TopPct: "Top 0.7%", Gold: 1, Silver: 3, Bronze: 4, ArtifactCount: 12, ProgressPct: 64, TargetPct: 74},
+				{Name: "Competitions", Tier: "Expert", Rank: 1842, TotalUsers: 220000, TopPct: "Top 0.9%", Gold: 0, Silver: 2, Bronze: 5, ArtifactCount: 14, ProgressPct: 57, TargetPct: 74},
 			},
 		},
 		Impact: domain.ImpactMetrics{
@@ -423,8 +437,21 @@ func normalizePortfolioData(data domain.PortfolioData) domain.PortfolioData {
 	}
 	if len(data.Kaggle.Categories) == 0 {
 		data.Kaggle = def.Kaggle
-	} else if len(data.Kaggle.Categories) < 4 {
-		data.Kaggle.Categories = append(data.Kaggle.Categories, def.Kaggle.Categories[len(data.Kaggle.Categories):4]...)
+	} else {
+		cleanedCats := make([]domain.KaggleCategory, 0, 3)
+		for _, c := range data.Kaggle.Categories {
+			if strings.EqualFold(c.Name, "Discussions") || strings.EqualFold(c.Name, "Discussion") {
+				continue
+			}
+			if strings.EqualFold(c.Name, "Notebooks") || strings.EqualFold(c.Name, "Kernels") {
+				c.Name = "Code"
+			}
+			cleanedCats = append(cleanedCats, c)
+		}
+		if len(cleanedCats) < 3 {
+			cleanedCats = append(cleanedCats, def.Kaggle.Categories[len(cleanedCats):3]...)
+		}
+		data.Kaggle.Categories = cleanedCats[:3]
 	}
 	if data.Impact.AnnualContributions == 0 && data.Impact.PublicRepos == 0 {
 		data.Impact = def.Impact
@@ -1149,17 +1176,93 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 // Includes Recruiter-First Graceful Degradation when Gold == 0.
 // ============================================================================
 
+func formatKaggleRankOrCount(c domain.KaggleCategory, isPtBR bool) string {
+	if c.Rank > 0 {
+		return "#" + formatInt(c.Rank)
+	}
+	if c.ArtifactCount > 0 {
+		switch strings.ToLower(strings.TrimSpace(c.Name)) {
+		case "code", "notebooks", "kernels":
+			return fmt.Sprintf("%d notebooks", c.ArtifactCount)
+		case "datasets", "dataset":
+			return fmt.Sprintf("%d datasets", c.ArtifactCount)
+		case "competitions", "competition":
+			return fmt.Sprintf("%d comps", c.ArtifactCount)
+		default:
+			if isPtBR {
+				return fmt.Sprintf("%d itens", c.ArtifactCount)
+			}
+			return fmt.Sprintf("%d items", c.ArtifactCount)
+		}
+	}
+	if isPtBR {
+		return "Ativo"
+	}
+	return "Active"
+}
+
+func formatKaggleTopPct(c domain.KaggleCategory, isPtBR bool) string {
+	pct := strings.TrimSpace(c.TopPct)
+	if pct == "" {
+		totalMedals := c.Gold + c.Silver + c.Bronze
+		req := 3
+		switch strings.ToLower(strings.TrimSpace(c.Name)) {
+		case "code", "notebooks", "kernels":
+			req = 5
+		case "competitions", "competition":
+			req = 2
+		}
+		if totalMedals > 0 && totalMedals < req {
+			pct = fmt.Sprintf("%d/%d Expert", totalMedals, req)
+		} else {
+			pct = "Active"
+		}
+	}
+	if isPtBR && strings.EqualFold(pct, "Active") {
+		return "Ativo"
+	}
+	return pct
+}
+
+func formatKaggleHolmesCardRight(c domain.KaggleCategory, isPtBR bool) string {
+	if c.Rank > 0 {
+		return fmt.Sprintf("%s #%s", c.Tier, formatInt(c.Rank))
+	}
+	return fmt.Sprintf("%s · %s", c.Tier, formatKaggleRankOrCount(c, isPtBR))
+}
+
+func formatKaggleOverallTierAndRank(k domain.KaggleStanding) string {
+	tier := nonEmptyStr(k.OverallTier, domain.KaggleTierContributor)
+	if k.PeakRank > 0 {
+		return fmt.Sprintf("%s (#%s)", tier, formatInt(k.PeakRank))
+	}
+	if k.TotalMedals() > 0 {
+		return fmt.Sprintf("%s (%dM)", tier, k.TotalMedals())
+	}
+	return tier
+}
+
+func formatKaggleSummaryTrack(c domain.KaggleCategory, isPtBR bool) string {
+	if c.Rank > 0 {
+		return "#" + formatInt(c.Rank)
+	}
+	if m := c.Gold + c.Silver + c.Bronze; m > 0 {
+		return fmt.Sprintf("%dM", m)
+	}
+	return formatKaggleRankOrCount(c, isPtBR)
+}
+
 func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string {
 	k := d.Kaggle
 	cats := k.Categories
 
 	// Recruiter-First KPI logic: never highlight "0 Gold" if Gold == 0
 	kpi2Val := fmt.Sprintf("%d %s", k.TotalGold, l.KaggleGold)
-	kpi2Sub := l.KaggleGMReq
+	kpi2Sub := l.KaggleGoldMedalsLbl
 	if k.TotalGold == 0 {
 		activeCount := len(cats)
-		if activeCount == 0 {
-			activeCount = 4
+		if activeCount == 0 || activeCount > 3 {
+			activeCount = 3
 		}
 		kpi2Val = fmt.Sprintf(l.KaggleTracksFmt, activeCount)
 		kpi2Sub = l.KaggleActive
@@ -1191,8 +1294,8 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     <text x="416" y="0" text-anchor="end" class="serif th">%s</text>
     <line x1="0" y1="7" x2="416" y2="7" stroke="#64748b" stroke-opacity="0.4" stroke-width="0.6"/>
 `, esc(l.KaggleTitle), esc(sub), esc(l.KaggleThCat), esc(l.KaggleThStanding), esc(l.KaggleThRank), esc(l.KaggleThPct), esc(l.KaggleThMedals))
-		for i, c := range cats[:4] {
-			y := 28 + i*28
+		for i, c := range cats[:3] {
+			y := 32 + i*32
 			tierColor := "#526071"
 			if c.Tier == "Master" || c.Tier == "Grandmaster" {
 				tierColor = "#d97706"
@@ -1201,14 +1304,14 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 			}
 			fmt.Fprintf(&b, `    <text x="0" y="%d" class="serif lbl">%s</text>
     <text x="105" y="%d" class="serif val" fill="%s">%s</text>
-    <text x="200" y="%d" text-anchor="end" class="num val">#%s</text>
+    <text x="200" y="%d" text-anchor="end" class="num val">%s</text>
     <text x="278" y="%d" text-anchor="end" class="num micro">%s</text>
     <text x="416" y="%d" text-anchor="end" class="num val">%dG · %dS · %dB</text>
-`, y, esc(c.Name), y, tierColor, esc(c.Tier), y, formatInt(c.Rank), y, esc(c.TopPct), y, c.Gold, c.Silver, c.Bronze)
+`, y, esc(c.Name), y, tierColor, esc(c.Tier), y, esc(formatKaggleRankOrCount(c, l.IsPtBR)), y, esc(formatKaggleTopPct(c, l.IsPtBR)), y, c.Gold, c.Silver, c.Bronze)
 		}
-		fmt.Fprintf(&b, `    <line x1="0" y1="128" x2="416" y2="128" stroke="#64748b" stroke-opacity="0.4" stroke-width="0.6"/>
-    <text x="0" y="144" class="serif val">%s</text>
-    <text x="416" y="144" text-anchor="end" class="num val" fill="#d97706">%d %s (%s · %d %s · %d %s)</text>
+		fmt.Fprintf(&b, `    <line x1="0" y1="122" x2="416" y2="122" stroke="#64748b" stroke-opacity="0.4" stroke-width="0.6"/>
+    <text x="0" y="142" class="serif val">%s</text>
+    <text x="416" y="142" text-anchor="end" class="num val" fill="#d97706">%d %s (%s · %d %s · %d %s)</text>
   </g>
   <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 </svg>`, esc(l.KaggleTotalTally), k.TotalMedals(), esc(l.KaggleMedalsWord), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze))
@@ -1220,7 +1323,10 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 		if l.IsPtBR {
 			markerLabel = "│ Marcador vertical"
 		}
-		tierTag := fmt.Sprintf(l.KaggleFewTierTagFmt, strings.ToUpper(k.OverallTier), k.PeakRank)
+		tierTag := fmt.Sprintf(l.KaggleFewTierNoRankFmt, strings.ToUpper(k.OverallTier))
+		if k.PeakRank > 0 {
+			tierTag = fmt.Sprintf(l.KaggleFewTierTagFmt, strings.ToUpper(k.OverallTier), k.PeakRank)
+		}
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -1254,9 +1360,9 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   <g transform="translate(14, 85)">
     <text x="0" y="0" class="sans sec">%s %s</text>
     <text x="412" y="0" text-anchor="end" class="sans sec">Rank &amp; %s</text>
-`, esc(l.KaggleTitle), esc(tierTag), k.TotalMedals(), esc(l.KaggleMedalsWord), esc(l.KaggleCumulative), esc(kpi2Val), esc(kpi2Sub), k.TotalSilver, esc(l.KaggleSilver), esc(l.KaggleTop5Finishes), k.TotalBronze, esc(l.KaggleBronze), esc(l.KaggleTop10Finishes), esc(l.KaggleTrack), esc(l.FewBulletGraphsSuffix), esc(l.KaggleMedalsWord))
-		for i, c := range cats[:4] {
-			y := 12 + i*26
+`, esc(l.KaggleTitle), esc(tierTag), k.TotalMedals(), esc(l.KaggleMedalsWord), esc(l.KaggleCumulative), esc(kpi2Val), esc(kpi2Sub), k.TotalSilver, esc(l.KaggleSilver), esc(l.KaggleSilverMedalsLbl), k.TotalBronze, esc(l.KaggleBronze), esc(l.KaggleBronzeMedalsLbl), esc(l.KaggleTrack), esc(l.FewBulletGraphsSuffix), esc(l.KaggleMedalsWord))
+		for i, c := range cats[:3] {
+			y := 16 + i*32
 			barW := int((c.ProgressPct / 100.0) * 150.0)
 			targetX := 92 + int((c.TargetPct/100.0)*150.0)
 			barColor := "#64748b"
@@ -1276,9 +1382,9 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
       <rect x="92" y="2" width="70" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
       <rect x="92" y="5" width="%d" height="7" rx="1" fill="%s"/>
       <line x1="%d" y1="0" x2="%d" y2="17" stroke="#0284c7" stroke-width="2.2"/>
-      <text x="412" y="11" text-anchor="end" class="mono val" fill="%s">%s · #%s (%dG %dS %dB)</text>
+      <text x="412" y="11" text-anchor="end" class="mono val" fill="%s">%s · %s (%dG %dS %dB)</text>
     </g>
-`, y, esc(c.Name), barW, barColor, targetX, targetX, barColor, esc(shortTier), formatInt(c.Rank), c.Gold, c.Silver, c.Bronze)
+`, y, esc(c.Name), barW, barColor, targetX, targetX, barColor, esc(shortTier), esc(formatKaggleRankOrCount(c, l.IsPtBR)), c.Gold, c.Silver, c.Bronze)
 		}
 		fmt.Fprintf(&b, `    <text x="0" y="124" class="sans" font-size="8.5" fill="#64748b"><tspan fill="#0284c7" font-weight="700">%s</tspan> %s</text>
   </g>
@@ -1287,7 +1393,10 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 
 	case domain.SchoolCairo:
 		var b bytes.Buffer
-		head := fmt.Sprintf(l.KaggleCairoHeadFmt, k.OverallTier, formatInt(k.PeakRank), k.TotalMedals())
+		head := fmt.Sprintf(l.KaggleCairoHeadNoRankFmt, k.OverallTier, k.TotalMedals())
+		if k.PeakRank > 0 {
+			head = fmt.Sprintf(l.KaggleCairoHeadFmt, k.OverallTier, formatInt(k.PeakRank), k.TotalMedals())
+		}
 		lead := fmt.Sprintf(l.KaggleCairoLeadFmt, kpi2Val, k.TotalSilver, k.TotalBronze)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
@@ -1305,11 +1414,11 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   <text x="12" y="39" class="sans lead">%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 66)">
-    <line x1="230" y1="0" x2="230" y2="128" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1.2"/>
+    <line x1="230" y1="0" x2="230" y2="120" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1.2"/>
     <text x="230" y="-4" text-anchor="middle" class="sans" font-size="8.5" font-weight="700" fill="#e11d48">%s</text>
 `, esc(head), esc(lead), esc(l.KaggleCairoBench))
-		for i, c := range cats[:4] {
-			y := 20 + i*30
+		for i, c := range cats[:3] {
+			y := 24 + i*36
 			endX := 92 + int((c.ProgressPct/100.0)*185.0)
 			color := "#0284c7"
 			if i == 0 {
@@ -1319,8 +1428,8 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     <line x1="92" y1="%d" x2="280" y2="%d" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
     <line x1="92" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2.5"/>
     <circle cx="%d" cy="%d" r="4.2" fill="%s"/>
-    <text x="416" y="%d" text-anchor="end" class="mono val">%s · #%s (%s)</text>
-`, y, esc(c.Name), y-4, y-4, y-4, endX, y-4, color, endX, y-4, color, y, esc(c.Tier), formatInt(c.Rank), esc(c.TopPct))
+    <text x="416" y="%d" text-anchor="end" class="mono val">%s · %s (%s)</text>
+`, y, esc(c.Name), y-4, y-4, y-4, endX, y-4, color, endX, y-4, color, y, esc(c.Tier), esc(formatKaggleRankOrCount(c, l.IsPtBR)), esc(formatKaggleTopPct(c, l.IsPtBR)))
 		}
 		fmt.Fprintf(&b, `    <text x="0" y="146" class="serif callout">%s</text>
   </g>
@@ -1330,6 +1439,10 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 	default: // SchoolHolmes
 		medalsEarned := fmt.Sprintf(l.KaggleHolmesMedals, k.TotalMedals())
 		trophyX, trophyY := holmesTrophyPosition(k.OverallTier)
+		bannerText := fmt.Sprintf("🏆 %s — %s", esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)))
+		if k.PeakRank > 0 {
+			bannerText = fmt.Sprintf("🏆 %s — %s (#%s PEAK)", esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)), formatInt(k.PeakRank))
+		}
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1341,7 +1454,7 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   </style>
   <rect x="3" y="3" width="434" height="224" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#d97706"/>
-  <text x="16" y="22" class="sans banner">🏆 %s — %s (#%s PEAK)</text>
+  <text x="16" y="22" class="sans banner">%s</text>
   <g transform="translate(16, 48)">
     <text x="0" y="0" class="sans sec">%s</text>
     <rect x="0" y="96" width="34" height="28" rx="3" fill="#64748b" fill-opacity="0.25"/>
@@ -1355,27 +1468,23 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   </g>
   <g transform="translate(220, 48)">
     <text x="0" y="0" class="sans sec">%s</text>
-    <rect x="0" y="10" width="204" height="32" rx="6" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="30" class="sans lbl">📓 %s</text>
-    <text x="194" y="30" text-anchor="end" class="mono val" fill="#d97706">%s #%s</text>
-    <rect x="0" y="48" width="204" height="32" rx="6" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="68" class="sans lbl">🗂️ %s</text>
-    <text x="194" y="68" text-anchor="end" class="mono val">%s #%s</text>
-    <rect x="0" y="86" width="204" height="32" rx="6" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="106" class="sans lbl">⚔️ %s</text>
-    <text x="194" y="106" text-anchor="end" class="mono val" fill="#059669">%s #%s</text>
-    <rect x="0" y="124" width="204" height="32" rx="6" fill="#7c3aed" fill-opacity="0.1" stroke="#7c3aed" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="144" class="sans lbl">💬 %s</text>
-    <text x="194" y="144" text-anchor="end" class="mono val" fill="#7c3aed">%s #%s</text>
+    <rect x="0" y="14" width="204" height="38" rx="6" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1.2"/>
+    <text x="10" y="37" class="sans lbl">📓 %s</text>
+    <text x="194" y="37" text-anchor="end" class="mono val" fill="#d97706">%s</text>
+    <rect x="0" y="62" width="204" height="38" rx="6" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1.2"/>
+    <text x="10" y="85" class="sans lbl">🗂️ %s</text>
+    <text x="194" y="85" text-anchor="end" class="mono val">%s</text>
+    <rect x="0" y="110" width="204" height="38" rx="6" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
+    <text x="10" y="133" class="sans lbl">⚔️ %s</text>
+    <text x="194" y="133" text-anchor="end" class="mono val" fill="#059669">%s</text>
   </g>
 </svg>`,
-			esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)), formatInt(k.PeakRank),
+			bannerText,
 			esc(l.KaggleHolmesPodium), trophyX, trophyY, esc(medalsEarned), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze),
 			esc(l.KaggleTrack),
-			esc(cats[0].Name), esc(cats[0].Tier), formatInt(cats[0].Rank),
-			esc(cats[1].Name), esc(cats[1].Tier), formatInt(cats[1].Rank),
-			esc(cats[2].Name), esc(cats[2].Tier), formatInt(cats[2].Rank),
-			esc(cats[3].Name), esc(cats[3].Tier), formatInt(cats[3].Rank))
+			esc(cats[0].Name), esc(formatKaggleHolmesCardRight(cats[0], l.IsPtBR)),
+			esc(cats[1].Name), esc(formatKaggleHolmesCardRight(cats[1], l.IsPtBR)),
+			esc(cats[2].Name), esc(formatKaggleHolmesCardRight(cats[2], l.IsPtBR)))
 	}
 }
 
@@ -1383,7 +1492,7 @@ func holmesTrophyPosition(tier string) (int, int) {
 	switch strings.ToLower(strings.TrimSpace(tier)) {
 	case strings.ToLower(domain.KaggleTierNovice):
 		return 17, 90
-	case strings.ToLower(domain.KaggleTierContributor):
+	case strings.ToLower(domain.KaggleTierContributor), strings.ToLower(domain.KaggleTierKaggler):
 		return 55, 70
 	case strings.ToLower(domain.KaggleTierExpert):
 		return 93, 48
@@ -1669,6 +1778,8 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 	k := d.Kaggle
 	cats := k.Categories
 	im := d.Impact
+	overallTierRank := formatKaggleOverallTierAndRank(k)
+	summaryTracksVal := fmt.Sprintf("%s / %s", formatKaggleSummaryTrack(cats[0], l.IsPtBR), formatKaggleSummaryTrack(cats[1], l.IsPtBR))
 
 	switch school {
 	case domain.SchoolTufte:
@@ -1723,9 +1834,9 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
   <!-- Q3: Kaggle (Supertable) -->
   <g transform="translate(14, 150)">
     <text x="0" y="0" class="serif sec">3. %s</text>
-    <text x="0" y="18" class="serif lbl">%s</text><text x="200" y="18" text-anchor="end" class="num val" fill="#d97706">%s (#%s)</text>
+    <text x="0" y="18" class="serif lbl">%s</text><text x="200" y="18" text-anchor="end" class="num val" fill="#d97706">%s</text>
     <text x="0" y="34" class="serif lbl">%s</text><text x="200" y="34" text-anchor="end" class="num val">%d (%dG · %dS · %dB)</text>
-    <text x="0" y="50" class="serif lbl">Notebooks / Datasets</text><text x="200" y="50" text-anchor="end" class="num val">#%s / #%s</text>
+    <text x="0" y="50" class="serif lbl">Code / Datasets</text><text x="200" y="50" text-anchor="end" class="num val">%s</text>
   </g>
 
   <!-- Q4: Impact (Supertable + Inline Sparkline with Interquartile Band) -->
@@ -1754,9 +1865,9 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 			esc(mlCol[1].Name), mlCol[1].RepoCount,
 			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
 			esc(l.KaggleTitle),
-			esc(l.KaggleOverallTierLbl), esc(k.OverallTier), formatInt(k.PeakRank),
+			esc(l.KaggleOverallTierLbl), esc(overallTierRank),
 			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
-			formatInt(cats[0].Rank), formatInt(cats[1].Rank),
+			esc(summaryTracksVal),
 			esc(l.ImpactTitle),
 			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
 			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
@@ -1787,7 +1898,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s %.1f%%</text>
     <text x="0" y="22" class="sans kpi-lbl">%s</text>
     <line x1="145" y1="0" x2="145" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="157" y="11" class="mono kpi-num" fill="#d97706">%s (#%s)</text>
+    <text x="157" y="11" class="mono kpi-num" fill="#d97706">%s</text>
     <text x="157" y="22" class="sans kpi-lbl">%s</text>
     <line x1="305" y1="0" x2="305" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <text x="317" y="11" class="mono kpi-num" fill="#059669">%s (+%.0f%%)</text>
@@ -1835,9 +1946,9 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     <rect x="62" y="10" width="64" height="9" fill="#64748b" fill-opacity="0.25"/>
     <rect x="62" y="12" width="%d" height="5" fill="#d97706"/>
     <line x1="142" y1="8" x2="142" y2="21" stroke="#0284c7" stroke-width="2"/>
-    <text x="200" y="18" text-anchor="end" class="mono val" fill="#d97706">#%s</text>
+    <text x="200" y="18" text-anchor="end" class="mono val" fill="#d97706">%s</text>
     <text x="0" y="38" class="sans lbl">%s</text><text x="200" y="38" text-anchor="end" class="mono val">%d (%dG · %dS · %dB)</text>
-    <text x="0" y="56" class="sans lbl">Notebooks / Datasets</text><text x="200" y="56" text-anchor="end" class="mono val">#%s / #%s</text>
+    <text x="0" y="56" class="sans lbl">Code / Datasets</text><text x="200" y="56" text-anchor="end" class="mono val">%s</text>
   </g>
 
   <!-- Q4: Impact -->
@@ -1851,7 +1962,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 			esc(d.Subject.Name), esc(d.Subject.Role),
 			d.Languages.TotalRepos, formatInt(im.TotalStars),
 			esc(langs[0].Name), langs[0].Percentage, esc(l.LangSecTrueProp),
-			esc(k.OverallTier), formatInt(k.PeakRank), esc(l.KaggleTitle),
+			esc(overallTierRank), esc(l.KaggleTitle),
 			formatInt(im.AnnualContributions), im.YoYGrowthPct, esc(l.ImpactContribs),
 			esc(l.LangSecTrueProp),
 			esc(langs[0].Name), l0Bar, langs[0].Percentage,
@@ -1862,9 +1973,9 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 			esc(mlCol[0].Name), mlCol[0].RepoCount,
 			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
 			esc(l.KaggleTitle),
-			esc(cats[0].Name), kBar, formatInt(cats[0].Rank),
+			esc(cats[0].Name), kBar, esc(formatKaggleSummaryTrack(cats[0], l.IsPtBR)),
 			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
-			formatInt(cats[0].Rank), formatInt(cats[1].Rank),
+			esc(summaryTracksVal),
 			esc(l.ImpactTitle),
 			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
 			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
@@ -1927,9 +2038,9 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
   <!-- Q3: Kaggle -->
   <g transform="translate(12, 148)">
     <text x="0" y="0" class="sans sec">3. %s</text>
-    <text x="0" y="18" class="sans lbl">%s</text><text x="202" y="18" text-anchor="end" class="mono val" fill="#d97706">%s (#%s)</text>
+    <text x="0" y="18" class="sans lbl">%s</text><text x="202" y="18" text-anchor="end" class="mono val" fill="#d97706">%s</text>
     <text x="0" y="36" class="sans lbl">%s</text><text x="202" y="36" text-anchor="end" class="mono val">%d (%dG · %dS · %dB)</text>
-    <text x="0" y="54" class="sans lbl">Notebooks / Datasets</text><text x="202" y="54" text-anchor="end" class="mono val">#%s / #%s</text>
+    <text x="0" y="54" class="sans lbl">Code / Datasets</text><text x="202" y="54" text-anchor="end" class="mono val">%s</text>
   </g>
 
   <!-- Q4: Impact -->
@@ -1954,9 +2065,9 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 			esc(mlCol[0].Name), mlCol[0].RepoCount,
 			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
 			esc(l.KaggleTitle),
-			esc(l.KaggleOverallTierLbl), esc(k.OverallTier), formatInt(k.PeakRank),
+			esc(l.KaggleOverallTierLbl), esc(overallTierRank),
 			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
-			formatInt(cats[0].Rank), formatInt(cats[1].Rank),
+			esc(summaryTracksVal),
 			esc(l.ImpactTitle),
 			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
 			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
@@ -1964,6 +2075,10 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 			esc(sumCallout))
 
 	default: // SchoolHolmes
+		holmesKaggleMid := fmt.Sprintf("%d %s", k.TotalMedals(), l.KaggleMedalsWord)
+		if k.PeakRank > 0 {
+			holmesKaggleMid = fmt.Sprintf("#%s · %d %s", formatInt(k.PeakRank), k.TotalMedals(), l.KaggleMedalsWord)
+		}
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2011,7 +2126,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     <rect x="63" y="10" width="18" height="50" rx="2" fill="#d97706"/>
     <text x="72" y="8" text-anchor="middle" font-size="10">🏆</text>
     <text x="92" y="26" class="sans lbl">Tier: %s</text>
-    <text x="92" y="42" class="mono val" fill="#d97706">#%s · %d Medals</text>
+    <text x="92" y="42" class="mono val" fill="#d97706">%s</text>
     <text x="92" y="58" class="mono val">%dG · %dS · %dB</text>
   </g>
 
@@ -2036,7 +2151,7 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 			esc(mlCol[0].Name), mlCol[0].RepoCount,
 			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
 			esc(l.KaggleTitle),
-			esc(k.OverallTier), formatInt(k.PeakRank), k.TotalMedals(),
+			esc(k.OverallTier), esc(holmesKaggleMid),
 			k.TotalGold, k.TotalSilver, k.TotalBronze,
 			esc(l.ImpactTitle),
 			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
@@ -2119,17 +2234,18 @@ func resolveHeadlines(d domain.PortfolioData, l labels) []string {
 		topStack = d.Stack.DataAnalytics[0].Name
 	}
 
+	kaggleHl := fmt.Sprintf("Kaggle %s", formatKaggleOverallTierAndRank(d.Kaggle))
 	if l.IsPtBR {
 		return []string{
 			fmt.Sprintf("Olá! Eu sou %s 👋", name),
 			fmt.Sprintf("%s (%.1f%%) · %s · %d Repositórios", langs[0].Name, langs[0].Percentage, topStack, d.Languages.TotalRepos),
-			fmt.Sprintf("Kaggle %s (#%s) · %s Contribuições (+%.0f%% YoY)", d.Kaggle.OverallTier, formatInt(d.Kaggle.PeakRank), formatInt(d.Impact.AnnualContributions), d.Impact.YoYGrowthPct),
+			fmt.Sprintf("%s · %s Contribuições (+%.0f%% YoY)", kaggleHl, formatInt(d.Impact.AnnualContributions), d.Impact.YoYGrowthPct),
 		}
 	}
 	return []string{
 		fmt.Sprintf("Welcome! I'm %s 👋", name),
 		fmt.Sprintf("%s (%.1f%%) · %s · %d Repositories", langs[0].Name, langs[0].Percentage, topStack, d.Languages.TotalRepos),
-		fmt.Sprintf("Kaggle %s (#%s) · %s Contributions (+%.0f%% YoY)", d.Kaggle.OverallTier, formatInt(d.Kaggle.PeakRank), formatInt(d.Impact.AnnualContributions), d.Impact.YoYGrowthPct),
+		fmt.Sprintf("%s · %s Contributions (+%.0f%% YoY)", kaggleHl, formatInt(d.Impact.AnnualContributions), d.Impact.YoYGrowthPct),
 	}
 }
 
@@ -2253,7 +2369,7 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
     <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s %.1f%%</text>
     <text x="0" y="21" class="sans kpi-lbl">%s</text>
     <line x1="150" y1="0" x2="150" y2="23" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="162" y="11" class="mono kpi-num" fill="#d97706">%s (#%s)</text>
+    <text x="162" y="11" class="mono kpi-num" fill="#d97706">%s</text>
     <text x="162" y="21" class="sans kpi-lbl">%s</text>
     <line x1="330" y1="0" x2="330" y2="23" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <text x="342" y="11" class="mono kpi-num" fill="#059669">%s</text>
@@ -2274,7 +2390,7 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
   </g>`,
 			esc(name), esc(role), im.YoYGrowthPct, d.Languages.TotalRepos,
 			esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary),
-			esc(k.OverallTier), formatInt(k.PeakRank), esc(l.KaggleOverallTierLbl),
+			esc(formatKaggleOverallTierAndRank(k)), esc(l.KaggleOverallTierLbl),
 			formatInt(im.AnnualContributions), esc(l.ImpactContribs),
 			animText, pathD, pathD, lastX, lastY, bulletW, esc(l.HeaderTrendLbl))
 		if !standalone {

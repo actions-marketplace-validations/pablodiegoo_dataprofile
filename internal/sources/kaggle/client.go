@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pablodiegoo/dataprofile/internal/domain"
@@ -126,10 +128,9 @@ func (c *Client) fetchAPIStanding(ctx context.Context, username string) (domain.
 	dsGold, dsSilver, dsBronze := tallyArtifactMedals(datasets)
 
 	cats := []domain.KaggleCategory{
-		buildCategoryFromMedals("Notebooks", nbGold, nbSilver, nbBronze, len(kernels)),
+		buildCategoryFromMedals("Code", nbGold, nbSilver, nbBronze, len(kernels)),
 		buildCategoryFromMedals("Datasets", dsGold, dsSilver, dsBronze, len(datasets)),
 		buildCategoryFromMedals("Competitions", 0, 0, 0, 0),
-		buildCategoryFromMedals("Discussions", 0, 0, 0, 0),
 	}
 
 	st := domain.KaggleStanding{
@@ -234,30 +235,65 @@ func tallyArtifactMedals(items []kaggleAPIArtifact) (gold, silver, bronze int) {
 			silver++
 		case "bronze":
 			bronze++
+		default:
+			// Kaggle REST API v1 (/kernels/list, /datasets/list) omits the "medal" field and returns raw totalVotes.
+			// When explicit medal fields are absent, count artifacts with >= 5 votes conservatively as Bronze.
+			if it.Gold == 0 && it.Silver == 0 && it.Bronze == 0 && it.TotalVotes >= 5 {
+				bronze++
+			}
 		}
 	}
 	return gold, silver, bronze
 }
 
+func expertMedalRequirement(trackName string) int {
+	switch canonicalTrackName(trackName) {
+	case "Code":
+		return 5
+	case "Datasets":
+		return 3
+	case "Competitions":
+		return 2
+	default:
+		return 3
+	}
+}
+
+func canonicalTrackName(name string) string {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "code", "notebooks", "kernels":
+		return "Code"
+	case "datasets", "dataset":
+		return "Datasets"
+	case "competitions", "competition":
+		return "Competitions"
+	default:
+		return name
+	}
+}
+
 func buildCategoryFromMedals(name string, gold, silver, bronze, artifactCount int) domain.KaggleCategory {
+	name = canonicalTrackName(name)
 	tier := domain.KaggleTierNovice
 	total := gold + silver + bronze
+	expertReq := expertMedalRequirement(name)
 	switch {
 	case gold >= 5 && total >= 15:
 		tier = domain.KaggleTierGrandmaster
 	case gold >= 1 && total >= 10:
 		tier = domain.KaggleTierMaster
-	case total >= 3 || gold >= 1 || silver >= 2:
+	case total >= expertReq || gold >= 1 || silver >= 2:
 		tier = domain.KaggleTierExpert
 	case artifactCount > 0 || total > 0:
 		tier = domain.KaggleTierContributor
 	}
 	cat := domain.KaggleCategory{
-		Name:   name,
-		Tier:   tier,
-		Gold:   gold,
-		Silver: silver,
-		Bronze: bronze,
+		Name:          name,
+		Tier:          tier,
+		Gold:          gold,
+		Silver:        silver,
+		Bronze:        bronze,
+		ArtifactCount: artifactCount,
 	}
 	applyTierProgress(&cat)
 	return cat
@@ -267,7 +303,7 @@ func enrichStanding(base, api domain.KaggleStanding) domain.KaggleStanding {
 	out := base
 	apiByName := make(map[string]domain.KaggleCategory, len(api.Categories))
 	for _, c := range api.Categories {
-		apiByName[c.Name] = c
+		apiByName[canonicalTrackName(c.Name)] = c
 	}
 
 	out.TotalGold = 0
@@ -280,7 +316,11 @@ func enrichStanding(base, api domain.KaggleStanding) domain.KaggleStanding {
 
 	for i := range out.Categories {
 		cat := &out.Categories[i]
+		cat.Name = canonicalTrackName(cat.Name)
 		if ac, ok := apiByName[cat.Name]; ok {
+			if ac.ArtifactCount > cat.ArtifactCount {
+				cat.ArtifactCount = ac.ArtifactCount
+			}
 			if ac.Gold > cat.Gold {
 				cat.Gold = ac.Gold
 			}
@@ -292,8 +332,8 @@ func enrichStanding(base, api domain.KaggleStanding) domain.KaggleStanding {
 			}
 			if tierHierarchy[ac.Tier] > tierHierarchy[cat.Tier] {
 				cat.Tier = ac.Tier
-				applyTierProgress(cat)
 			}
+			applyTierProgress(cat)
 		}
 		out.TotalGold += cat.Gold
 		out.TotalSilver += cat.Silver
@@ -319,67 +359,160 @@ func dumpKaggleDOM(ctx context.Context, username string) (string, error) {
 		return "", fmt.Errorf("headless chrome binary not found in PATH")
 	}
 
-	cctx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	url := fmt.Sprintf("https://www.kaggle.com/%s", username)
-	cmd := exec.CommandContext(cctx, bin,
+	mainURL := fmt.Sprintf("https://www.kaggle.com/%s", username)
+	mainHTML, err := dumpSingleKagglePage(cctx, bin, mainURL)
+	if err != nil {
+		return "", fmt.Errorf("running headless chrome on %s: %w", mainURL, err)
+	}
+
+	cleanedMain := preprocessKaggleHTML(mainHTML)
+	var b strings.Builder
+	b.WriteString(cleanedMain)
+
+	// Check which active Progression Tracks are not already detailed in "Kaggle Achievements" on the main profile page.
+	// For tracks at the Kaggler (pre-Expert) tier, Kaggle omits the summary card on /<username> and renders
+	// the track tier and individual medal icons on /<username>/code, /<username>/datasets, and /<username>/competitions.
+	achSlice := extractAchievementsSection(cleanedMain)
+	subTabs := []struct {
+		track   string
+		aliases []string
+		slug    string
+	}{
+		{track: "Code", aliases: []string{"Code", "Notebooks"}, slug: "code"},
+		{track: "Datasets", aliases: []string{"Datasets"}, slug: "datasets"},
+		{track: "Competitions", aliases: []string{"Competitions"}, slug: "competitions"},
+	}
+
+	type subResult struct {
+		track string
+		text  string
+	}
+	var (
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		results []subResult
+		sem     = make(chan struct{}, 2)
+	)
+
+	for _, st := range subTabs {
+		if achSlice != "" && findTrackTierWindow(achSlice, st.aliases) != "" {
+			continue
+		}
+		wg.Add(1)
+		go func(track, slug string) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-cctx.Done():
+				return
+			}
+			tabURL := fmt.Sprintf("https://www.kaggle.com/%s/%s", username, slug)
+			if tabHTML, tabErr := dumpSingleKagglePage(cctx, bin, tabURL); tabErr == nil && tabHTML != "" {
+				cleanedTab := preprocessKaggleHTML(tabHTML)
+				mu.Lock()
+				results = append(results, subResult{track: track, text: cleanedTab})
+				mu.Unlock()
+			}
+		}(st.track, st.slug)
+	}
+	wg.Wait()
+
+	for _, r := range results {
+		b.WriteString(" [[SUBTAB:")
+		b.WriteString(r.track)
+		b.WriteString("]] ")
+		b.WriteString(r.text)
+	}
+
+	return b.String(), nil
+}
+
+func dumpSingleKagglePage(ctx context.Context, bin, pageURL string) (string, error) {
+	pctx, cancel := context.WithTimeout(ctx, 14*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(pctx, bin,
 		"--headless=new",
 		"--disable-gpu",
 		"--no-sandbox",
 		"--disable-dev-shm-usage",
 		"--virtual-time-budget=5000",
 		"--dump-dom",
-		url,
+		pageURL,
 	)
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("running headless chrome on %s: %w", url, err)
+		return "", err
 	}
-	return stripHTMLTags(string(out)), nil
+	return string(out), nil
 }
 
-var htmlTagRe = regexp.MustCompile(`<[^>]+>`)
-var multiSpaceRe = regexp.MustCompile(`\s+`)
+var (
+	scriptStyleTagRe   = regexp.MustCompile(`(?is)<(?:script|style)[^>]*>.*?</(?:script|style)>`)
+	achievementMedalRe = regexp.MustCompile(`(?is)<img[^>]*?(?:alt|title)="(gold|silver|bronze)\s+medal"[^>]*>\s*<span[^>]*>\s*([0-9][0-9,]*)\s*</span>`)
+	itemMedalRe        = regexp.MustCompile(`(?is)<img[^>]*?(?:alt|title)="(gold|silver|bronze)\s+medal"[^>]*>`)
+	tierImgRe          = regexp.MustCompile(`(?is)<img[^>]*?(?:alt|title)="(Grandmaster|Master|Expert|Kaggler|Contributor|Novice)"[^>]*>`)
+	htmlTagRe          = regexp.MustCompile(`<[^>]+>`)
+	multiSpaceRe       = regexp.MustCompile(`\s+`)
+)
+
+func preprocessKaggleHTML(raw string) string {
+	s := scriptStyleTagRe.ReplaceAllString(raw, " ")
+	s = achievementMedalRe.ReplaceAllString(s, " ${2} ${1} ")
+	s = itemMedalRe.ReplaceAllString(s, " __ITEM_MEDAL_${1}__ ")
+	s = tierImgRe.ReplaceAllString(s, " ${1} ")
+	s = htmlTagRe.ReplaceAllString(s, " ")
+	return strings.TrimSpace(multiSpaceRe.ReplaceAllString(s, " "))
+}
 
 func stripHTMLTags(html string) string {
-	text := htmlTagRe.ReplaceAllString(html, " ")
-	return strings.TrimSpace(multiSpaceRe.ReplaceAllString(text, " "))
+	return preprocessKaggleHTML(html)
 }
 
 var tierHierarchy = map[string]int{
 	domain.KaggleTierNovice:      1,
 	domain.KaggleTierContributor: 2,
+	domain.KaggleTierKaggler:     2,
 	domain.KaggleTierExpert:      3,
 	domain.KaggleTierMaster:      4,
 	domain.KaggleTierGrandmaster: 5,
 }
 
-// ParseKaggleAchievementsText parses the visible text of a Kaggle profile page into a structured KaggleStanding.
+var allTrackBoundaryNames = []string{"Code", "Notebooks", "Datasets", "Competitions", "Discussions", "Discussion", "Models", "Benchmarks", "Followers", "Pinned Work", "Awards"}
+
+// ParseKaggleAchievementsText parses the visible text or HTML of a Kaggle profile page (and optional track sub-tabs)
+// into a structured KaggleStanding across the 3 active Kaggle Progression Tracks (Code, Datasets, Competitions).
 // Exported for deterministic unit testing against real Kaggle DOM snapshots.
 func ParseKaggleAchievementsText(text, username string) domain.KaggleStanding {
-	text = stripHTMLTags(text)
+	text = preprocessKaggleHTML(text)
+	mainText, subTabs := splitSubTabSections(text)
+
 	st := domain.KaggleStanding{
 		Available:   true,
 		Username:    username,
 		OverallTier: domain.KaggleTierContributor,
 	}
 
-	canonicalCats := []string{"Notebooks", "Datasets", "Competitions", "Discussions"}
 	tiers := []string{
 		domain.KaggleTierGrandmaster,
 		domain.KaggleTierMaster,
 		domain.KaggleTierExpert,
+		domain.KaggleTierKaggler,
 		domain.KaggleTierContributor,
 		domain.KaggleTierNovice,
 	}
 
 	// Detect overall highest tier mentioned in the profile text
-	bestWeight := 1
+	bestWeight := 0
 	bestTier := domain.KaggleTierNovice
 	for _, t := range tiers {
-		if strings.Contains(text, t) {
-			if w := tierHierarchy[t]; w > bestWeight {
+		if containsTierWord(text, t) {
+			w := tierHierarchy[t]
+			if w > bestWeight {
 				bestWeight = w
 				bestTier = t
 			}
@@ -387,14 +520,37 @@ func ParseKaggleAchievementsText(text, username string) domain.KaggleStanding {
 	}
 	st.OverallTier = bestTier
 
-	// Parse per-category blocks if present: e.g. "Notebooks Master #412 2 Gold 6 Silver 9 Bronze"
-	for _, catName := range canonicalCats {
-		cat := parseCategoryBlock(text, catName, bestTier)
+	codeArtifacts := extractTrackArtifactCount(text, codeCountRe)
+	dsArtifacts := extractTrackArtifactCount(text, datasetsCountRe)
+	compArtifacts := extractTrackArtifactCount(text, competitionsCountRe)
+
+	tracks := []struct {
+		name          string
+		aliases       []string
+		artifactCount int
+	}{
+		{name: "Code", aliases: []string{"Code", "Notebooks"}, artifactCount: codeArtifacts},
+		{name: "Datasets", aliases: []string{"Datasets"}, artifactCount: dsArtifacts},
+		{name: "Competitions", aliases: []string{"Competitions"}, artifactCount: compArtifacts},
+	}
+
+	achSlice := extractAchievementsSection(mainText)
+	searchBase := mainText
+	if achSlice != "" {
+		searchBase = achSlice
+	}
+
+	for _, tr := range tracks {
+		cat := parseTrackCategory(searchBase, mainText, subTabs[tr.name], tr.name, tr.aliases, tr.artifactCount, bestTier)
 		st.TotalGold += cat.Gold
 		st.TotalSilver += cat.Silver
 		st.TotalBronze += cat.Bronze
 		if cat.Rank > 0 && (st.PeakRank == 0 || cat.Rank < st.PeakRank) {
 			st.PeakRank = cat.Rank
+		}
+		if w := tierHierarchy[cat.Tier]; w > bestWeight {
+			bestWeight = w
+			st.OverallTier = cat.Tier
 		}
 		st.Categories = append(st.Categories, cat)
 	}
@@ -403,71 +559,265 @@ func ParseKaggleAchievementsText(text, username string) domain.KaggleStanding {
 }
 
 var (
-	rankRe   = regexp.MustCompile(`#\s*([0-9][0-9,]*)`)
-	goldRe   = regexp.MustCompile(`([0-9]+)\s*(?:Gold|G\b)`)
-	silverRe = regexp.MustCompile(`([0-9]+)\s*(?:Silver|S\b)`)
-	bronzeRe = regexp.MustCompile(`([0-9]+)\s*(?:Bronze|B\b)`)
+	codeCountRe         = regexp.MustCompile(`(?i)\b(?:Public\s+Notebooks|Code|Notebooks)\s*\(\s*([0-9][0-9,]*)\s*\)`)
+	datasetsCountRe     = regexp.MustCompile(`(?i)\b(?:Public\s+Datasets|Datasets)\s*\(\s*([0-9][0-9,]*)\s*\)`)
+	competitionsCountRe = regexp.MustCompile(`(?i)\bCompetitions\s*\(\s*([0-9][0-9,]*)\s*\)`)
+
+	rankOfTotalRe = regexp.MustCompile(`(?i)\bRank\s+([0-9][0-9,]*)\s+of\s+([0-9][0-9,]*)`)
+	rankHashRe    = regexp.MustCompile(`#\s*([0-9][0-9,]*)`)
+	goldRe        = regexp.MustCompile(`(?i)\b([0-9]+)\s*(?:Gold|G\b)`)
+	silverRe      = regexp.MustCompile(`(?i)\b([0-9]+)\s*(?:Silver|S\b)`)
+	bronzeRe      = regexp.MustCompile(`(?i)\b([0-9]+)\s*(?:Bronze|B\b)`)
+
+	itemGoldMedalRe   = regexp.MustCompile(`(?i)__ITEM_MEDAL_gold__`)
+	itemSilverMedalRe = regexp.MustCompile(`(?i)__ITEM_MEDAL_silver__`)
+	itemBronzeMedalRe = regexp.MustCompile(`(?i)__ITEM_MEDAL_bronze__`)
 )
 
-func parseCategoryBlock(fullText, catName, fallbackTier string) domain.KaggleCategory {
-	cat := domain.KaggleCategory{
-		Name:        catName,
-		Tier:        domain.KaggleTierContributor,
-		ProgressPct: 35,
-		TargetPct:   55,
+func splitSubTabSections(text string) (string, map[string]string) {
+	subTabs := make(map[string]string)
+	marker := "[[SUBTAB:"
+	firstIdx := strings.Index(text, marker)
+	if firstIdx == -1 {
+		return text, subTabs
 	}
-
-	idx := strings.Index(strings.ToLower(fullText), strings.ToLower(catName))
-	if idx == -1 {
-		return cat
-	}
-
-	window := fullText[idx:]
-	if len(window) > 180 {
-		window = window[:180]
-	}
-	lowerWindow := strings.ToLower(window)
-	for _, otherCat := range []string{"Notebooks", "Datasets", "Competitions", "Discussions"} {
-		if strings.EqualFold(otherCat, catName) {
-			continue
+	mainText := strings.TrimSpace(text[:firstIdx])
+	rest := text[firstIdx:]
+	for {
+		idx := strings.Index(rest, marker)
+		if idx == -1 {
+			break
 		}
-		if nextIdx := strings.Index(lowerWindow[len(catName):], strings.ToLower(otherCat)); nextIdx != -1 {
-			cutoff := len(catName) + nextIdx
-			if cutoff < len(window) {
-				window = window[:cutoff]
-				lowerWindow = lowerWindow[:cutoff]
+		after := rest[idx+len(marker):]
+		closeIdx := strings.Index(after, "]]")
+		if closeIdx == -1 {
+			break
+		}
+		trackName := canonicalTrackName(after[:closeIdx])
+		body := after[closeIdx+2:]
+		nextIdx := strings.Index(body, marker)
+		if nextIdx == -1 {
+			subTabs[trackName] = strings.TrimSpace(body)
+			break
+		}
+		subTabs[trackName] = strings.TrimSpace(body[:nextIdx])
+		rest = body[nextIdx:]
+	}
+	return mainText, subTabs
+}
+
+func extractAchievementsSection(text string) string {
+	lower := strings.ToLower(text)
+	idx := strings.Index(lower, "kaggle achievements")
+	if idx == -1 {
+		return ""
+	}
+	slice := text[idx+len("kaggle achievements"):]
+	lowerSlice := strings.ToLower(slice)
+	for _, stop := range []string{"pinned work", "awards", "public activity", "[[subtab:"} {
+		if sIdx := strings.Index(lowerSlice, stop); sIdx != -1 {
+			slice = slice[:sIdx]
+			lowerSlice = lowerSlice[:sIdx]
+		}
+	}
+	return strings.TrimSpace(slice)
+}
+
+func extractTrackArtifactCount(text string, re *regexp.Regexp) int {
+	matches := re.FindAllStringSubmatch(text, -1)
+	best := 0
+	for _, m := range matches {
+		if len(m) == 2 {
+			cleaned := strings.ReplaceAll(m[1], ",", "")
+			if n, err := strconv.Atoi(cleaned); err == nil && n > best {
+				best = n
 			}
 		}
 	}
+	return best
+}
 
-	for _, t := range []string{
+func containsTierWord(text, tier string) bool {
+	lower := strings.ToLower(text)
+	target := strings.ToLower(tier)
+	if target == "grandmaster" {
+		// Avoid matching "Legacy Grandmaster" as an active track tier if "Grandmaster" only appears after "Legacy"
+		cleaned := strings.ReplaceAll(lower, "legacy grandmaster", "")
+		return strings.Contains(cleaned, "grandmaster")
+	}
+	return strings.Contains(lower, target)
+}
+
+func findTrackTierWindow(text string, aliases []string) string {
+	lowerText := strings.ToLower(text)
+	tiers := []string{
 		domain.KaggleTierGrandmaster,
 		domain.KaggleTierMaster,
 		domain.KaggleTierExpert,
+		domain.KaggleTierKaggler,
 		domain.KaggleTierContributor,
 		domain.KaggleTierNovice,
-	} {
-		if strings.Contains(window, t) {
-			cat.Tier = t
-			break
+	}
+
+	for _, alias := range aliases {
+		lowerAlias := strings.ToLower(alias)
+		searchFrom := 0
+		for searchFrom < len(lowerText) {
+			relIdx := strings.Index(lowerText[searchFrom:], lowerAlias)
+			if relIdx == -1 {
+				break
+			}
+			idx := searchFrom + relIdx
+			searchFrom = idx + len(lowerAlias)
+
+			// Require word boundary before alias
+			if idx > 0 && isWordChar(lowerText[idx-1]) {
+				continue
+			}
+			endAlias := idx + len(lowerAlias)
+			if endAlias < len(lowerText) && isWordChar(lowerText[endAlias]) {
+				continue
+			}
+
+			window := text[idx:]
+			if len(window) > 220 {
+				window = window[:220]
+			}
+			lowerWindow := strings.ToLower(window)
+
+			// Cut window at the next track boundary name
+			for _, other := range allTrackBoundaryNames {
+				isSelf := false
+				for _, a := range aliases {
+					if strings.EqualFold(other, a) {
+						isSelf = true
+						break
+					}
+				}
+				if isSelf {
+					continue
+				}
+				if nextIdx := indexWord(lowerWindow[len(alias):], strings.ToLower(other)); nextIdx != -1 {
+					cutoff := len(alias) + nextIdx
+					if cutoff < len(window) {
+						window = window[:cutoff]
+						lowerWindow = lowerWindow[:cutoff]
+					}
+				}
+			}
+
+			// Verify that this window actually describes a track standing (contains a tier name)
+			for _, t := range tiers {
+				if containsTierWord(window, t) {
+					return window
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func isWordChar(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
+
+func indexWord(s, word string) int {
+	from := 0
+	for from < len(s) {
+		i := strings.Index(s[from:], word)
+		if i == -1 {
+			return -1
+		}
+		pos := from + i
+		beforeOK := pos == 0 || !isWordChar(s[pos-1])
+		afterPos := pos + len(word)
+		afterOK := afterPos >= len(s) || !isWordChar(s[afterPos])
+		if beforeOK && afterOK {
+			return pos
+		}
+		from = pos + len(word)
+	}
+	return -1
+}
+
+func parseTrackCategory(searchBase, mainText, subTabText, canonicalName string, aliases []string, artifactCount int, fallbackTier string) domain.KaggleCategory {
+	defaultTier := domain.KaggleTierContributor
+	if fallbackTier == domain.KaggleTierNovice || fallbackTier == domain.KaggleTierKaggler {
+		defaultTier = fallbackTier
+	}
+
+	cat := domain.KaggleCategory{
+		Name:          canonicalName,
+		Tier:          defaultTier,
+		ArtifactCount: artifactCount,
+	}
+
+	window := findTrackTierWindow(searchBase, aliases)
+	if window == "" && searchBase != mainText {
+		window = findTrackTierWindow(mainText, aliases)
+	}
+	if window == "" && subTabText != "" {
+		window = findTrackTierWindow(subTabText, aliases)
+	}
+
+	tiers := []string{
+		domain.KaggleTierGrandmaster,
+		domain.KaggleTierMaster,
+		domain.KaggleTierExpert,
+		domain.KaggleTierKaggler,
+		domain.KaggleTierContributor,
+		domain.KaggleTierNovice,
+	}
+
+	if window != "" {
+		for _, t := range tiers {
+			if containsTierWord(window, t) {
+				cat.Tier = t
+				break
+			}
+		}
+
+		if m := rankOfTotalRe.FindStringSubmatch(window); len(m) == 3 {
+			if r, err := strconv.Atoi(strings.ReplaceAll(m[1], ",", "")); err == nil {
+				cat.Rank = r
+			}
+			if tot, err := strconv.Atoi(strings.ReplaceAll(m[2], ",", "")); err == nil {
+				cat.TotalUsers = tot
+			}
+		} else if m := rankHashRe.FindStringSubmatch(window); len(m) == 2 {
+			if r, err := strconv.Atoi(strings.ReplaceAll(m[1], ",", "")); err == nil {
+				cat.Rank = r
+			}
+		}
+
+		if m := goldRe.FindStringSubmatch(window); len(m) == 2 {
+			cat.Gold, _ = strconv.Atoi(m[1])
+		}
+		if m := silverRe.FindStringSubmatch(window); len(m) == 2 {
+			cat.Silver, _ = strconv.Atoi(m[1])
+		}
+		if m := bronzeRe.FindStringSubmatch(window); len(m) == 2 {
+			cat.Bronze, _ = strconv.Atoi(m[1])
 		}
 	}
 
-	if m := rankRe.FindStringSubmatch(window); len(m) == 2 {
-		cleaned := strings.ReplaceAll(m[1], ",", "")
-		if r, err := strconv.Atoi(cleaned); err == nil {
-			cat.Rank = r
+	// Enrich from track sub-tab (/<username>/code, /datasets, /competitions) when medals are rendered per item
+	if subTabText != "" {
+		if subWin := findTrackTierWindow(subTabText, aliases); subWin != "" {
+			for _, t := range tiers {
+				if containsTierWord(subWin, t) {
+					if tierHierarchy[t] >= tierHierarchy[cat.Tier] || cat.Tier == domain.KaggleTierContributor {
+						cat.Tier = t
+					}
+					break
+				}
+			}
 		}
-	}
-
-	if m := goldRe.FindStringSubmatch(window); len(m) == 2 {
-		cat.Gold, _ = strconv.Atoi(m[1])
-	}
-	if m := silverRe.FindStringSubmatch(window); len(m) == 2 {
-		cat.Silver, _ = strconv.Atoi(m[1])
-	}
-	if m := bronzeRe.FindStringSubmatch(window); len(m) == 2 {
-		cat.Bronze, _ = strconv.Atoi(m[1])
+		if cat.Gold == 0 && cat.Silver == 0 && cat.Bronze == 0 {
+			cat.Gold = len(itemGoldMedalRe.FindAllStringIndex(subTabText, -1))
+			cat.Silver = len(itemSilverMedalRe.FindAllStringIndex(subTabText, -1))
+			cat.Bronze = len(itemBronzeMedalRe.FindAllStringIndex(subTabText, -1))
+		}
 	}
 
 	applyTierProgress(&cat)
@@ -475,26 +825,59 @@ func parseCategoryBlock(fullText, catName, fallbackTier string) domain.KaggleCat
 }
 
 func applyTierProgress(cat *domain.KaggleCategory) {
+	totalMedals := cat.Gold + cat.Silver + cat.Bronze
+	expertReq := expertMedalRequirement(cat.Name)
+
 	switch cat.Tier {
 	case domain.KaggleTierGrandmaster:
 		cat.ProgressPct = 96
 		cat.TargetPct = 100
-		cat.TopPct = "Top 0.1%"
+		cat.TopPct = formatPercentileOrDefault(cat.Rank, cat.TotalUsers, "Top 0.1%")
 	case domain.KaggleTierMaster:
 		cat.ProgressPct = 82
 		cat.TargetPct = 90
-		cat.TopPct = "Top 0.8%"
+		cat.TopPct = formatPercentileOrDefault(cat.Rank, cat.TotalUsers, "Top 0.8%")
 	case domain.KaggleTierExpert:
 		cat.ProgressPct = 62
 		cat.TargetPct = 75
-		cat.TopPct = "Top 1.5%"
-	case domain.KaggleTierContributor:
-		cat.ProgressPct = 36
+		cat.TopPct = formatPercentileOrDefault(cat.Rank, cat.TotalUsers, "Top 1.5%")
+	case domain.KaggleTierKaggler, domain.KaggleTierContributor:
 		cat.TargetPct = 50
-		cat.TopPct = "Top 5%"
+		if totalMedals > 0 && totalMedals < expertReq {
+			cat.ProgressPct = math.Round(20.0 + (float64(totalMedals)/float64(expertReq))*28.0)
+			if cat.Rank > 0 {
+				cat.TopPct = formatPercentileOrDefault(cat.Rank, cat.TotalUsers, "Top 5%")
+			} else {
+				cat.TopPct = fmt.Sprintf("%d/%d Expert", totalMedals, expertReq)
+			}
+		} else if cat.Rank > 0 {
+			cat.ProgressPct = 32
+			cat.TopPct = formatPercentileOrDefault(cat.Rank, cat.TotalUsers, "Top 5%")
+		} else {
+			if cat.ArtifactCount > 0 {
+				cat.ProgressPct = 18
+			} else {
+				cat.ProgressPct = 12
+			}
+			cat.TopPct = "Active"
+		}
 	default:
 		cat.ProgressPct = 18
 		cat.TargetPct = 35
 		cat.TopPct = "Active"
 	}
+}
+
+func formatPercentileOrDefault(rank, totalUsers int, fallback string) string {
+	if rank > 0 && totalUsers > 0 {
+		pct := (float64(rank) / float64(totalUsers)) * 100.0
+		if pct < 0.1 {
+			return "Top 0.1%"
+		}
+		if pct < 10.0 {
+			return fmt.Sprintf("Top %.1f%%", pct)
+		}
+		return fmt.Sprintf("Top %.0f%%", math.Ceil(pct))
+	}
+	return fallback
 }

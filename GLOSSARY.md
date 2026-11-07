@@ -51,3 +51,11 @@ _Avoid_: Bloat filter, File compression
 **Analytical Workspace**:
 A standalone Owned Repository or a self-contained project subdirectory within a monorepo that houses its own notebooks, source scripts, or dependency manifests, serving as the unit of ecosystem stack detection.
 _Avoid_: Subfolder, Directory, Package
+
+**Progression Track**:
+One of the three active Kaggle disciplines in which the Subject publishes work, competes, and earns medals (`Code`, `Datasets`, and `Competitions`), excluding retired legacy forum tracks.
+_Avoid_: Category, Discussions track, Notebooks, Kernels
+
+**Kaggle Tier**:
+The Subject's official standing within a Progression Track or overall across Kaggle (`Kaggler`, `Expert`, `Master`, or `Grandmaster`), unlocked by accumulating Gold, Silver, and Bronze medals.
+_Avoid_: Level, Badge, Rank
