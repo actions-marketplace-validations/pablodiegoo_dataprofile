@@ -97,6 +97,7 @@ const (
 const (
 	KaggleTierNovice      = "Novice"
 	KaggleTierContributor = "Contributor"
+	KaggleTierKaggler     = "Kaggler"
 	KaggleTierExpert      = "Expert"
 	KaggleTierMaster      = "Master"
 	KaggleTierGrandmaster = "Grandmaster"
@@ -214,18 +215,19 @@ func (k KaggleStanding) TotalMedals() int {
 	return k.TotalGold + k.TotalSilver + k.TotalBronze
 }
 
-// KaggleCategory represents one of the 4 official Kaggle progression tracks.
+// KaggleCategory represents one of the 3 active Kaggle progression tracks (Code, Datasets, Competitions).
 type KaggleCategory struct {
-	Name        string  `json:"name"` // Notebooks, Datasets, Competitions, Discussions
-	Tier        string  `json:"tier"`
-	Rank        int     `json:"rank"`
-	TotalUsers  int     `json:"total_users"`
-	TopPct      string  `json:"top_pct"`
-	Gold        int     `json:"gold"`
-	Silver      int     `json:"silver"`
-	Bronze      int     `json:"bronze"`
-	ProgressPct float64 `json:"progress_pct"` // 0..100 progress along bullet/lollipop scale
-	TargetPct   float64 `json:"target_pct"`   // Next tier threshold marker 0..100
+	Name          string  `json:"name"` // Code, Datasets, Competitions
+	Tier          string  `json:"tier"`
+	Rank          int     `json:"rank"`
+	TotalUsers    int     `json:"total_users"`
+	TopPct        string  `json:"top_pct"`
+	Gold          int     `json:"gold"`
+	Silver        int     `json:"silver"`
+	Bronze        int     `json:"bronze"`
+	ArtifactCount int     `json:"artifact_count"`
+	ProgressPct   float64 `json:"progress_pct"` // 0..100 progress along bullet/lollipop scale
+	TargetPct     float64 `json:"target_pct"`   // Next tier threshold marker 0..100
 }
 
 // ImpactMetrics holds combined GitHub and Hugging Face community reach metrics (Panel 4).

@@ -19,22 +19,19 @@
     <rect x="114" y="30" width="34" height="94" rx="3" fill="#d97706"/>
     <rect x="152" y="10" width="34" height="114" rx="3" fill="none" stroke="#d97706" stroke-dasharray="3,3" stroke-width="1.5"/>
     <text x="131" y="24" text-anchor="middle" font-size="14">🏆</text>
-    <text x="0" y="144" class="sans lbl" fill="#d97706">★ 39 Total Medals Earned</text>
-    <text x="0" y="160" class="mono val">3 Gold · 12 Silver · 24 Bronze</text>
+    <text x="0" y="144" class="sans lbl" fill="#d97706">★ 32 Total Medals Earned</text>
+    <text x="0" y="160" class="mono val">3 Gold · 11 Silver · 18 Bronze</text>
   </g>
   <g transform="translate(220, 48)">
     <text x="0" y="0" class="sans sec">Category Progression</text>
-    <rect x="0" y="10" width="204" height="32" rx="6" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="30" class="sans lbl">📓 Notebooks</text>
-    <text x="194" y="30" text-anchor="end" class="mono val" fill="#d97706">Master #412</text>
-    <rect x="0" y="48" width="204" height="32" rx="6" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="68" class="sans lbl">🗂️ Datasets</text>
-    <text x="194" y="68" text-anchor="end" class="mono val">Expert #910</text>
-    <rect x="0" y="86" width="204" height="32" rx="6" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="106" class="sans lbl">⚔️ Competitions</text>
-    <text x="194" y="106" text-anchor="end" class="mono val" fill="#059669">Expert #1,842</text>
-    <rect x="0" y="124" width="204" height="32" rx="6" fill="#7c3aed" fill-opacity="0.1" stroke="#7c3aed" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="144" class="sans lbl">💬 Discussions</text>
-    <text x="194" y="144" text-anchor="end" class="mono val" fill="#7c3aed">Contributor #6,210</text>
+    <rect x="0" y="14" width="204" height="38" rx="6" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1.2"/>
+    <text x="10" y="37" class="sans lbl">📓 Code</text>
+    <text x="194" y="37" text-anchor="end" class="mono val" fill="#d97706">Master #412</text>
+    <rect x="0" y="62" width="204" height="38" rx="6" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1.2"/>
+    <text x="10" y="85" class="sans lbl">🗂️ Datasets</text>
+    <text x="194" y="85" text-anchor="end" class="mono val">Expert #910</text>
+    <rect x="0" y="110" width="204" height="38" rx="6" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
+    <text x="10" y="133" class="sans lbl">⚔️ Competitions</text>
+    <text x="194" y="133" text-anchor="end" class="mono val" fill="#059669">Expert #1,842</text>
   </g>
 </svg>

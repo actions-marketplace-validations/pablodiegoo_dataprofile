@@ -21,11 +21,12 @@ func TestParseKaggleAchievementsText(t *testing.T) {
 	tiers := []string{
 		domain.KaggleTierNovice,
 		domain.KaggleTierContributor,
+		domain.KaggleTierKaggler,
 		domain.KaggleTierExpert,
 		domain.KaggleTierMaster,
 		domain.KaggleTierGrandmaster,
 	}
-	if len(tiers) != 5 || tiers[0] != "Novice" || tiers[4] != "Grandmaster" {
+	if len(tiers) != 6 || tiers[0] != "Novice" || tiers[2] != "Kaggler" || tiers[5] != "Grandmaster" {
 		t.Fatalf("unexpected Kaggle tier constants: %v", tiers)
 	}
 
@@ -34,7 +35,6 @@ func TestParseKaggleAchievementsText(t *testing.T) {
 		Notebooks Master #412 2 Gold 6 Silver 9 Bronze
 		Datasets Expert #910 1 Gold 3 Silver 4 Bronze
 		Competitions Expert #1,842 0 Gold 2 Silver 5 Bronze
-		Discussions Contributor #6,210 0 Gold 1 Silver 6 Bronze
 	`
 
 	st := ParseKaggleAchievementsText(domText, "pablodiegoo")
@@ -47,11 +47,14 @@ func TestParseKaggleAchievementsText(t *testing.T) {
 	if st.PeakRank != 412 {
 		t.Errorf("expected peak rank 412, got %d", st.PeakRank)
 	}
-	if st.TotalGold != 3 || st.TotalSilver != 12 || st.TotalBronze != 24 {
+	if st.TotalGold != 3 || st.TotalSilver != 11 || st.TotalBronze != 18 {
 		t.Errorf("unexpected medal totals: G=%d S=%d B=%d", st.TotalGold, st.TotalSilver, st.TotalBronze)
 	}
-	if st.TotalMedals() != 39 {
-		t.Errorf("expected 39 total medals, got %d", st.TotalMedals())
+	if st.TotalMedals() != 32 {
+		t.Errorf("expected 32 total medals, got %d", st.TotalMedals())
+	}
+	if len(st.Categories) != 3 || st.Categories[0].Name != "Code" || st.Categories[1].Name != "Datasets" || st.Categories[2].Name != "Competitions" {
+		t.Errorf("expected 3 canonical categories [Code, Datasets, Competitions], got %+v", st.Categories)
 	}
 }
 
@@ -87,18 +90,78 @@ func TestParseKaggleAchievementsTextAllTiersAndHTMLDOM(t *testing.T) {
 						<span class="track-rank">#1,842</span>
 						<span class="medals">0 Gold 3 Silver 7 Bronze</span>
 					</div>
-					<div class="track-card" data-track="discussions" style="display:flex;padding:12px 16px;margin:8px 0;border:1px solid #ccc;">
-						<span class="track-title">Discussions</span>
-						<span class="track-tier">Contributor</span>
-						<span class="track-rank">#12,450</span>
-						<span class="medals">0 Gold 0 Silver 4 Bronze</span>
-					</div>
 				</section>`,
 			wantTier:   "Grandmaster",
 			wantPeak:   48,
 			wantGold:   17,
 			wantSilver: 31,
-			wantBronze: 51,
+			wantBronze: 47,
+		},
+		{
+			name: "Modern Kaggle Achievements DOM with img alt medals and Rank X of Y",
+			domSnapshot: `<div class="sc-dJkDXt">Kaggle Achievements</div>
+				<div>
+					<img src="/static/images/tiers/master@48.png" alt="tier" title="master">
+					<p>Competitions Master</p>
+					<p>Rank 2,429<span>of 58,109</span></p>
+					<div class="medals">
+						<div><img alt="gold medal" src="goldl@2x.png"><span>1</span></div>
+						<div><img alt="silver medal" src="silverl@2x.png"><span>5</span></div>
+						<div><img alt="bronze medal" src="bronzel@2x.png"><span>6</span></div>
+					</div>
+				</div>
+				<div>
+					<img src="/static/images/tiers/grandmaster@48.png" alt="tier" title="grandmaster">
+					<p>Notebooks Grandmaster</p>
+					<p>Rank 14<span>of 62,158</span></p>
+					<div class="medals">
+						<div><img alt="gold medal" src="goldl@2x.png"><span>64</span></div>
+						<div><img alt="silver medal" src="silverl@2x.png"><span>6</span></div>
+						<div><img alt="bronze medal" src="bronzel@2x.png"><span>1</span></div>
+					</div>
+				</div>
+				<div>
+					<img src="/static/images/tiers/expert@48.png" alt="tier" title="expert">
+					<p>Datasets Expert</p>
+					<p>Rank 1,863<span>of 15,794</span></p>
+					<div class="medals">
+						<div><img alt="gold medal" src="goldl@2x.png"><span>2</span></div>
+						<div><img alt="silver medal" src="silverl@2x.png"><span>1</span></div>
+						<div><img alt="bronze medal" src="bronzel@2x.png"><span>6</span></div>
+					</div>
+				</div>`,
+			wantTier:   "Grandmaster",
+			wantPeak:   14,
+			wantGold:   67,
+			wantSilver: 12,
+			wantBronze: 13,
+		},
+		{
+			name: "Modern Kaggler multi-tab DOM with 3 Code Bronze medals (pablodiegoo)",
+			domSnapshot: `<nav>
+					<a href="/pablodiegoo/competitions">Competitions (14)</a>
+					<a href="/pablodiegoo/datasets">Datasets (5)</a>
+					<a href="/pablodiegoo/code">Code (23)</a>
+				</nav>
+				<div>
+					<img src="/static/images/tiers/expert_empty_new.svg" alt="Kaggler" title="Kaggler">
+					<p>Notebooks Kaggler</p>
+				</div>
+				[[SUBTAB:Code]]
+				<ul class="km-list">
+					<li><span>Name That LLM Starter Notebook</span><span>28</span><img src="/static/images/medals/competitions/bronzel@2x.png" alt="bronze medal" title="bronze medal"></li>
+					<li><span>Google Quantum Compilation Starter Notebook</span><span>18</span><img src="/static/images/medals/competitions/bronzel@2x.png" alt="bronze medal" title="bronze medal"></li>
+					<li><span>Enveda CASMI26 Starter Notebook</span><span>14</span><img src="/static/images/medals/competitions/bronzel@2x.png" alt="bronze medal" title="bronze medal"></li>
+				</ul>
+				[[SUBTAB:Datasets]]
+				<ul class="km-list"><li><span>Dataset 1</span></li></ul>
+				[[SUBTAB:Competitions]]
+				<ul class="km-list"><li><span>Comp 1</span></li></ul>`,
+			wantTier:   "Kaggler",
+			wantPeak:   0,
+			wantGold:   0,
+			wantSilver: 0,
+			wantBronze: 3,
 		},
 		{
 			name: "Expert tier with comma-formatted peak rank",
@@ -106,7 +169,6 @@ func TestParseKaggleAchievementsTextAllTiersAndHTMLDOM(t *testing.T) {
 				Notebooks Expert #1,842 0 Gold 2 Silver 6 Bronze
 				Datasets Contributor #4,500 0 Gold 0 Silver 2 Bronze
 				Competitions Novice
-				Discussions Novice
 			`,
 			wantTier:   "Expert",
 			wantPeak:   1842,
@@ -116,7 +178,7 @@ func TestParseKaggleAchievementsTextAllTiersAndHTMLDOM(t *testing.T) {
 		},
 		{
 			name:        "Contributor tier without medals",
-			domSnapshot: `Notebooks Contributor #9,800 0 Gold 0 Silver 0 Bronze Datasets Novice Competitions Novice Discussions Novice`,
+			domSnapshot: `Notebooks Contributor #9,800 0 Gold 0 Silver 0 Bronze Datasets Novice Competitions Novice`,
 			wantTier:    "Contributor",
 			wantPeak:    9800,
 			wantGold:    0,
@@ -154,8 +216,18 @@ func TestParseKaggleAchievementsTextAllTiersAndHTMLDOM(t *testing.T) {
 					tc.wantGold, tc.wantSilver, tc.wantBronze,
 					st.TotalGold, st.TotalSilver, st.TotalBronze)
 			}
-			if len(st.Categories) != 4 {
-				t.Fatalf("expected 4 canonical categories, got %d", len(st.Categories))
+			if len(st.Categories) != 3 {
+				t.Fatalf("expected 3 canonical categories, got %d", len(st.Categories))
+			}
+			if tc.name == "Modern Kaggler multi-tab DOM with 3 Code Bronze medals (pablodiegoo)" {
+				codeCat := st.Categories[0]
+				if codeCat.Name != "Code" || codeCat.Bronze != 3 || codeCat.ArtifactCount != 23 || codeCat.TopPct != "3/5 Expert" {
+					t.Errorf("unexpected Code category for Kaggler profile: %+v", codeCat)
+				}
+				if st.Categories[1].ArtifactCount != 5 || st.Categories[2].ArtifactCount != 14 {
+					t.Errorf("unexpected Datasets/Competitions artifact counts: ds=%d comp=%d",
+						st.Categories[1].ArtifactCount, st.Categories[2].ArtifactCount)
+				}
 			}
 		})
 	}

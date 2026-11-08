@@ -121,7 +121,7 @@ output:
 			`<g transform="translate(8, 359)">`,
 			`<g transform="translate(452, 359)">`,
 			"Pandas / Polars",
-			"Notebooks",
+			"Code",
 		} {
 			if !strings.Contains(fullStr, tok) {
 				t.Errorf("expected %s in %s", tok, fullPath)
@@ -539,7 +539,7 @@ func TestLiveCollectionZeroGoldKaggleAndZeroStarGitHubDoesNotLeakDemoValues(t *t
 
 	kgClient := kaggle.NewClient("", "")
 	kgClient.DOMDumper = func(ctx context.Context, username string) (string, error) {
-		return `Notebooks Contributor #9,800 0 Gold 0 Silver 0 Bronze Datasets Novice Competitions Novice Discussions Novice`, nil
+		return `Notebooks Contributor #9,800 0 Gold 0 Silver 0 Bronze Datasets Novice Competitions Novice`, nil
 	}
 
 	data := render.DefaultPortfolioData(manifest)
@@ -563,8 +563,8 @@ func TestLiveCollectionZeroGoldKaggleAndZeroStarGitHubDoesNotLeakDemoValues(t *t
 	if err != nil {
 		t.Fatalf("Render kaggle failed: %v", err)
 	}
-	if !strings.Contains(svgKaggle, "4 Tracks") || strings.Contains(svgKaggle, "3 Gold") {
-		t.Errorf("expected live zero-gold Kaggle profile to trigger '4 Tracks' degradation instead of leaking demo '3 Gold'")
+	if !strings.Contains(svgKaggle, "3 Tracks") || strings.Contains(svgKaggle, "3 Gold") {
+		t.Errorf("expected live zero-gold Kaggle profile to trigger '3 Tracks' degradation instead of leaking demo '3 Gold'")
 	}
 }
 
@@ -954,6 +954,8 @@ func TestPrototypesShowcaseAndGeneratedSVGs(t *testing.T) {
 			"Contributed Repository",
 			"Notebook Deflation",
 			"Analytical Workspace",
+			"Progression Track",
+			"Kaggle Tier",
 		},
 		"docs/adr/0001-go-static-binary-engine.md": {
 			"36 SVG Panels",
