@@ -12,25 +12,25 @@
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
   <text x="12" y="25" class="serif headline">Kaggle Master Standing Ranked #412 Globally with 32 Medals</text>
-  <text x="12" y="39" class="sans lead">Percentile standing across all 3 official Kaggle progression tracks (3 Gold · 11 Silver · 18 Bronze)</text>
+  <text x="12" y="39" class="sans lead" font-size="9.4px">Percentile standing across all 3 official Kaggle progression tracks (3 Gold · 11 Silver · 18 Bronze)</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 66)">
-    <line x1="230" y1="0" x2="230" y2="120" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1.2"/>
-    <text x="230" y="-4" text-anchor="middle" class="sans" font-size="8.5" font-weight="700" fill="#e11d48">TOP 1% GLOBAL BENCHMARK</text>
+    <line x1="168" y1="0" x2="168" y2="120" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1.2"/>
+    <text x="168" y="-4" text-anchor="middle" class="sans" font-size="8.5" font-weight="700" fill="#e11d48">TOP 1% GLOBAL BENCHMARK</text>
     <text x="0" y="24" class="sans lbl">Code</text>
-    <line x1="92" y1="20" x2="280" y2="20" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
-    <line x1="92" y1="20" x2="243" y2="20" stroke="#d97706" stroke-width="2.5"/>
-    <circle cx="243" cy="20" r="4.2" fill="#d97706"/>
+    <line x1="86" y1="20" x2="196" y2="20" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="86" y1="20" x2="175" y2="20" stroke="#d97706" stroke-width="2.5"/>
+    <circle cx="175" cy="20" r="4.2" fill="#d97706"/>
     <text x="416" y="24" text-anchor="end" class="mono val">Master · #412 (Top 0.2%)</text>
     <text x="0" y="60" class="sans lbl">Datasets</text>
-    <line x1="92" y1="56" x2="280" y2="56" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
-    <line x1="92" y1="56" x2="210" y2="56" stroke="#0284c7" stroke-width="2.5"/>
-    <circle cx="210" cy="56" r="4.2" fill="#0284c7"/>
+    <line x1="86" y1="56" x2="196" y2="56" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="86" y1="56" x2="155" y2="56" stroke="#0284c7" stroke-width="2.5"/>
+    <circle cx="155" cy="56" r="4.2" fill="#0284c7"/>
     <text x="416" y="60" text-anchor="end" class="mono val">Expert · #910 (Top 0.7%)</text>
     <text x="0" y="96" class="sans lbl">Competitions</text>
-    <line x1="92" y1="92" x2="280" y2="92" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
-    <line x1="92" y1="92" x2="197" y2="92" stroke="#0284c7" stroke-width="2.5"/>
-    <circle cx="197" cy="92" r="4.2" fill="#0284c7"/>
+    <line x1="86" y1="92" x2="196" y2="92" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="86" y1="92" x2="148" y2="92" stroke="#0284c7" stroke-width="2.5"/>
+    <circle cx="148" cy="92" r="4.2" fill="#0284c7"/>
     <text x="416" y="96" text-anchor="end" class="mono val">Expert · #1,842 (Top 0.9%)</text>
     <text x="0" y="146" class="serif callout">↳ Consistent top-percentile standing across code, datasets, and competitive modeling.</text>
   </g>

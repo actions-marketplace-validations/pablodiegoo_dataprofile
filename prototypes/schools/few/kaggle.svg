@@ -34,29 +34,29 @@
     <text x="412" y="0" text-anchor="end" class="sans sec">Rank &amp; Medals</text>
     <g transform="translate(0, 16)">
       <text x="0" y="11" class="sans lbl">Code</text>
-      <rect x="92" y="2" width="150" height="13" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
-      <rect x="92" y="2" width="112" height="13" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
-      <rect x="92" y="2" width="70" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
-      <rect x="92" y="5" width="122" height="7" rx="1" fill="#d97706"/>
-      <line x1="227" y1="0" x2="227" y2="17" stroke="#0284c7" stroke-width="2.2"/>
+      <rect x="84" y="2" width="112" height="13" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
+      <rect x="84" y="2" width="84" height="13" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
+      <rect x="84" y="2" width="52" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
+      <rect x="84" y="5" width="92" height="7" rx="1" fill="#d97706"/>
+      <line x1="185" y1="0" x2="185" y2="17" stroke="#0284c7" stroke-width="2.2"/>
       <text x="412" y="11" text-anchor="end" class="mono val" fill="#d97706">Master · #412 (2G 6S 9B)</text>
     </g>
     <g transform="translate(0, 48)">
       <text x="0" y="11" class="sans lbl">Datasets</text>
-      <rect x="92" y="2" width="150" height="13" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
-      <rect x="92" y="2" width="112" height="13" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
-      <rect x="92" y="2" width="70" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
-      <rect x="92" y="5" width="96" height="7" rx="1" fill="#0284c7"/>
-      <line x1="203" y1="0" x2="203" y2="17" stroke="#0284c7" stroke-width="2.2"/>
+      <rect x="84" y="2" width="112" height="13" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
+      <rect x="84" y="2" width="84" height="13" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
+      <rect x="84" y="2" width="52" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
+      <rect x="84" y="5" width="72" height="7" rx="1" fill="#0284c7"/>
+      <line x1="167" y1="0" x2="167" y2="17" stroke="#0284c7" stroke-width="2.2"/>
       <text x="412" y="11" text-anchor="end" class="mono val" fill="#0284c7">Expert · #910 (1G 3S 4B)</text>
     </g>
     <g transform="translate(0, 80)">
       <text x="0" y="11" class="sans lbl">Competitions</text>
-      <rect x="92" y="2" width="150" height="13" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
-      <rect x="92" y="2" width="112" height="13" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
-      <rect x="92" y="2" width="70" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
-      <rect x="92" y="5" width="85" height="7" rx="1" fill="#64748b"/>
-      <line x1="203" y1="0" x2="203" y2="17" stroke="#0284c7" stroke-width="2.2"/>
+      <rect x="84" y="2" width="112" height="13" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
+      <rect x="84" y="2" width="84" height="13" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
+      <rect x="84" y="2" width="52" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
+      <rect x="84" y="5" width="64" height="7" rx="1" fill="#64748b"/>
+      <line x1="167" y1="0" x2="167" y2="17" stroke="#0284c7" stroke-width="2.2"/>
       <text x="412" y="11" text-anchor="end" class="mono val" fill="#64748b">Expert · #1,842 (0G 2S 5B)</text>
     </g>
     <text x="0" y="124" class="sans" font-size="8.5" fill="#64748b"><tspan fill="#0284c7" font-weight="700">│ Vertical marker</tspan> indicates the threshold required to unlock the next Kaggle Tier.</text>

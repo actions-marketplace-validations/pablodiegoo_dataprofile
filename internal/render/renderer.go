@@ -251,7 +251,7 @@ func getLabels(locale string, strippedMB float64, totalRepos int) labels {
 		LangCICD:              "CI/CD Workflows",
 		LangTests:             "Automated Test Suites",
 		LangDocker:            "Docker / Containers",
-		LangFootnote:          fmt.Sprintf("*Note: %.1f MB of embedded base64 chart cache stripped from .ipynb files prior to computing proportions.", strippedMB),
+		LangFootnote:          fmt.Sprintf("*Note: %.1f MB of embedded base64 chart cache stripped from .ipynb files.", strippedMB),
 		LangFewStrippedFmt:    "%.1f MB Stripped",
 		LangFewPrimary:        "Primary Language",
 		LangFewProdEDA:        "Production vs. EDA",
@@ -552,10 +552,176 @@ func formatInt(n int) string {
 }
 
 func formatCompact(n int) string {
+	if n >= 1000000 {
+		return fmt.Sprintf("%.1fM", float64(n)/1000000.0)
+	}
 	if n >= 1000 {
 		return fmt.Sprintf("%.1fk", float64(n)/1000.0)
 	}
 	return fmt.Sprintf("%d", n)
+}
+
+func estimateRuneWidth(ch rune, fontSize float64, mono, bold bool) float64 {
+	if ch > 0x2600 {
+		return fontSize * 1.15
+	}
+	if mono {
+		return fontSize * 0.60
+	}
+	switch ch {
+	case 'i', 'I', 'l', '1', '.', ',', '|', '!', ';', ':', '\'', ' ':
+		if bold {
+			return fontSize * 0.32
+		}
+		return fontSize * 0.28
+	case 'm', 'M', 'W', '@', '#', '%', '&':
+		if bold {
+			return fontSize * 0.85
+		}
+		return fontSize * 0.78
+	}
+	if ch >= 'A' && ch <= 'Z' {
+		if bold {
+			return fontSize * 0.68
+		}
+		return fontSize * 0.62
+	}
+	if bold {
+		return fontSize * 0.56
+	}
+	return fontSize * 0.51
+}
+
+func estimateTextWidth(text string, fontSize float64, mono, bold, upper bool, letterSpacing float64) float64 {
+	if text == "" {
+		return 0
+	}
+	if upper {
+		text = strings.ToUpper(text)
+	}
+	var w float64
+	runes := 0
+	for _, ch := range text {
+		w += estimateRuneWidth(ch, fontSize, mono, bold)
+		runes++
+	}
+	if runes > 1 && letterSpacing > 0 {
+		w += float64(runes-1) * letterSpacing
+	}
+	return w
+}
+
+func fitFontSize(text string, baseSize, minSize, maxW float64, mono, bold, upper bool, letterSpacing float64) float64 {
+	if maxW <= 0 || text == "" {
+		return baseSize
+	}
+	w := estimateTextWidth(text, baseSize, mono, bold, upper, letterSpacing)
+	if w <= maxW {
+		return baseSize
+	}
+	// Iteratively step down by 0.1px until it fits or hits minSize
+	sz := baseSize
+	for sz > minSize {
+		sz = math.Round((sz-0.1)*10) / 10
+		ls := letterSpacing
+		if ls > 0.25 && sz < baseSize*0.85 {
+			ls = 0.1
+		}
+		if estimateTextWidth(text, sz, mono, bold, upper, ls) <= maxW {
+			return sz
+		}
+	}
+	return minSize
+}
+
+func fontSizeAttr(size, baseSize float64) string {
+	if math.Abs(size-baseSize) < 0.05 {
+		return ""
+	}
+	return fmt.Sprintf(` font-size="%.1fpx"`, size)
+}
+
+func fitTextAttr(text string, baseSize, minSize, maxW float64, mono, bold, upper bool, letterSpacing float64) string {
+	sz := fitFontSize(text, baseSize, minSize, maxW, mono, bold, upper, letterSpacing)
+	if math.Abs(sz-baseSize) < 0.05 {
+		return ""
+	}
+	if letterSpacing > 0.25 && sz < baseSize*0.85 {
+		return fmt.Sprintf(` font-size="%.1fpx" letter-spacing="0.1px"`, sz)
+	}
+	return fmt.Sprintf(` font-size="%.1fpx"`, sz)
+}
+
+func fitPairTextAttrs(leftText string, leftBase, leftMin float64, leftMono, leftBold, leftUpper bool, leftLS float64, rightText string, rightBase, rightMin float64, rightMono, rightBold, rightUpper bool, rightLS float64, totalW, minGap float64) (string, string) {
+	lw := estimateTextWidth(leftText, leftBase, leftMono, leftBold, leftUpper, leftLS)
+	rw := estimateTextWidth(rightText, rightBase, rightMono, rightBold, rightUpper, rightLS)
+	if lw+rw+minGap <= totalW {
+		return "", ""
+	}
+	avail := totalW - minGap
+	if avail < 20 {
+		avail = 20
+	}
+	leftShare := avail * (lw / (lw + rw))
+	rightShare := avail - leftShare
+	lAttr := fitTextAttr(leftText, leftBase, leftMin, leftShare, leftMono, leftBold, leftUpper, leftLS)
+	rAttr := fitTextAttr(rightText, rightBase, rightMin, rightShare, rightMono, rightBold, rightUpper, rightLS)
+	return lAttr, rAttr
+}
+
+func shortLangName(name string, maxRunes int) string {
+	name = strings.TrimSpace(name)
+	switch strings.ToLower(name) {
+	case "jupyter notebook":
+		name = "Jupyter"
+	case "objective-c++":
+		name = "Obj-C++"
+	case "objective-c":
+		name = "Obj-C"
+	case "visual basic .net":
+		name = "VB.NET"
+	case "rich text format":
+		name = "RTF"
+	}
+	if maxRunes > 0 && utf8.RuneCountInString(name) > maxRunes {
+		return truncateRunes(name, maxRunes)
+	}
+	return name
+}
+
+func fitHeaderNameRole(name, role, sep string, maxW, baseSize, minSize float64, mono, bold, upper bool, letterSpacing float64) (string, float64) {
+	prefix := ""
+	if name != "" {
+		prefix = name + sep
+	}
+	full := prefix + role
+	if estimateTextWidth(full, baseSize, mono, bold, upper, letterSpacing) <= maxW {
+		return role, baseSize
+	}
+	sz := fitFontSize(full, baseSize, minSize, maxW, mono, bold, upper, letterSpacing)
+	if estimateTextWidth(full, sz, mono, bold, upper, letterSpacing) <= maxW {
+		return role, sz
+	}
+	// Try first clause before '|' if present
+	if idx := strings.IndexByte(role, '|'); idx != -1 {
+		firstClause := strings.TrimSpace(role[:idx])
+		if firstClause != "" {
+			cand := prefix + firstClause
+			szClause := fitFontSize(cand, baseSize, minSize, maxW, mono, bold, upper, letterSpacing)
+			if estimateTextWidth(cand, szClause, mono, bold, upper, letterSpacing) <= maxW {
+				return firstClause, szClause
+			}
+		}
+	}
+	roleRunes := []rune(strings.TrimSpace(role))
+	for n := len(roleRunes) - 1; n >= 8; n-- {
+		shortRole := strings.TrimSpace(string(roleRunes[:n])) + "…"
+		cand := prefix + shortRole
+		if estimateTextWidth(cand, minSize, mono, bold, upper, letterSpacing) <= maxW {
+			return shortRole, minSize
+		}
+	}
+	return truncateRunes(role, 12), minSize
 }
 
 func padLangs(in []domain.LanguageStat) []domain.LanguageStat {
@@ -585,6 +751,7 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
 	switch school {
 	case domain.SchoolTufte:
 		var b bytes.Buffer
+		h1Attr, subAttr := fitPairTextAttrs(l.LangTitleTufte, 13.5, 9.8, false, true, false, 0.2, l.LangSubTufte, 10.0, 8.5, false, false, false, 0, 416, 12)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
@@ -596,36 +763,43 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     .val { font-size: 10.5px; font-weight: bold; fill: #526071; }
     .micro { font-size: 9.2px; fill: #64748b; }
   </style>
-  <text x="12" y="21" class="serif h1">%s</text>
-  <text x="428" y="21" text-anchor="end" class="serif sub">%s</text>
+  <text x="12" y="21" class="serif h1"%s>%s</text>
+  <text x="428" y="21" text-anchor="end" class="serif sub"%s>%s</text>
   <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
   <g transform="translate(12, 46)">
     <text x="0" y="0" class="serif sec">%s</text>
-    <line x1="58" y1="10" x2="58" y2="96" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.5"/>
-    <line x1="118" y1="10" x2="118" y2="96" stroke="#64748b" stroke-opacity="0.15" stroke-width="0.5" stroke-dasharray="2,2"/>
-    <line x1="178" y1="10" x2="178" y2="96" stroke="#64748b" stroke-opacity="0.15" stroke-width="0.5" stroke-dasharray="2,2"/>
-`, esc(l.LangTitleTufte), esc(l.LangSubTufte), esc(l.LangSecTrueProp))
+    <line x1="62" y1="10" x2="62" y2="96" stroke="#64748b" stroke-opacity="0.25" stroke-width="0.5"/>
+    <line x1="116" y1="10" x2="116" y2="96" stroke="#64748b" stroke-opacity="0.15" stroke-width="0.5" stroke-dasharray="2,2"/>
+    <line x1="170" y1="10" x2="170" y2="96" stroke="#64748b" stroke-opacity="0.15" stroke-width="0.5" stroke-dasharray="2,2"/>
+`, h1Attr, esc(l.LangTitleTufte), subAttr, esc(l.LangSubTufte), esc(l.LangSecTrueProp))
 		for i, lg := range langs {
 			yText := 22 + i*18
 			yLine := 18 + i*18
-			endX := 58 + int(lg.Percentage*2.4)
-			if endX > 202 {
-				endX = 202
+			endX := 62 + int(math.Round((lg.Percentage/100.0)*116.0))
+			if endX > 178 {
+				endX = 178
 			}
-			fmt.Fprintf(&b, `    <text x="0" y="%d" class="serif lbl">%s</text>
-    <line x1="58" y1="%d" x2="%d" y2="%d" stroke="#64748b" stroke-width="1.2"/>
+			dispName := shortLangName(lg.Name, 11)
+			lblAttr := fitTextAttr(dispName, 10.5, 8.2, 57, false, false, false, 0)
+			fmt.Fprintf(&b, `    <text x="0" y="%d" class="serif lbl"%s>%s</text>
+    <line x1="62" y1="%d" x2="%d" y2="%d" stroke="#64748b" stroke-width="1.2"/>
     <circle cx="%d" cy="%d" r="2.8" fill="%s"/>
     <text x="%d" y="%d" class="num val">%.1f%%</text>
-`, yText, esc(lg.Name), yLine, endX, yLine, endX, yLine, lg.Color, endX+8, yText, lg.Percentage)
+`, yText, lblAttr, esc(dispName), yLine, endX, yLine, endX, yLine, lg.Color, endX+7, yText, lg.Percentage)
 		}
 		prodWidth := int((lp.ProductionPct / 100.0) * 180.0)
+		prodValStr := fmt.Sprintf("%.1f%% (%d files)", lp.ProductionPct, lp.ProductionFiles)
+		edaValStr := fmt.Sprintf("%.1f%% (%d files)", lp.ExplorationPct, lp.ExplorationFiles)
+		prodLblAttr, prodValAttr := fitPairTextAttrs(l.LangProdModules, 10.5, 8.5, false, false, false, 0, prodValStr, 10.5, 8.2, false, true, false, 0, 180, 6)
+		edaLblAttr, edaValAttr := fitPairTextAttrs(l.LangEDANotebooks, 10.5, 8.5, false, false, false, 0, edaValStr, 9.2, 8.0, false, false, false, 0, 180, 6)
+		footAttr := fitTextAttr(l.LangFootnote, 10.0, 8.0, 416, false, false, false, 0)
 		fmt.Fprintf(&b, `  </g>
   <g transform="translate(248, 46)">
     <text x="0" y="0" class="serif sec">%s</text>
-    <text x="0" y="19" class="serif lbl">%s</text>
-    <text x="180" y="19" text-anchor="end" class="num val">%.1f%% (%d files)</text>
-    <text x="0" y="35" class="serif lbl">%s</text>
-    <text x="180" y="35" text-anchor="end" class="num micro">%.1f%% (%d files)</text>
+    <text x="0" y="19" class="serif lbl"%s>%s</text>
+    <text x="180" y="19" text-anchor="end" class="num val"%s>%s</text>
+    <text x="0" y="35" class="serif lbl"%s>%s</text>
+    <text x="180" y="35" text-anchor="end" class="num micro"%s>%s</text>
     <line x1="0" y1="43" x2="%d" y2="43" stroke="#059669" stroke-width="2.2"/>
     <line x1="%d" y1="43" x2="180" y2="43" stroke="#d97706" stroke-width="2.2"/>
     <text x="0" y="64" class="serif sec">%s</text>
@@ -640,24 +814,31 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     <text x="180" y="128" text-anchor="end" class="num val">%d / %d</text>
   </g>
   <line x1="12" y1="196" x2="428" y2="196" stroke="#64748b" stroke-opacity="0.3" stroke-width="0.6"/>
-  <text x="12" y="211" class="serif sub">%s</text>
+  <text x="12" y="211" class="serif sub"%s>%s</text>
   <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 </svg>`,
 			esc(l.LangSecEDAProd),
-			esc(l.LangProdModules), lp.ProductionPct, lp.ProductionFiles,
-			esc(l.LangEDANotebooks), lp.ExplorationPct, lp.ExplorationFiles,
+			prodLblAttr, esc(l.LangProdModules), prodValAttr, esc(prodValStr),
+			edaLblAttr, esc(l.LangEDANotebooks), edaValAttr, esc(edaValStr),
 			prodWidth, prodWidth+3,
 			esc(l.LangSecHygiene),
 			esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos,
 			esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos,
 			esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos,
 			esc(l.LangDocker), lp.ContainerizedRepos, lp.TotalRepos,
-			esc(l.LangFootnote))
+			footAttr, esc(l.LangFootnote))
 		return b.String()
 
 	case domain.SchoolFew:
 		var b bytes.Buffer
 		strippedTag := fmt.Sprintf(l.LangFewStrippedFmt, lp.StrippedBase64MB)
+		hdrAttr, tagAttr := fitPairTextAttrs(l.LangTitleTufte, 12.0, 8.8, false, true, true, 0.5, strippedTag, 9.5, 8.2, true, true, false, 0, 412, 10)
+		kpi1Num := fmt.Sprintf("%s (%.1f%%)", shortLangName(langs[0].Name, 12), langs[0].Percentage)
+		kpi2Num := fmt.Sprintf("%.0f%% / %.0f%%", lp.ProductionPct, lp.ExplorationPct)
+		kpi3Num := fmt.Sprintf("%d / %d Repos", lp.LockfileRepos, lp.TotalRepos)
+		kpi1Attr := fitTextAttr(kpi1Num, 14.0, 9.5, 138, true, true, false, 0)
+		kpi2Attr := fitTextAttr(kpi2Num, 14.0, 9.5, 132, true, true, false, 0)
+		kpi3Attr := fitTextAttr(kpi3Num, 14.0, 9.5, 104, true, true, false, 0)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -671,35 +852,37 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     .kpi-lbl { font-size: 8.5px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
-  <text x="14" y="20" class="sans hdr">%s</text>
-  <text x="426" y="20" text-anchor="end" class="mono tag">%s</text>
+  <text x="14" y="20" class="sans hdr"%s>%s</text>
+  <text x="426" y="20" text-anchor="end" class="mono tag"%s>%s</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 35)">
-    <text x="0" y="12" class="mono kpi-num" fill="#0284c7">%s (%.1f%%)</text>
+    <text x="0" y="12" class="mono kpi-num" fill="#0284c7"%s>%s</text>
     <text x="0" y="24" class="sans kpi-lbl">%s</text>
     <line x1="145" y1="0" x2="145" y2="27" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="157" y="12" class="mono kpi-num">%.0f%% / %.0f%%</text>
+    <text x="157" y="12" class="mono kpi-num"%s>%s</text>
     <text x="157" y="24" class="sans kpi-lbl">%s</text>
     <line x1="295" y1="0" x2="295" y2="27" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="307" y="12" class="mono kpi-num" fill="#059669">%d / %d Repos</text>
+    <text x="307" y="12" class="mono kpi-num" fill="#059669"%s>%s</text>
     <text x="307" y="24" class="sans kpi-lbl">%s</text>
   </g>
   <line x1="2" y1="68" x2="438" y2="68" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 84)">
     <text x="0" y="0" class="sans sec">%s</text>
-`, esc(l.LangTitleTufte), esc(strippedTag), esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary), lp.ProductionPct, lp.ExplorationPct, esc(l.LangFewProdEDA), lp.LockfileRepos, lp.TotalRepos, esc(l.LangFewLockCI), esc(l.LangSecTrueProp))
+`, hdrAttr, esc(l.LangTitleTufte), tagAttr, esc(strippedTag), kpi1Attr, esc(kpi1Num), esc(l.LangFewPrimary), kpi2Attr, esc(kpi2Num), esc(l.LangFewProdEDA), kpi3Attr, esc(kpi3Num), esc(l.LangFewLockCI), esc(l.LangSecTrueProp))
 		for i, lg := range langs {
 			y := 18 + i*23
-			barW := int(lg.Percentage * 1.6)
+			barW := clampInt(int(math.Round((lg.Percentage/100.0)*92.0)), 0, 92)
 			color := "#64748b"
 			if i == 0 {
 				color = "#0284c7"
 			}
-			fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>
-    <rect x="52" y="%d" width="110" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
-    <rect x="52" y="%d" width="%d" height="8" rx="1.5" fill="%s"/>
+			dispName := shortLangName(lg.Name, 11)
+			lblAttr := fitTextAttr(dispName, 10.5, 8.2, 56, false, false, false, 0)
+			fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl"%s>%s</text>
+    <rect x="60" y="%d" width="92" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="60" y="%d" width="%d" height="8" rx="1.5" fill="%s"/>
     <text x="196" y="%d" text-anchor="end" class="mono val">%.1f%%</text>
-`, y, esc(lg.Name), y-7, y-7, barW, color, y, lg.Percentage)
+`, y, lblAttr, esc(dispName), y-7, y-7, barW, color, y, lg.Percentage)
 		}
 		totalRepos := max(1, lp.TotalRepos)
 		prodBarW := clampInt(int(math.Round((lp.ProductionPct/100.0)*96.0)), 0, 96)
@@ -707,10 +890,12 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
 		ciBarW := clampInt(int(math.Round((float64(lp.CICDRepos)/float64(totalRepos))*96.0)), 0, 96)
 		testBarW := clampInt(int(math.Round((float64(lp.TestSuiteRepos)/float64(totalRepos))*96.0)), 0, 96)
 		dockerBandW := clampInt(int(math.Round((float64(lp.ContainerizedRepos)/float64(totalRepos))*96.0)), 24, 96)
+		rightSecTitle := fmt.Sprintf("%s %s", l.LangSecHygiene, l.FewBulletGraphsSuffix)
+		rightSecAttr := fitTextAttr(rightSecTitle, 9.0, 6.6, 192, false, true, true, 0.4)
 		fmt.Fprintf(&b, `  </g>
   <line x1="222" y1="68" x2="222" y2="228" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(234, 84)">
-    <text x="0" y="0" class="sans sec">%s %s</text>
+    <text x="0" y="0" class="sans sec"%s>%s %s</text>
     <g transform="translate(0, 11)">
       <text x="0" y="9" class="sans lbl">%s</text>
       <rect x="64" y="1" width="96" height="10" fill="#64748b" fill-opacity="0.14"/>
@@ -744,13 +929,15 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
       <text x="194" y="9" text-anchor="end" class="mono val">%d/%d</text>
     </g>
   </g>
-</svg>`, esc(l.LangSecHygiene), esc(l.FewBulletGraphsSuffix), esc(l.LangFewProdCode), prodBarW, lp.ProductionPct, lockBarW, lp.LockfileRepos, lp.TotalRepos, ciBarW, lp.CICDRepos, lp.TotalRepos, esc(l.LangFewTestSuite), dockerBandW, testBarW, lp.TestSuiteRepos, lp.TotalRepos)
+</svg>`, rightSecAttr, esc(l.LangSecHygiene), esc(l.FewBulletGraphsSuffix), esc(l.LangFewProdCode), prodBarW, lp.ProductionPct, lockBarW, lp.LockfileRepos, lp.TotalRepos, ciBarW, lp.CICDRepos, lp.TotalRepos, esc(l.LangFewTestSuite), dockerBandW, testBarW, lp.TestSuiteRepos, lp.TotalRepos)
 		return b.String()
 
 	case domain.SchoolCairo:
 		var b bytes.Buffer
 		head := fmt.Sprintf(l.LangCairoHeadFmt, langs[0].Name, langs[0].Percentage, lp.StrippedBase64MB)
 		lead := fmt.Sprintf(l.LangCairoLeadFmt, l.LangSubTufte, lp.ProductionPct)
+		headAttr := fitTextAttr(head, 12.2, 9.2, 416, false, true, false, 0)
+		leadAttr := fitTextAttr(lead, 10.0, 8.2, 416, false, false, false, 0)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -764,29 +951,31 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">%s</text>
-  <text x="12" y="39" class="sans lead">%s</text>
+  <text x="12" y="25" class="serif headline"%s>%s</text>
+  <text x="12" y="39" class="sans lead"%s>%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 62)">
     <text x="0" y="0" class="sans sec">%s</text>
-    <line x1="144" y1="10" x2="144" y2="118" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
-`, esc(head), esc(lead), esc(l.LangSecTrueProp))
+    <line x1="130" y1="10" x2="130" y2="112" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
+`, headAttr, esc(head), leadAttr, esc(lead), esc(l.LangSecTrueProp))
 		for i, lg := range langs {
-			y := 22 + i*23
+			y := 22 + i*21
 			lineY := y - 4
-			endX := 54 + int(lg.Percentage*1.8)
-			fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>
-    <line x1="54" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2.2"/>
+			endX := 60 + int(math.Round((lg.Percentage/100.0)*116.0))
+			dispName := shortLangName(lg.Name, 11)
+			lblAttr := fitTextAttr(dispName, 10.5, 8.2, 55, false, true, false, 0)
+			fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl"%s>%s</text>
+    <line x1="60" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2.2"/>
     <circle cx="%d" cy="%d" r="4" fill="%s"/>
     <text x="%d" y="%d" class="mono val">%.1f%%</text>
-`, y, esc(lg.Name), lineY, endX, lineY, lg.Color, endX, lineY, lg.Color, endX+9, y, lg.Percentage)
+`, y, lblAttr, esc(dispName), lineY, endX, lineY, lg.Color, endX, lineY, lg.Color, endX+7, y, lg.Percentage)
 		}
 		waffleCells := buildWaffleGridSVG(langs)
-		fmt.Fprintf(&b, `    <path d="M 150,24 L 150,32 L 164,32" fill="none" stroke="#0284c7" stroke-width="1"/>
-    <text x="168" y="35" class="serif callout">%s</text>
+		waffleSecAttr := fitTextAttr(l.LangCairoWaffle, 9.5, 7.2, 184, false, true, true, 0.4)
+		fmt.Fprintf(&b, `    <text x="0" y="144" class="serif callout">%s</text>
   </g>
   <g transform="translate(244, 62)">
-    <text x="0" y="0" class="sans sec">%s</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
     <g transform="translate(0, 10)">
 %s    </g>
     <text x="0" y="75" class="sans val"><tspan fill="#059669" font-weight="700">■ %.0f%% Prod</tspan> (%d) · <tspan fill="#d97706" font-weight="700">■ %.0f%% EDA</tspan> (%d)</text>
@@ -795,13 +984,18 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     <text x="0" y="128" class="sans lbl">%s</text><text x="184" y="128" text-anchor="end" class="mono val">%d/%d</text>
     <text x="0" y="144" class="sans lbl">%s</text><text x="184" y="144" text-anchor="end" class="mono val">%d/%d</text>
   </g>
-</svg>`, esc(l.LangCairoCallout), esc(l.LangCairoWaffle), waffleCells, lp.ProductionPct, lp.ProductionFiles, lp.ExplorationPct, lp.ExplorationFiles, esc(l.LangSecHygiene), esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos, esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos, esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos)
+</svg>`, esc(l.LangCairoCallout), waffleSecAttr, esc(l.LangCairoWaffle), waffleCells, lp.ProductionPct, lp.ProductionFiles, lp.ExplorationPct, lp.ExplorationFiles, esc(l.LangSecHygiene), esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos, esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos, esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos)
 		return b.String()
 
 	default: // SchoolHolmes
 		strippedMsg := fmt.Sprintf(l.LangHolmesStripped, lp.StrippedBase64MB)
 		prodSplitMsg := fmt.Sprintf(l.LangHolmesProdSplit, lp.ProductionPct, lp.ExplorationPct)
 		isotypeRows := buildHolmesIsotypeRowsSVG(langs)
+		bannerTxt := "⚡ " + l.LangTitleTufte
+		bannerAttr := fitTextAttr(bannerTxt, 12.0, 8.8, 408, false, true, true, 0.6)
+		leftSecTxt := fmt.Sprintf("%s (%s)", l.LangSecTrueProp, l.LangHolmesPictorial)
+		leftSecAttr := fitTextAttr(leftSecTxt, 9.5, 6.5, 204, false, true, true, 0.5)
+		rightSecAttr := fitTextAttr(l.LangSecHygiene, 9.5, 7.5, 192, false, true, true, 0.5)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -814,16 +1008,16 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
   </style>
   <rect x="3" y="3" width="434" height="224" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#0284c7"/>
-  <text x="16" y="22" class="sans banner">⚡ %s</text>
+  <text x="16" y="22" class="sans banner"%s>⚡ %s</text>
   <g transform="translate(16, 48)">
-    <text x="0" y="0" class="sans sec">%s (%s)</text>
+    <text x="0" y="0" class="sans sec"%s>%s (%s)</text>
 %s    <rect x="0" y="106" width="196" height="58" rx="8" fill="#0284c7" fill-opacity="0.08" stroke="#0284c7" stroke-opacity="0.35" stroke-width="1.2"/>
     <text x="10" y="123" class="sans sec" fill="#0284c7">%s</text>
     <text x="10" y="140" class="sans badge">%s</text>
     <text x="10" y="154" class="sans badge" fill="#059669">%s</text>
   </g>
   <g transform="translate(232, 48)">
-    <text x="0" y="0" class="sans sec">%s</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
     <g transform="translate(0, 12)">
       <rect x="0" y="0" width="192" height="32" rx="6" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
       <text x="12" y="20" class="sans badge">🔒 %s</text>
@@ -846,10 +1040,10 @@ func renderLanguages(school domain.School, d domain.PortfolioData, l labels) str
     </g>
   </g>
 </svg>`,
-			esc(l.LangTitleTufte), esc(l.LangSecTrueProp), esc(l.LangHolmesPictorial),
+			bannerAttr, esc(l.LangTitleTufte), leftSecAttr, esc(l.LangSecTrueProp), esc(l.LangHolmesPictorial),
 			isotypeRows,
 			esc(l.LangHolmesFilter), esc(strippedMsg), esc(prodSplitMsg),
-			esc(l.LangSecHygiene),
+			rightSecAttr, esc(l.LangSecHygiene),
 			esc(l.LangLockfiles), lp.LockfileRepos, lp.TotalRepos,
 			esc(l.LangCICD), lp.CICDRepos, lp.TotalRepos,
 			esc(l.LangTests), lp.TestSuiteRepos, lp.TotalRepos,
@@ -895,10 +1089,10 @@ func buildHolmesIsotypeRowsSVG(langs []domain.LanguageStat) string {
 		color string
 	}
 	rows := []rowSpec{
-		{langs[0].Name, langs[0].Percentage, nonEmptyColor(langs[0].Color, "#0284c7")},
-		{langs[1].Name, langs[1].Percentage, nonEmptyColor(langs[1].Color, "#d97706")},
-		{langs[2].Name, langs[2].Percentage, nonEmptyColor(langs[2].Color, "#00ADD8")},
-		{langs[3].Name + " + " + langs[4].Name, langs[3].Percentage + langs[4].Percentage, "#7c3aed"},
+		{shortLangName(langs[0].Name, 10), langs[0].Percentage, nonEmptyColor(langs[0].Color, "#0284c7")},
+		{shortLangName(langs[1].Name, 10), langs[1].Percentage, nonEmptyColor(langs[1].Color, "#d97706")},
+		{shortLangName(langs[2].Name, 10), langs[2].Percentage, nonEmptyColor(langs[2].Color, "#00ADD8")},
+		{shortLangName(langs[3].Name, 7) + " + " + shortLangName(langs[4].Name, 7), langs[3].Percentage + langs[4].Percentage, "#7c3aed"},
 	}
 
 	counts := make([]int, len(rows))
@@ -923,14 +1117,22 @@ func buildHolmesIsotypeRowsSVG(langs []domain.LanguageStat) string {
 	for i, r := range rows {
 		yText := 22 + i*23
 		yBlocks := 12 + i*23
-		fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>`+"\n", yText, esc(r.label))
-		fmt.Fprintf(&b, `    <g transform="translate(56, %d)" fill="%s">`+"\n      ", yBlocks, r.color)
+		lblAttr := fitTextAttr(r.label, 11.0, 7.6, 58, false, true, false, 0)
+		fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl"%s>%s</text>`+"\n", yText, lblAttr, esc(r.label))
+		fmt.Fprintf(&b, `    <g transform="translate(62, %d)" fill="%s">`+"\n      ", yBlocks, r.color)
+		step := 15
+		if counts[i] >= 8 {
+			step = 11
+		}
 		for k := 0; k < counts[i]; k++ {
-			fmt.Fprintf(&b, `<rect x="%d" y="0" width="14" height="11" rx="2"/>`, k*17)
+			fmt.Fprintf(&b, `<rect x="%d" y="0" width="14" height="11" rx="2"/>`, k*step)
 		}
 		fmt.Fprintf(&b, "\n    </g>\n")
-		valX := 56 + counts[i]*17 + 6
-		fmt.Fprintf(&b, `    <text x="%d" y="%d" class="mono val" fill="%s">%.1f%%</text>`+"\n", valX, yText, r.color, r.pct)
+		valX := 62 + counts[i]*step + 4
+		if counts[i] >= 8 {
+			valX = 62 + (counts[i]-1)*step + 14 + 4
+		}
+		fmt.Fprintf(&b, `    <text x="%d" y="%d" class="mono val" font-size="9.5px" fill="%s">%.1f%%</text>`+"\n", valX, yText, r.color, r.pct)
 	}
 	return b.String()
 }
@@ -987,6 +1189,8 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 	switch school {
 	case domain.SchoolTufte:
 		var b bytes.Buffer
+		h1Attr, subAttr := fitPairTextAttrs(l.StackTitle, 13.5, 10.0, false, true, false, 0, l.StackSub, 10.0, 8.2, false, false, false, 0, 416, 12)
+		footAttr := fitTextAttr(l.StackFootnote, 10.0, 8.0, 416, false, false, false, 0)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
@@ -997,38 +1201,51 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
     .lbl { font-size: 10px; fill: #526071; }
     .val { font-size: 10px; font-weight: bold; fill: #526071; }
   </style>
-  <text x="12" y="21" class="serif h1">%s</text>
-  <text x="428" y="21" text-anchor="end" class="serif sub">%s</text>
+  <text x="12" y="21" class="serif h1"%s>%s</text>
+  <text x="428" y="21" text-anchor="end" class="serif sub"%s>%s</text>
   <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
-`, esc(l.StackTitle), esc(l.StackSub))
+`, h1Attr, esc(l.StackTitle), subAttr, esc(l.StackSub))
 
 		for _, col := range cols {
+			colSecAttr := fitTextAttr(col.title, 10.0, 8.0, 128, false, true, false, 0)
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 46)">
-    <text x="0" y="0" class="serif sec" fill="%s">%s</text>
+    <text x="0" y="0" class="serif sec" fill="%s"%s>%s</text>
     <line x1="0" y1="6" x2="128" y2="6" stroke="#64748b" stroke-opacity="0.35" stroke-width="0.6"/>
-`, col.x, col.color, esc(col.title))
+`, col.x, col.color, colSecAttr, esc(col.title))
 			for i, it := range col.items {
 				y := 24 + i*33
 				barW := int((it.WeightPct / 100.0) * 116.0)
 				if barW < 18 {
 					barW = 18
 				}
-				fmt.Fprintf(&b, `    <text x="0" y="%d" class="serif lbl">%s</text>
-    <text x="128" y="%d" text-anchor="end" class="num val">%d</text>
+				itVal := fmt.Sprintf("%d", it.RepoCount)
+				lblAttr, valAttr := fitPairTextAttrs(it.Name, 10.0, 8.0, false, false, false, 0, itVal, 10.0, 8.5, false, true, false, 0, 128, 6)
+				fmt.Fprintf(&b, `    <text x="0" y="%d" class="serif lbl"%s>%s</text>
+    <text x="128" y="%d" text-anchor="end" class="num val"%s>%d</text>
     <line x1="0" y1="%d" x2="%d" y2="%d" stroke="#64748b" stroke-width="1"/>
     <circle cx="%d" cy="%d" r="2.3" fill="%s"/>
-`, y, esc(it.Name), y, it.RepoCount, y+6, barW, y+6, barW, y+6, col.color)
+`, y, lblAttr, esc(it.Name), y, valAttr, it.RepoCount, y+6, barW, y+6, barW, y+6, col.color)
 			}
 			fmt.Fprintf(&b, "  </g>\n")
 		}
 		fmt.Fprintf(&b, `  <line x1="12" y1="196" x2="428" y2="196" stroke="#64748b" stroke-opacity="0.3" stroke-width="0.6"/>
-  <text x="12" y="211" class="serif sub">%s</text>
+  <text x="12" y="211" class="serif sub"%s>%s</text>
   <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
-</svg>`, esc(l.StackFootnote))
+</svg>`, footAttr, esc(l.StackFootnote))
 		return b.String()
 
 	case domain.SchoolFew:
 		var b bytes.Buffer
+		hdrAttr, tagAttr := fitPairTextAttrs(l.StackTitle, 12.0, 9.0, false, true, true, 0.5, l.StackSub, 9.5, 8.0, true, true, false, 0, 412, 12)
+		kpi1Val := fmt.Sprintf("%s (%d)", dataCol[0].Name, dataCol[0].RepoCount)
+		kpi2Val := fmt.Sprintf("%s (%d)", mlCol[0].Name, mlCol[0].RepoCount)
+		kpi3Val := fmt.Sprintf("%s (%d)", vizCol[0].Name, vizCol[0].RepoCount)
+		kpi1NumAttr := fitTextAttr(kpi1Val, 13.5, 8.2, 132, true, true, false, 0)
+		kpi1LblAttr := fitTextAttr(l.StackPillarData, 8.5, 6.8, 132, false, true, true, 0)
+		kpi2NumAttr := fitTextAttr(kpi2Val, 13.5, 8.2, 124, true, true, false, 0)
+		kpi2LblAttr := fitTextAttr(l.StackPillarML, 8.5, 6.8, 124, false, true, true, 0)
+		kpi3NumAttr := fitTextAttr(kpi3Val, 13.5, 8.2, 124, true, true, false, 0)
+		kpi3LblAttr := fitTextAttr(l.StackPillarViz, 8.5, 6.8, 124, false, true, true, 0)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -1042,28 +1259,29 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
     .kpi-lbl { font-size: 8px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
-  <text x="14" y="20" class="sans hdr">%s</text>
-  <text x="426" y="20" text-anchor="end" class="mono tag">%s</text>
+  <text x="14" y="20" class="sans hdr"%s>%s</text>
+  <text x="426" y="20" text-anchor="end" class="mono tag"%s>%s</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 33)">
-    <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s (%d)</text>
-    <text x="0" y="22" class="sans kpi-lbl">%s</text>
-    <line x1="145" y1="0" x2="145" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="157" y="11" class="mono kpi-num" fill="#7c3aed">%s (%d)</text>
-    <text x="157" y="22" class="sans kpi-lbl">%s</text>
-    <line x1="295" y1="0" x2="295" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="307" y="11" class="mono kpi-num" fill="#059669">%s (%d)</text>
-    <text x="307" y="22" class="sans kpi-lbl">%s</text>
+    <text x="0" y="11" class="mono kpi-num" fill="#0284c7"%s>%s (%d)</text>
+    <text x="0" y="22" class="sans kpi-lbl"%s>%s</text>
+    <line x1="138" y1="0" x2="138" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="146" y="11" class="mono kpi-num" fill="#7c3aed"%s>%s (%d)</text>
+    <text x="146" y="22" class="sans kpi-lbl"%s>%s</text>
+    <line x1="278" y1="0" x2="278" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
+    <text x="286" y="11" class="mono kpi-num" fill="#059669"%s>%s (%d)</text>
+    <text x="286" y="22" class="sans kpi-lbl"%s>%s</text>
   </g>
   <line x1="2" y1="63" x2="438" y2="63" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-`, esc(l.StackTitle), esc(l.StackSub),
-			esc(dataCol[0].Name), dataCol[0].RepoCount, esc(l.StackPillarData),
-			esc(mlCol[0].Name), mlCol[0].RepoCount, esc(l.StackPillarML),
-			esc(vizCol[0].Name), vizCol[0].RepoCount, esc(l.StackPillarViz))
+`, hdrAttr, esc(l.StackTitle), tagAttr, esc(l.StackSub),
+			kpi1NumAttr, esc(dataCol[0].Name), dataCol[0].RepoCount, kpi1LblAttr, esc(l.StackPillarData),
+			kpi2NumAttr, esc(mlCol[0].Name), mlCol[0].RepoCount, kpi2LblAttr, esc(l.StackPillarML),
+			kpi3NumAttr, esc(vizCol[0].Name), vizCol[0].RepoCount, kpi3LblAttr, esc(l.StackPillarViz))
 		for _, col := range cols {
+			colSecAttr := fitTextAttr(col.title, 9.0, 7.2, 128, false, true, true, 0.4)
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 76)">
-    <text x="0" y="0" class="sans sec" fill="%s">%s</text>
-`, col.x, col.color, esc(col.title))
+    <text x="0" y="0" class="sans sec" fill="%s"%s>%s</text>
+`, col.x, col.color, colSecAttr, esc(col.title))
 			hasLeader := false
 			for _, it := range col.items {
 				if it.IsLeader {
@@ -1078,13 +1296,15 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 				if it.IsLeader || (!hasLeader && i == 0 && it.RepoCount > 0) {
 					fill = col.color
 				}
-				fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>
-    <text x="124" y="%d" text-anchor="end" class="mono val">%d</text>
+				itVal := fmt.Sprintf("%d", it.RepoCount)
+				lblAttr, valAttr := fitPairTextAttrs(it.Name, 10.0, 7.8, false, false, false, 0, itVal, 9.5, 8.0, true, true, false, 0, 124, 6)
+				fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl"%s>%s</text>
+    <text x="124" y="%d" text-anchor="end" class="mono val"%s>%d</text>
     <rect x="0" y="%d" width="124" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
     <rect x="0" y="%d" width="84" height="8" rx="1.5" fill="#64748b" fill-opacity="0.25"/>
     <rect x="0" y="%d" width="%d" height="6" rx="1.5" fill="%s"/>
     <line x1="96" y1="%d" x2="96" y2="%d" stroke="#0284c7" stroke-width="2"/>
-`, y, esc(it.Name), y, it.RepoCount, y+4, y+4, y+5, barW, fill, y+3, y+13)
+`, y, lblAttr, esc(it.Name), y, valAttr, it.RepoCount, y+4, y+4, y+5, barW, fill, y+3, y+13)
 			}
 			fmt.Fprintf(&b, "  </g>\n")
 		}
@@ -1097,6 +1317,9 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
 		var b bytes.Buffer
 		head := fmt.Sprintf(l.StackCairoHeadFmt, dataCol[0].Name, mlCol[0].Name)
 		lead := fmt.Sprintf(l.StackCairoLeadFmt, l.StackSub)
+		headAttr := fitTextAttr(head, 12.2, 8.8, 416, false, true, false, 0)
+		leadAttr := fitTextAttr(lead, 10.0, 8.0, 416, false, false, false, 0)
+		calloutAttr := fitTextAttr(l.StackCairoCallout, 9.0, 7.6, 416, false, false, false, 0)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -1110,36 +1333,41 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
     .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">%s</text>
-  <text x="12" y="39" class="sans lead">%s</text>
+  <text x="12" y="25" class="serif headline"%s>%s</text>
+  <text x="12" y="39" class="sans lead"%s>%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-`, esc(head), esc(lead))
+`, headAttr, esc(head), leadAttr, esc(lead))
 		for _, col := range cols {
+			colSecAttr := fitTextAttr(col.title, 9.0, 7.2, 126, false, true, true, 0.4)
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 60)">
-    <text x="0" y="0" class="sans sec" fill="%s">%s</text>
+    <text x="0" y="0" class="sans sec" fill="%s"%s>%s</text>
     <line x1="88" y1="8" x2="88" y2="140" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
-`, col.x, col.color, esc(col.title))
+`, col.x, col.color, colSecAttr, esc(col.title))
 			for i, it := range col.items {
 				y := 18 + i*33
 				endX := int((it.WeightPct / 100.0) * 116.0)
 				if endX < 18 {
 					endX = 18
 				}
-				fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>
-    <text x="126" y="%d" text-anchor="end" class="mono val">%d</text>
+				itVal := fmt.Sprintf("%d", it.RepoCount)
+				lblAttr, valAttr := fitPairTextAttrs(it.Name, 10.0, 7.8, false, true, false, 0, itVal, 9.5, 8.0, true, true, false, 0, 126, 6)
+				fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl"%s>%s</text>
+    <text x="126" y="%d" text-anchor="end" class="mono val"%s>%d</text>
     <line x1="0" y1="%d" x2="126" y2="%d" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
     <line x1="0" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2.2"/>
     <circle cx="%d" cy="%d" r="3.5" fill="%s"/>
-`, y, esc(it.Name), y, it.RepoCount, y+7, y+7, y+7, endX, y+7, col.color, endX, y+7, col.color)
+`, y, lblAttr, esc(it.Name), y, valAttr, it.RepoCount, y+7, y+7, y+7, endX, y+7, col.color, endX, y+7, col.color)
 			}
 			fmt.Fprintf(&b, "  </g>\n")
 		}
-		fmt.Fprintf(&b, `  <text x="12" y="218" class="serif callout">%s</text>
-</svg>`, esc(l.StackCairoCallout))
+		fmt.Fprintf(&b, `  <text x="12" y="218" class="serif callout"%s>%s</text>
+</svg>`, calloutAttr, esc(l.StackCairoCallout))
 		return b.String()
 
 	default: // SchoolHolmes
 		var b bytes.Buffer
+		bannerTxt := fmt.Sprintf("🧰 %s", l.StackTitle)
+		bannerAttr := fitTextAttr(bannerTxt, 12.0, 9.0, 408, false, true, true, 0.6)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1151,18 +1379,21 @@ func renderStack(school domain.School, d domain.PortfolioData, l labels) string 
   </style>
   <rect x="3" y="3" width="434" height="224" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#7c3aed"/>
-  <text x="16" y="22" class="sans banner">🧰 %s</text>
-`, esc(l.StackTitle))
+  <text x="16" y="22" class="sans banner"%s>🧰 %s</text>
+`, bannerAttr, esc(l.StackTitle))
 		for _, col := range cols {
+			colSecAttr := fitTextAttr(col.title, 9.5, 7.2, 128, false, true, true, 0.4)
 			fmt.Fprintf(&b, `  <g transform="translate(%d, 48)">
-    <text x="0" y="0" class="sans sec" fill="%s">%s</text>
-`, col.x, col.color, esc(col.title))
+    <text x="0" y="0" class="sans sec" fill="%s"%s>%s</text>
+`, col.x, col.color, colSecAttr, esc(col.title))
 			for i, it := range col.items {
 				y := 10 + i*38
+				itVal := fmt.Sprintf("%d", it.RepoCount)
+				lblAttr, valAttr := fitPairTextAttrs(it.Name, 10.0, 7.6, false, true, false, 0, itVal, 9.5, 8.0, true, true, false, 0, 112, 6)
 				fmt.Fprintf(&b, `    <rect x="0" y="%d" width="128" height="30" rx="6" fill="%s" fill-opacity="0.09" stroke="%s" stroke-opacity="0.35" stroke-width="1.2"/>
-    <text x="8" y="%d" class="sans lbl">%s</text>
-    <text x="120" y="%d" text-anchor="end" class="mono val" fill="%s">%d</text>
-`, y, col.color, col.color, y+19, esc(it.Name), y+19, col.color, it.RepoCount)
+    <text x="8" y="%d" class="sans lbl"%s>%s</text>
+    <text x="120" y="%d" text-anchor="end" class="mono val" fill="%s"%s>%d</text>
+`, y, col.color, col.color, y+19, lblAttr, esc(it.Name), y+19, col.color, valAttr, it.RepoCount)
 			}
 			fmt.Fprintf(&b, "  </g>\n")
 		}
@@ -1272,6 +1503,12 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 	case domain.SchoolTufte:
 		var b bytes.Buffer
 		sub := fmt.Sprintf(l.KaggleTufteSubFmt, k.OverallTier, k.TotalMedals())
+		h1Attr, subAttr := fitPairTextAttrs(l.KaggleTitle, 13.5, 10.0, false, true, false, 0, sub, 10.0, 8.0, false, false, false, 0, 416, 12)
+		thCatAttr := fitTextAttr(l.KaggleThCat, 9.5, 8.0, 76, false, true, false, 0)
+		thStandAttr := fitTextAttr(l.KaggleThStanding, 9.5, 8.0, 68, false, true, false, 0)
+		thRankAttr := fitTextAttr(l.KaggleThRank, 9.5, 8.0, 72, false, true, false, 0)
+		thPctAttr := fitTextAttr(l.KaggleThPct, 9.5, 8.0, 72, false, true, false, 0)
+		thMedalsAttr := fitTextAttr(l.KaggleThMedals, 9.5, 8.0, 104, false, true, false, 0)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
@@ -1283,17 +1520,22 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     .val { font-size: 10.5px; font-weight: bold; fill: #526071; }
     .micro { font-size: 9.5px; fill: #64748b; }
   </style>
-  <text x="12" y="21" class="serif h1">%s</text>
-  <text x="428" y="21" text-anchor="end" class="serif sub">%s</text>
+  <text x="12" y="21" class="serif h1"%s>%s</text>
+  <text x="428" y="21" text-anchor="end" class="serif sub"%s>%s</text>
   <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
   <g transform="translate(12, 48)">
-    <text x="0" y="0" class="serif th">%s</text>
-    <text x="105" y="0" class="serif th">%s</text>
-    <text x="200" y="0" text-anchor="end" class="serif th">%s</text>
-    <text x="278" y="0" text-anchor="end" class="serif th">%s</text>
-    <text x="416" y="0" text-anchor="end" class="serif th">%s</text>
+    <text x="0" y="0" class="serif th"%s>%s</text>
+    <text x="82" y="0" class="serif th"%s>%s</text>
+    <text x="228" y="0" text-anchor="end" class="serif th"%s>%s</text>
+    <text x="306" y="0" text-anchor="end" class="serif th"%s>%s</text>
+    <text x="416" y="0" text-anchor="end" class="serif th"%s>%s</text>
     <line x1="0" y1="7" x2="416" y2="7" stroke="#64748b" stroke-opacity="0.4" stroke-width="0.6"/>
-`, esc(l.KaggleTitle), esc(sub), esc(l.KaggleThCat), esc(l.KaggleThStanding), esc(l.KaggleThRank), esc(l.KaggleThPct), esc(l.KaggleThMedals))
+`, h1Attr, esc(l.KaggleTitle), subAttr, esc(sub),
+			thCatAttr, esc(l.KaggleThCat),
+			thStandAttr, esc(l.KaggleThStanding),
+			thRankAttr, esc(l.KaggleThRank),
+			thPctAttr, esc(l.KaggleThPct),
+			thMedalsAttr, esc(l.KaggleThMedals))
 		for i, c := range cats[:3] {
 			y := 32 + i*32
 			tierColor := "#526071"
@@ -1302,19 +1544,29 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 			} else if c.Tier == "Expert" {
 				tierColor = "#0284c7"
 			}
-			fmt.Fprintf(&b, `    <text x="0" y="%d" class="serif lbl">%s</text>
-    <text x="105" y="%d" class="serif val" fill="%s">%s</text>
-    <text x="200" y="%d" text-anchor="end" class="num val">%s</text>
-    <text x="278" y="%d" text-anchor="end" class="num micro">%s</text>
-    <text x="416" y="%d" text-anchor="end" class="num val">%dG · %dS · %dB</text>
-`, y, esc(c.Name), y, tierColor, esc(c.Tier), y, esc(formatKaggleRankOrCount(c, l.IsPtBR)), y, esc(formatKaggleTopPct(c, l.IsPtBR)), y, c.Gold, c.Silver, c.Bronze)
+			catAttr := fitTextAttr(c.Name, 10.5, 8.2, 76, false, false, false, 0)
+			tierAttr := fitTextAttr(c.Tier, 10.5, 8.2, 68, false, true, false, 0)
+			rankStr := formatKaggleRankOrCount(c, l.IsPtBR)
+			rankAttr := fitTextAttr(rankStr, 10.5, 8.2, 72, false, true, false, 0)
+			pctStr := formatKaggleTopPct(c, l.IsPtBR)
+			pctAttr := fitTextAttr(pctStr, 9.5, 8.0, 72, false, false, false, 0)
+			medalsStr := fmt.Sprintf("%dG · %dS · %dB", c.Gold, c.Silver, c.Bronze)
+			medalsAttr := fitTextAttr(medalsStr, 10.5, 8.2, 104, false, true, false, 0)
+			fmt.Fprintf(&b, `    <text x="0" y="%d" class="serif lbl"%s>%s</text>
+    <text x="82" y="%d" class="serif val" fill="%s"%s>%s</text>
+    <text x="228" y="%d" text-anchor="end" class="num val"%s>%s</text>
+    <text x="306" y="%d" text-anchor="end" class="num micro"%s>%s</text>
+    <text x="416" y="%d" text-anchor="end" class="num val"%s>%s</text>
+`, y, catAttr, esc(c.Name), y, tierColor, tierAttr, esc(c.Tier), y, rankAttr, esc(rankStr), y, pctAttr, esc(pctStr), y, medalsAttr, esc(medalsStr))
 		}
+		tallyRight := fmt.Sprintf("%d %s (%s · %d %s · %d %s)", k.TotalMedals(), l.KaggleMedalsWord, kpi2Val, k.TotalSilver, l.KaggleSilver, k.TotalBronze, l.KaggleBronze)
+		tallyLAttr, tallyRAttr := fitPairTextAttrs(l.KaggleTotalTally, 10.5, 8.5, false, true, false, 0, tallyRight, 10.5, 8.2, false, true, false, 0, 416, 10)
 		fmt.Fprintf(&b, `    <line x1="0" y1="122" x2="416" y2="122" stroke="#64748b" stroke-opacity="0.4" stroke-width="0.6"/>
-    <text x="0" y="142" class="serif val">%s</text>
-    <text x="416" y="142" text-anchor="end" class="num val" fill="#d97706">%d %s (%s · %d %s · %d %s)</text>
+    <text x="0" y="142" class="serif val"%s>%s</text>
+    <text x="416" y="142" text-anchor="end" class="num val" fill="#d97706"%s>%d %s (%s · %d %s · %d %s)</text>
   </g>
   <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
-</svg>`, esc(l.KaggleTotalTally), k.TotalMedals(), esc(l.KaggleMedalsWord), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze))
+</svg>`, tallyLAttr, esc(l.KaggleTotalTally), tallyRAttr, k.TotalMedals(), esc(l.KaggleMedalsWord), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze))
 		return b.String()
 
 	case domain.SchoolFew:
@@ -1327,6 +1579,21 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 		if k.PeakRank > 0 {
 			tierTag = fmt.Sprintf(l.KaggleFewTierTagFmt, strings.ToUpper(k.OverallTier), k.PeakRank)
 		}
+		hdrAttr, tagAttr := fitPairTextAttrs(l.KaggleTitle, 12.0, 9.0, false, true, true, 0.5, tierTag, 10.0, 8.0, true, true, false, 0, 412, 12)
+		kpi1Val := fmt.Sprintf("%d %s", k.TotalMedals(), l.KaggleMedalsWord)
+		kpi3Val := fmt.Sprintf("%d %s", k.TotalSilver, l.KaggleSilver)
+		kpi4Val := fmt.Sprintf("%d %s", k.TotalBronze, l.KaggleBronze)
+		kpi1NumAttr := fitTextAttr(kpi1Val, 14.5, 10.0, 104, true, true, false, 0)
+		kpi1LblAttr := fitTextAttr(l.KaggleCumulative, 8.5, 6.8, 104, false, true, true, 0)
+		kpi2NumAttr := fitTextAttr(kpi2Val, 14.5, 10.0, 92, true, true, false, 0)
+		kpi2LblAttr := fitTextAttr(kpi2Sub, 8.5, 6.8, 92, false, true, true, 0)
+		kpi3NumAttr := fitTextAttr(kpi3Val, 14.5, 10.0, 88, true, true, false, 0)
+		kpi3LblAttr := fitTextAttr(l.KaggleSilverMedalsLbl, 8.5, 6.8, 88, false, true, true, 0)
+		kpi4NumAttr := fitTextAttr(kpi4Val, 14.5, 10.0, 86, true, true, false, 0)
+		kpi4LblAttr := fitTextAttr(l.KaggleBronzeMedalsLbl, 8.5, 6.8, 86, false, true, true, 0)
+		secL := fmt.Sprintf("%s %s", l.KaggleTrack, l.FewBulletGraphsSuffix)
+		secR := fmt.Sprintf("Rank & %s", l.KaggleMedalsWord)
+		secLAttr, secRAttr := fitPairTextAttrs(secL, 9.0, 7.5, false, true, true, 0.4, secR, 9.0, 7.5, false, true, true, 0.4, 412, 12)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -1340,31 +1607,36 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     .kpi-lbl { font-size: 8.5px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
-  <text x="14" y="20" class="sans hdr">%s</text>
-  <text x="426" y="20" text-anchor="end" class="mono tag">%s</text>
+  <text x="14" y="20" class="sans hdr"%s>%s</text>
+  <text x="426" y="20" text-anchor="end" class="mono tag"%s>%s</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 35)">
-    <text x="0" y="13" class="mono kpi-num" fill="#d97706">%d %s</text>
-    <text x="0" y="25" class="sans kpi-lbl">%s</text>
+    <text x="0" y="13" class="mono kpi-num" fill="#d97706"%s>%d %s</text>
+    <text x="0" y="25" class="sans kpi-lbl"%s>%s</text>
     <line x1="108" y1="0" x2="108" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="118" y="13" class="mono kpi-num" fill="#d97706">%s</text>
-    <text x="118" y="25" class="sans kpi-lbl">%s</text>
+    <text x="118" y="13" class="mono kpi-num" fill="#d97706"%s>%s</text>
+    <text x="118" y="25" class="sans kpi-lbl"%s>%s</text>
     <line x1="214" y1="0" x2="214" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="224" y="13" class="mono kpi-num">%d %s</text>
-    <text x="224" y="25" class="sans kpi-lbl">%s</text>
+    <text x="224" y="13" class="mono kpi-num"%s>%d %s</text>
+    <text x="224" y="25" class="sans kpi-lbl"%s>%s</text>
     <line x1="316" y1="0" x2="316" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="326" y="13" class="mono kpi-num">%d %s</text>
-    <text x="326" y="25" class="sans kpi-lbl">%s</text>
+    <text x="326" y="13" class="mono kpi-num"%s>%d %s</text>
+    <text x="326" y="25" class="sans kpi-lbl"%s>%s</text>
   </g>
   <line x1="2" y1="69" x2="438" y2="69" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 85)">
-    <text x="0" y="0" class="sans sec">%s %s</text>
-    <text x="412" y="0" text-anchor="end" class="sans sec">Rank &amp; %s</text>
-`, esc(l.KaggleTitle), esc(tierTag), k.TotalMedals(), esc(l.KaggleMedalsWord), esc(l.KaggleCumulative), esc(kpi2Val), esc(kpi2Sub), k.TotalSilver, esc(l.KaggleSilver), esc(l.KaggleSilverMedalsLbl), k.TotalBronze, esc(l.KaggleBronze), esc(l.KaggleBronzeMedalsLbl), esc(l.KaggleTrack), esc(l.FewBulletGraphsSuffix), esc(l.KaggleMedalsWord))
+    <text x="0" y="0" class="sans sec"%s>%s %s</text>
+    <text x="412" y="0" text-anchor="end" class="sans sec"%s>Rank &amp; %s</text>
+`, hdrAttr, esc(l.KaggleTitle), tagAttr, esc(tierTag),
+			kpi1NumAttr, k.TotalMedals(), esc(l.KaggleMedalsWord), kpi1LblAttr, esc(l.KaggleCumulative),
+			kpi2NumAttr, esc(kpi2Val), kpi2LblAttr, esc(kpi2Sub),
+			kpi3NumAttr, k.TotalSilver, esc(l.KaggleSilver), kpi3LblAttr, esc(l.KaggleSilverMedalsLbl),
+			kpi4NumAttr, k.TotalBronze, esc(l.KaggleBronze), kpi4LblAttr, esc(l.KaggleBronzeMedalsLbl),
+			secLAttr, esc(l.KaggleTrack), esc(l.FewBulletGraphsSuffix), secRAttr, esc(l.KaggleMedalsWord))
 		for i, c := range cats[:3] {
 			y := 16 + i*32
-			barW := int((c.ProgressPct / 100.0) * 150.0)
-			targetX := 92 + int((c.TargetPct/100.0)*150.0)
+			barW := clampInt(int(math.Round((c.ProgressPct/100.0)*112.0)), 0, 112)
+			targetX := 84 + clampInt(int(math.Round((c.TargetPct/100.0)*112.0)), 0, 112)
 			barColor := "#64748b"
 			if i == 0 {
 				barColor = "#d97706"
@@ -1375,16 +1647,19 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 			if shortTier == "Contributor" {
 				shortTier = "Contrib"
 			}
+			lblAttr := fitTextAttr(c.Name, 10.5, 8.2, 80, false, true, false, 0)
+			rightStr := fmt.Sprintf("%s · %s (%dG %dS %dB)", shortTier, formatKaggleRankOrCount(c, l.IsPtBR), c.Gold, c.Silver, c.Bronze)
+			valAttr := fitTextAttr(rightStr, 10.0, 8.0, 208, true, true, false, 0)
 			fmt.Fprintf(&b, `    <g transform="translate(0, %d)">
-      <text x="0" y="11" class="sans lbl">%s</text>
-      <rect x="92" y="2" width="150" height="13" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
-      <rect x="92" y="2" width="112" height="13" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
-      <rect x="92" y="2" width="70" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
-      <rect x="92" y="5" width="%d" height="7" rx="1" fill="%s"/>
+      <text x="0" y="11" class="sans lbl"%s>%s</text>
+      <rect x="84" y="2" width="112" height="13" rx="1.5" fill="#64748b" fill-opacity="0.12"/>
+      <rect x="84" y="2" width="84" height="13" rx="1.5" fill="#64748b" fill-opacity="0.22"/>
+      <rect x="84" y="2" width="52" height="13" rx="1.5" fill="#64748b" fill-opacity="0.34"/>
+      <rect x="84" y="5" width="%d" height="7" rx="1" fill="%s"/>
       <line x1="%d" y1="0" x2="%d" y2="17" stroke="#0284c7" stroke-width="2.2"/>
-      <text x="412" y="11" text-anchor="end" class="mono val" fill="%s">%s · %s (%dG %dS %dB)</text>
+      <text x="412" y="11" text-anchor="end" class="mono val" fill="%s"%s>%s · %s (%dG %dS %dB)</text>
     </g>
-`, y, esc(c.Name), barW, barColor, targetX, targetX, barColor, esc(shortTier), esc(formatKaggleRankOrCount(c, l.IsPtBR)), c.Gold, c.Silver, c.Bronze)
+`, y, lblAttr, esc(c.Name), barW, barColor, targetX, targetX, barColor, valAttr, esc(shortTier), esc(formatKaggleRankOrCount(c, l.IsPtBR)), c.Gold, c.Silver, c.Bronze)
 		}
 		fmt.Fprintf(&b, `    <text x="0" y="124" class="sans" font-size="8.5" fill="#64748b"><tspan fill="#0284c7" font-weight="700">%s</tspan> %s</text>
   </g>
@@ -1398,6 +1673,9 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
 			head = fmt.Sprintf(l.KaggleCairoHeadFmt, k.OverallTier, formatInt(k.PeakRank), k.TotalMedals())
 		}
 		lead := fmt.Sprintf(l.KaggleCairoLeadFmt, kpi2Val, k.TotalSilver, k.TotalBronze)
+		headAttr := fitTextAttr(head, 12.2, 8.8, 416, false, true, false, 0)
+		leadAttr := fitTextAttr(lead, 10.0, 7.8, 416, false, false, false, 0)
+		calloutAttr := fitTextAttr(l.KaggleCairoCallout, 9.0, 7.6, 416, false, false, false, 0)
 		fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -1410,39 +1688,55 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     .callout { font-size: 9px; font-style: italic; fill: #d97706; }
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">%s</text>
-  <text x="12" y="39" class="sans lead">%s</text>
+  <text x="12" y="25" class="serif headline"%s>%s</text>
+  <text x="12" y="39" class="sans lead"%s>%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 66)">
-    <line x1="230" y1="0" x2="230" y2="120" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1.2"/>
-    <text x="230" y="-4" text-anchor="middle" class="sans" font-size="8.5" font-weight="700" fill="#e11d48">%s</text>
-`, esc(head), esc(lead), esc(l.KaggleCairoBench))
+    <line x1="168" y1="0" x2="168" y2="120" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1.2"/>
+    <text x="168" y="-4" text-anchor="middle" class="sans" font-size="8.5" font-weight="700" fill="#e11d48">%s</text>
+`, headAttr, esc(head), leadAttr, esc(lead), esc(l.KaggleCairoBench))
 		for i, c := range cats[:3] {
 			y := 24 + i*36
-			endX := 92 + int((c.ProgressPct/100.0)*185.0)
+			endX := 86 + clampInt(int(math.Round((c.ProgressPct/100.0)*108.0)), 0, 108)
 			color := "#0284c7"
 			if i == 0 {
 				color = "#d97706"
 			}
-			fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl">%s</text>
-    <line x1="92" y1="%d" x2="280" y2="%d" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
-    <line x1="92" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2.5"/>
+			lblAttr := fitTextAttr(c.Name, 10.5, 8.2, 82, false, true, false, 0)
+			rightStr := fmt.Sprintf("%s · %s (%s)", c.Tier, formatKaggleRankOrCount(c, l.IsPtBR), formatKaggleTopPct(c, l.IsPtBR))
+			valAttr := fitTextAttr(rightStr, 10.0, 7.8, 210, true, true, false, 0)
+			fmt.Fprintf(&b, `    <text x="0" y="%d" class="sans lbl"%s>%s</text>
+    <line x1="86" y1="%d" x2="196" y2="%d" stroke="#64748b" stroke-opacity="0.2" stroke-width="1.5"/>
+    <line x1="86" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2.5"/>
     <circle cx="%d" cy="%d" r="4.2" fill="%s"/>
-    <text x="416" y="%d" text-anchor="end" class="mono val">%s · %s (%s)</text>
-`, y, esc(c.Name), y-4, y-4, y-4, endX, y-4, color, endX, y-4, color, y, esc(c.Tier), esc(formatKaggleRankOrCount(c, l.IsPtBR)), esc(formatKaggleTopPct(c, l.IsPtBR)))
+    <text x="416" y="%d" text-anchor="end" class="mono val"%s>%s · %s (%s)</text>
+`, y, lblAttr, esc(c.Name), y-4, y-4, y-4, endX, y-4, color, endX, y-4, color, y, valAttr, esc(c.Tier), esc(formatKaggleRankOrCount(c, l.IsPtBR)), esc(formatKaggleTopPct(c, l.IsPtBR)))
 		}
-		fmt.Fprintf(&b, `    <text x="0" y="146" class="serif callout">%s</text>
+		fmt.Fprintf(&b, `    <text x="0" y="146" class="serif callout"%s>%s</text>
   </g>
-</svg>`, esc(l.KaggleCairoCallout))
+</svg>`, calloutAttr, esc(l.KaggleCairoCallout))
 		return b.String()
 
 	default: // SchoolHolmes
 		medalsEarned := fmt.Sprintf(l.KaggleHolmesMedals, k.TotalMedals())
 		trophyX, trophyY := holmesTrophyPosition(k.OverallTier)
+		bannerRaw := fmt.Sprintf("🏆 %s — %s", l.KaggleTitle, strings.ToUpper(k.OverallTier))
 		bannerText := fmt.Sprintf("🏆 %s — %s", esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)))
 		if k.PeakRank > 0 {
+			bannerRaw = fmt.Sprintf("🏆 %s — %s (#%s PEAK)", l.KaggleTitle, strings.ToUpper(k.OverallTier), formatInt(k.PeakRank))
 			bannerText = fmt.Sprintf("🏆 %s — %s (#%s PEAK)", esc(l.KaggleTitle), strings.ToUpper(esc(k.OverallTier)), formatInt(k.PeakRank))
 		}
+		bannerAttr := fitTextAttr(bannerRaw, 12.0, 8.8, 408, false, true, true, 0.6)
+		podiumSecAttr := fitTextAttr(l.KaggleHolmesPodium, 9.5, 7.8, 196, false, true, true, 0.5)
+		trackSecAttr := fitTextAttr(l.KaggleTrack, 9.5, 7.8, 204, false, true, true, 0.5)
+		medalsSub := fmt.Sprintf("%s · %d %s · %d %s", kpi2Val, k.TotalSilver, l.KaggleSilver, k.TotalBronze, l.KaggleBronze)
+		medalsSubAttr := fitTextAttr(medalsSub, 10.0, 8.0, 196, true, true, false, 0)
+		c0Right := formatKaggleHolmesCardRight(cats[0], l.IsPtBR)
+		c1Right := formatKaggleHolmesCardRight(cats[1], l.IsPtBR)
+		c2Right := formatKaggleHolmesCardRight(cats[2], l.IsPtBR)
+		c0LAttr, c0RAttr := fitPairTextAttrs("📓 "+cats[0].Name, 10.5, 8.2, false, true, false, 0, c0Right, 10.0, 7.8, true, true, false, 0, 184, 8)
+		c1LAttr, c1RAttr := fitPairTextAttrs("🗂️ "+cats[1].Name, 10.5, 8.2, false, true, false, 0, c1Right, 10.0, 7.8, true, true, false, 0, 184, 8)
+		c2LAttr, c2RAttr := fitPairTextAttrs("⚔️ "+cats[2].Name, 10.5, 8.2, false, true, false, 0, c2Right, 10.0, 7.8, true, true, false, 0, 184, 8)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1454,9 +1748,9 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
   </style>
   <rect x="3" y="3" width="434" height="224" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#d97706"/>
-  <text x="16" y="22" class="sans banner">%s</text>
+  <text x="16" y="22" class="sans banner"%s>%s</text>
   <g transform="translate(16, 48)">
-    <text x="0" y="0" class="sans sec">%s</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
     <rect x="0" y="96" width="34" height="28" rx="3" fill="#64748b" fill-opacity="0.25"/>
     <rect x="38" y="76" width="34" height="48" rx="3" fill="#059669" fill-opacity="0.4"/>
     <rect x="76" y="54" width="34" height="70" rx="3" fill="#0284c7" fill-opacity="0.65"/>
@@ -1464,27 +1758,27 @@ func renderKaggle(school domain.School, d domain.PortfolioData, l labels) string
     <rect x="152" y="10" width="34" height="114" rx="3" fill="none" stroke="#d97706" stroke-dasharray="3,3" stroke-width="1.5"/>
     <text x="%d" y="%d" text-anchor="middle" font-size="14">🏆</text>
     <text x="0" y="144" class="sans lbl" fill="#d97706">%s</text>
-    <text x="0" y="160" class="mono val">%s · %d %s · %d %s</text>
+    <text x="0" y="160" class="mono val"%s>%s · %d %s · %d %s</text>
   </g>
   <g transform="translate(220, 48)">
-    <text x="0" y="0" class="sans sec">%s</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
     <rect x="0" y="14" width="204" height="38" rx="6" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="37" class="sans lbl">📓 %s</text>
-    <text x="194" y="37" text-anchor="end" class="mono val" fill="#d97706">%s</text>
+    <text x="10" y="37" class="sans lbl"%s>📓 %s</text>
+    <text x="194" y="37" text-anchor="end" class="mono val" fill="#d97706"%s>%s</text>
     <rect x="0" y="62" width="204" height="38" rx="6" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="85" class="sans lbl">🗂️ %s</text>
-    <text x="194" y="85" text-anchor="end" class="mono val">%s</text>
+    <text x="10" y="85" class="sans lbl"%s>🗂️ %s</text>
+    <text x="194" y="85" text-anchor="end" class="mono val"%s>%s</text>
     <rect x="0" y="110" width="204" height="38" rx="6" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="133" class="sans lbl">⚔️ %s</text>
-    <text x="194" y="133" text-anchor="end" class="mono val" fill="#059669">%s</text>
+    <text x="10" y="133" class="sans lbl"%s>⚔️ %s</text>
+    <text x="194" y="133" text-anchor="end" class="mono val" fill="#059669"%s>%s</text>
   </g>
 </svg>`,
-			bannerText,
-			esc(l.KaggleHolmesPodium), trophyX, trophyY, esc(medalsEarned), esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze),
-			esc(l.KaggleTrack),
-			esc(cats[0].Name), esc(formatKaggleHolmesCardRight(cats[0], l.IsPtBR)),
-			esc(cats[1].Name), esc(formatKaggleHolmesCardRight(cats[1], l.IsPtBR)),
-			esc(cats[2].Name), esc(formatKaggleHolmesCardRight(cats[2], l.IsPtBR)))
+			bannerAttr, bannerText,
+			podiumSecAttr, esc(l.KaggleHolmesPodium), trophyX, trophyY, esc(medalsEarned), medalsSubAttr, esc(kpi2Val), k.TotalSilver, esc(l.KaggleSilver), k.TotalBronze, esc(l.KaggleBronze),
+			trackSecAttr, esc(l.KaggleTrack),
+			c0LAttr, esc(cats[0].Name), c0RAttr, esc(c0Right),
+			c1LAttr, esc(cats[1].Name), c1RAttr, esc(c1Right),
+			c2LAttr, esc(cats[2].Name), c2RAttr, esc(c2Right))
 	}
 }
 
@@ -1519,6 +1813,8 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 	rRow2Val := formatCompact(im.HFDownloads30d)
 	rRow3Lbl := l.ImpactLikes
 	rRow3Val := fmt.Sprintf("♥ %d", im.HFLikes)
+	rRow4Lbl := l.ImpactStreak
+	rRow4Val := fmt.Sprintf(l.ImpactDaysCapFmt, im.ActiveStreakDays)
 
 	// Recruiter-First fallback: if user has 0 Hugging Face models/datasets/spaces,
 	// showcase Engineering Velocity instead of zeros!
@@ -1530,11 +1826,30 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 		rRow2Val = fmt.Sprintf("+%s / -%s", formatCompact(max(12400, im.LinesAdded)), formatCompact(max(3200, im.LinesDeleted)))
 		rRow3Lbl = l.ImpactYoYMomentum
 		rRow3Val = fmt.Sprintf(l.ImpactGrowthFmt, maxFloat(24.0, im.YoYGrowthPct))
+		rRow4Lbl = l.ImpactContribs
+		rRow4Val = formatInt(im.AnnualContributions)
 	}
+
+	leftStreakVal := fmt.Sprintf(l.ImpactDaysCapFmt, im.ActiveStreakDays)
 
 	switch school {
 	case domain.SchoolTufte:
 		pts, lastX, lastY := buildTrendPolyline(im.WeeklyTrend, 240, 1, 176, 16)
+		h1Attr, subAttr := fitPairTextAttrs(l.ImpactTitle, 13.5, 10.0, false, true, false, 0, l.ImpactTufteHorizon, 10.0, 8.0, false, false, false, 0, 416, 12)
+		bigNumStr := formatInt(im.AnnualContributions)
+		lblX := max(58, int(math.Ceil(estimateTextWidth(bigNumStr, 18.0, false, true, false, 0)))+10)
+		contribsLbl := fmt.Sprintf("%s (+%.0f%% YoY)", l.ImpactContribs, im.YoYGrowthPct)
+		contribsLblAttr := fitTextAttr(contribsLbl, 10.5, 8.0, float64(234-lblX), false, false, false, 0)
+		lSecAttr := fitTextAttr(l.ImpactGitHubSec, 10.0, 8.2, 190, false, true, false, 0)
+		rSecAttr := fitTextAttr(rightSecTitle, 10.0, 8.2, 196, false, true, false, 0)
+		lR1L, lR1R := fitPairTextAttrs(l.ImpactStars, 10.5, 8.2, false, false, false, 0, "★ "+formatInt(im.TotalStars), 10.5, 8.2, false, true, false, 0, 190, 8)
+		lR2L, lR2R := fitPairTextAttrs(l.ImpactRepos, 10.5, 8.2, false, false, false, 0, fmt.Sprintf("%d", im.PublicRepos), 10.5, 8.2, false, true, false, 0, 190, 8)
+		lR3L, lR3R := fitPairTextAttrs(l.ImpactForks, 10.5, 8.2, false, false, false, 0, fmt.Sprintf("%d", im.TotalForks), 10.5, 8.2, false, true, false, 0, 190, 8)
+		lR4L, lR4R := fitPairTextAttrs(l.ImpactViews, 10.5, 8.2, false, false, false, 0, formatCompact(im.RepoViews14d), 10.5, 8.2, false, true, false, 0, 190, 8)
+		rR1L, rR1R := fitPairTextAttrs(rRow1Lbl, 10.5, 8.2, false, false, false, 0, rRow1Val, 10.5, 8.2, false, true, false, 0, 196, 8)
+		rR2L, rR2R := fitPairTextAttrs(rRow2Lbl, 10.5, 8.2, false, false, false, 0, rRow2Val, 10.5, 8.2, false, true, false, 0, 196, 8)
+		rR3L, rR3R := fitPairTextAttrs(rRow3Lbl, 10.5, 8.2, false, false, false, 0, rRow3Val, 10.5, 8.2, false, true, false, 0, 196, 8)
+		rR4L, rR4R := fitPairTextAttrs(rRow4Lbl, 10.5, 8.2, false, false, false, 0, rRow4Val, 10.5, 8.2, false, true, false, 0, 196, 8)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
@@ -1546,50 +1861,67 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     .val { font-size: 10.5px; font-weight: bold; fill: #526071; }
     .big-num { font-size: 18px; font-weight: bold; fill: #526071; }
   </style>
-  <text x="12" y="21" class="serif h1">%s</text>
-  <text x="428" y="21" text-anchor="end" class="serif sub">%s</text>
+  <text x="12" y="21" class="serif h1"%s>%s</text>
+  <text x="428" y="21" text-anchor="end" class="serif sub"%s>%s</text>
   <line x1="12" y1="28" x2="428" y2="28" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
   <g transform="translate(12, 42)">
     <text x="0" y="16" class="num big-num">%s</text>
-    <text x="58" y="16" class="serif lbl">%s (+%.0f%% YoY)</text>
+    <text x="%d" y="16" class="serif lbl"%s>%s (+%.0f%% YoY)</text>
     <rect x="240" y="3" width="176" height="14" fill="#64748b" fill-opacity="0.12"/>
     <polyline fill="none" stroke="#0284c7" stroke-width="1.3" points="%s"/>
     <circle cx="%d" cy="%d" r="2.5" fill="#059669"/>
   </g>
   <line x1="12" y1="72" x2="428" y2="72" stroke="#64748b" stroke-opacity="0.35" stroke-width="0.6"/>
   <g transform="translate(12, 90)">
-    <text x="0" y="0" class="serif sec">%s</text>
-    <text x="0" y="22" class="serif lbl">%s</text><text x="190" y="22" text-anchor="end" class="num val">★ %s</text>
-    <text x="0" y="42" class="serif lbl">%s</text><text x="190" y="42" text-anchor="end" class="num val">%d</text>
-    <text x="0" y="62" class="serif lbl">%s</text><text x="190" y="62" text-anchor="end" class="num val">%d</text>
-    <text x="0" y="82" class="serif lbl">%s</text><text x="190" y="82" text-anchor="end" class="num val">%s</text>
+    <text x="0" y="0" class="serif sec"%s>%s</text>
+    <text x="0" y="22" class="serif lbl"%s>%s</text><text x="190" y="22" text-anchor="end" class="num val"%s>★ %s</text>
+    <text x="0" y="42" class="serif lbl"%s>%s</text><text x="190" y="42" text-anchor="end" class="num val"%s>%d</text>
+    <text x="0" y="62" class="serif lbl"%s>%s</text><text x="190" y="62" text-anchor="end" class="num val"%s>%d</text>
+    <text x="0" y="82" class="serif lbl"%s>%s</text><text x="190" y="82" text-anchor="end" class="num val"%s>%s</text>
   </g>
   <g transform="translate(232, 90)">
-    <text x="0" y="0" class="serif sec">%s</text>
-    <text x="0" y="22" class="serif lbl">%s</text><text x="196" y="22" text-anchor="end" class="num val">%s</text>
-    <text x="0" y="42" class="serif lbl">%s</text><text x="196" y="42" text-anchor="end" class="num val" fill="#059669">%s</text>
-    <text x="0" y="62" class="serif lbl">%s</text><text x="196" y="62" text-anchor="end" class="num val">%s</text>
-    <text x="0" y="82" class="serif lbl">%s</text><text x="196" y="82" text-anchor="end" class="num val">%d days</text>
+    <text x="0" y="0" class="serif sec"%s>%s</text>
+    <text x="0" y="22" class="serif lbl"%s>%s</text><text x="196" y="22" text-anchor="end" class="num val"%s>%s</text>
+    <text x="0" y="42" class="serif lbl"%s>%s</text><text x="196" y="42" text-anchor="end" class="num val" fill="#059669"%s>%s</text>
+    <text x="0" y="62" class="serif lbl"%s>%s</text><text x="196" y="62" text-anchor="end" class="num val"%s>%s</text>
+    <text x="0" y="82" class="serif lbl"%s>%s</text><text x="196" y="82" text-anchor="end" class="num val"%s>%s</text>
   </g>
   <line x1="12" y1="220" x2="428" y2="220" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 </svg>`,
-			esc(l.ImpactTitle), esc(l.ImpactTufteHorizon),
-			formatInt(im.AnnualContributions), esc(l.ImpactContribs), im.YoYGrowthPct,
+			h1Attr, esc(l.ImpactTitle), subAttr, esc(l.ImpactTufteHorizon),
+			bigNumStr, lblX, contribsLblAttr, esc(l.ImpactContribs), im.YoYGrowthPct,
 			pts, lastX, lastY,
-			esc(l.ImpactGitHubSec),
-			esc(l.ImpactStars), formatInt(im.TotalStars),
-			esc(l.ImpactRepos), im.PublicRepos,
-			esc(l.ImpactForks), im.TotalForks,
-			esc(l.ImpactViews), formatCompact(im.RepoViews14d),
-			esc(rightSecTitle),
-			esc(rRow1Lbl), esc(rRow1Val),
-			esc(rRow2Lbl), esc(rRow2Val),
-			esc(rRow3Lbl), esc(rRow3Val),
-			esc(l.ImpactStreak), im.ActiveStreakDays)
+			lSecAttr, esc(l.ImpactGitHubSec),
+			lR1L, esc(l.ImpactStars), lR1R, formatInt(im.TotalStars),
+			lR2L, esc(l.ImpactRepos), lR2R, im.PublicRepos,
+			lR3L, esc(l.ImpactForks), lR3R, im.TotalForks,
+			lR4L, esc(l.ImpactViews), lR4R, formatCompact(im.RepoViews14d),
+			rSecAttr, esc(rightSecTitle),
+			rR1L, esc(rRow1Lbl), rR1R, esc(rRow1Val),
+			rR2L, esc(rRow2Lbl), rR2R, esc(rRow2Val),
+			rR3L, esc(rRow3Lbl), rR3R, esc(rRow3Val),
+			rR4L, esc(rRow4Lbl), rR4R, esc(rRow4Val))
 
 	case domain.SchoolFew:
 		pts, _, _ := buildTrendPolyline(im.WeeklyTrend, 0, 88, 194, 27)
 		velTag := fmt.Sprintf(l.ImpactFewVelocityFmt, im.YoYGrowthPct)
+		hdrAttr, tagAttr := fitPairTextAttrs(l.ImpactTitle, 12.0, 9.0, false, true, true, 0.5, velTag, 10.0, 8.0, true, true, false, 0, 412, 12)
+		kpi1NumAttr := fitTextAttr(formatInt(im.AnnualContributions), 14.5, 9.5, 134, true, true, false, 0)
+		kpi1LblAttr := fitTextAttr(l.ImpactContribs, 8.5, 6.8, 134, false, true, true, 0)
+		kpi2Val := "★ " + formatInt(im.TotalStars)
+		kpi2NumAttr := fitTextAttr(kpi2Val, 14.5, 9.5, 124, true, true, false, 0)
+		kpi2LblAttr := fitTextAttr(l.ImpactStars, 8.5, 6.8, 124, false, true, true, 0)
+		kpi3NumAttr := fitTextAttr(rRow2Val, 14.5, 9.0, 122, true, true, false, 0)
+		kpi3LblAttr := fitTextAttr(rRow2Lbl, 8.5, 6.8, 122, false, true, true, 0)
+		lSecAttr := fitTextAttr(l.ImpactGitHubSec, 9.0, 7.5, 192, false, true, true, 0.4)
+		rSecAttr := fitTextAttr(rightSecTitle, 9.0, 7.5, 194, false, true, true, 0.4)
+		lR1L, lR1R := fitPairTextAttrs(l.ImpactRepos, 10.5, 8.2, false, false, false, 0, fmt.Sprintf("%d", im.PublicRepos), 10.5, 8.2, true, true, false, 0, 192, 8)
+		lR2L, lR2R := fitPairTextAttrs(l.ImpactForks, 10.5, 8.2, false, false, false, 0, fmt.Sprintf("%d", im.TotalForks), 10.5, 8.2, true, true, false, 0, 192, 8)
+		lR3L, lR3R := fitPairTextAttrs(l.ImpactViews, 10.5, 8.2, false, false, false, 0, formatCompact(im.RepoViews14d), 10.5, 8.2, true, true, false, 0, 192, 8)
+		lR4L, lR4R := fitPairTextAttrs(l.ImpactStreak, 10.5, 8.2, false, false, false, 0, leftStreakVal, 10.5, 8.2, true, true, false, 0, 192, 8)
+		rR1L, rR1R := fitPairTextAttrs(rRow1Lbl, 10.5, 8.2, false, false, false, 0, rRow1Val, 10.5, 8.2, true, true, false, 0, 194, 8)
+		rR2L, rR2R := fitPairTextAttrs(rRow2Lbl, 10.5, 8.2, false, false, false, 0, rRow2Val, 10.5, 8.2, true, true, false, 0, 194, 8)
+		rR3L, rR3R := fitPairTextAttrs(rRow3Lbl, 10.5, 8.2, false, false, false, 0, rRow3Val, 10.5, 8.2, true, true, false, 0, 194, 8)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -1603,26 +1935,26 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     .kpi-lbl { font-size: 8.5px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
   <rect x="2" y="2" width="436" height="226" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
-  <text x="14" y="20" class="sans hdr">%s</text>
-  <text x="426" y="20" text-anchor="end" class="mono tag">%s</text>
+  <text x="14" y="20" class="sans hdr"%s>%s</text>
+  <text x="426" y="20" text-anchor="end" class="mono tag"%s>%s</text>
   <line x1="2" y1="28" x2="438" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 35)">
-    <text x="0" y="13" class="mono kpi-num" fill="#0284c7">%s</text>
-    <text x="0" y="25" class="sans kpi-lbl">%s</text>
+    <text x="0" y="13" class="mono kpi-num" fill="#0284c7"%s>%s</text>
+    <text x="0" y="25" class="sans kpi-lbl"%s>%s</text>
     <line x1="138" y1="0" x2="138" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="150" y="13" class="mono kpi-num">★ %s</text>
-    <text x="150" y="25" class="sans kpi-lbl">%s</text>
+    <text x="150" y="13" class="mono kpi-num"%s>★ %s</text>
+    <text x="150" y="25" class="sans kpi-lbl"%s>%s</text>
     <line x1="278" y1="0" x2="278" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="290" y="13" class="mono kpi-num" fill="#059669">%s</text>
-    <text x="290" y="25" class="sans kpi-lbl">%s</text>
+    <text x="290" y="13" class="mono kpi-num" fill="#059669"%s>%s</text>
+    <text x="290" y="25" class="sans kpi-lbl"%s>%s</text>
   </g>
   <line x1="2" y1="69" x2="438" y2="69" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 85)">
-    <text x="0" y="0" class="sans sec">%s</text>
-    <text x="0" y="24" class="sans lbl">%s</text><text x="192" y="24" text-anchor="end" class="mono val">%d</text>
-    <text x="0" y="48" class="sans lbl">%s</text><text x="192" y="48" text-anchor="end" class="mono val">%d</text>
-    <text x="0" y="72" class="sans lbl">%s</text><text x="192" y="72" text-anchor="end" class="mono val">%s</text>
-    <text x="0" y="96" class="sans lbl">%s</text><text x="192" y="96" text-anchor="end" class="mono val" fill="#059669">%d days</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
+    <text x="0" y="24" class="sans lbl"%s>%s</text><text x="192" y="24" text-anchor="end" class="mono val"%s>%d</text>
+    <text x="0" y="48" class="sans lbl"%s>%s</text><text x="192" y="48" text-anchor="end" class="mono val"%s>%d</text>
+    <text x="0" y="72" class="sans lbl"%s>%s</text><text x="192" y="72" text-anchor="end" class="mono val"%s>%s</text>
+    <text x="0" y="96" class="sans lbl"%s>%s</text><text x="192" y="96" text-anchor="end" class="mono val" fill="#059669"%s>%s</text>
     <rect x="0" y="106" width="192" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
     <rect x="0" y="106" width="128" height="8" rx="1.5" fill="#64748b" fill-opacity="0.25"/>
     <rect x="0" y="108" width="144" height="4" rx="1" fill="#059669"/>
@@ -1630,26 +1962,26 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
   </g>
   <line x1="220" y1="69" x2="220" y2="228" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(232, 85)">
-    <text x="0" y="0" class="sans sec">%s</text>
-    <text x="0" y="24" class="sans lbl">%s</text><text x="194" y="24" text-anchor="end" class="mono val">%s</text>
-    <text x="0" y="48" class="sans lbl">%s</text><text x="194" y="48" text-anchor="end" class="mono val" fill="#0284c7">%s</text>
-    <text x="0" y="72" class="sans lbl">%s</text><text x="194" y="72" text-anchor="end" class="mono val">%s</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
+    <text x="0" y="24" class="sans lbl"%s>%s</text><text x="194" y="24" text-anchor="end" class="mono val"%s>%s</text>
+    <text x="0" y="48" class="sans lbl"%s>%s</text><text x="194" y="48" text-anchor="end" class="mono val" fill="#0284c7"%s>%s</text>
+    <text x="0" y="72" class="sans lbl"%s>%s</text><text x="194" y="72" text-anchor="end" class="mono val"%s>%s</text>
     <polyline fill="none" stroke="#0284c7" stroke-width="2" points="%s"/>
   </g>
 </svg>`,
-			esc(l.ImpactTitle), esc(velTag),
-			formatInt(im.AnnualContributions), esc(l.ImpactContribs),
-			formatInt(im.TotalStars), esc(l.ImpactStars),
-			esc(rRow2Val), esc(rRow2Lbl),
-			esc(l.ImpactGitHubSec),
-			esc(l.ImpactRepos), im.PublicRepos,
-			esc(l.ImpactForks), im.TotalForks,
-			esc(l.ImpactViews), formatCompact(im.RepoViews14d),
-			esc(l.ImpactStreak), im.ActiveStreakDays,
-			esc(rightSecTitle),
-			esc(rRow1Lbl), esc(rRow1Val),
-			esc(rRow2Lbl), esc(rRow2Val),
-			esc(rRow3Lbl), esc(rRow3Val),
+			hdrAttr, esc(l.ImpactTitle), tagAttr, esc(velTag),
+			kpi1NumAttr, formatInt(im.AnnualContributions), kpi1LblAttr, esc(l.ImpactContribs),
+			kpi2NumAttr, formatInt(im.TotalStars), kpi2LblAttr, esc(l.ImpactStars),
+			kpi3NumAttr, esc(rRow2Val), kpi3LblAttr, esc(rRow2Lbl),
+			lSecAttr, esc(l.ImpactGitHubSec),
+			lR1L, esc(l.ImpactRepos), lR1R, im.PublicRepos,
+			lR2L, esc(l.ImpactForks), lR2R, im.TotalForks,
+			lR3L, esc(l.ImpactViews), lR3R, formatCompact(im.RepoViews14d),
+			lR4L, esc(l.ImpactStreak), lR4R, esc(leftStreakVal),
+			rSecAttr, esc(rightSecTitle),
+			rR1L, esc(rRow1Lbl), rR1R, esc(rRow1Val),
+			rR2L, esc(rRow2Lbl), rR2R, esc(rRow2Val),
+			rR3L, esc(rRow3Lbl), rR3R, esc(rRow3Val),
 			pts)
 
 	case domain.SchoolCairo:
@@ -1657,12 +1989,25 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
 		head := fmt.Sprintf(l.ImpactCairoHeadFmt, formatInt(im.AnnualContributions), im.YoYGrowthPct)
 		lead := fmt.Sprintf(l.ImpactCairoLeadFmt, im.PublicRepos)
 		callout := fmt.Sprintf(l.ImpactCairoCallout, im.ActiveStreakDays)
+		headAttr := fitTextAttr(head, 12.2, 8.8, 416, false, true, false, 0)
+		leadAttr := fitTextAttr(lead, 10.0, 8.0, 416, false, false, false, 0)
+		calloutAttr := fitTextAttr(callout, 9.0, 7.6, 416, false, false, false, 0)
+		lSecAttr := fitTextAttr(l.ImpactGitHubSec, 9.0, 7.5, 190, false, true, true, 0.4)
+		rSecAttr := fitTextAttr(rightSecTitle, 9.0, 7.5, 196, false, true, true, 0.4)
+		lR1L, lR1R := fitPairTextAttrs(l.ImpactStars, 10.5, 8.2, false, true, false, 0, "★ "+formatInt(im.TotalStars), 10.5, 8.2, true, true, false, 0, 190, 8)
+		lR2L, lR2R := fitPairTextAttrs(l.ImpactRepos, 10.5, 8.2, false, true, false, 0, fmt.Sprintf("%d", im.PublicRepos), 10.5, 8.2, true, true, false, 0, 190, 8)
+		lR3L, lR3R := fitPairTextAttrs(l.ImpactForks, 10.5, 8.2, false, true, false, 0, fmt.Sprintf("%d", im.TotalForks), 10.5, 8.2, true, true, false, 0, 190, 8)
+		lR4L, lR4R := fitPairTextAttrs(l.ImpactViews, 10.5, 8.2, false, true, false, 0, formatCompact(im.RepoViews14d), 10.5, 8.2, true, true, false, 0, 190, 8)
+		rR1L, rR1R := fitPairTextAttrs(rRow1Lbl, 10.5, 8.2, false, true, false, 0, rRow1Val, 10.5, 8.2, true, true, false, 0, 196, 8)
+		rR2L, rR2R := fitPairTextAttrs(rRow2Lbl, 10.5, 8.2, false, true, false, 0, rRow2Val, 10.5, 8.2, true, true, false, 0, 196, 8)
+		rR3L, rR3R := fitPairTextAttrs(rRow3Lbl, 10.5, 8.2, false, true, false, 0, rRow3Val, 10.5, 8.2, true, true, false, 0, 196, 8)
+		rR4L, rR4R := fitPairTextAttrs(rRow4Lbl, 10.5, 8.2, false, true, false, 0, rRow4Val, 10.5, 8.2, true, true, false, 0, 196, 8)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
-    .headline { font-size: 13.5px; font-weight: bold; fill: #526071; }
+    .headline { font-size: 12.2px; font-weight: bold; fill: #526071; }
     .lead { font-size: 10px; fill: #64748b; }
     .sec { font-size: 9px; font-weight: 700; fill: #0284c7; text-transform: uppercase; letter-spacing: 0.4px; }
     .lbl { font-size: 10.5px; font-weight: 600; fill: #526071; }
@@ -1670,46 +2015,57 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
     .callout { font-size: 9px; font-style: italic; fill: #059669; }
   </style>
   <rect x="12" y="6" width="416" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">%s</text>
-  <text x="12" y="39" class="sans lead">%s</text>
+  <text x="12" y="25" class="serif headline"%s>%s</text>
+  <text x="12" y="39" class="sans lead"%s>%s</text>
   <line x1="12" y1="46" x2="428" y2="46" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(12, 62)">
-    <text x="0" y="0" class="sans sec">%s</text>
-    <text x="0" y="22" class="sans lbl">%s</text><text x="190" y="22" text-anchor="end" class="mono val" fill="#d97706">★ %s</text>
-    <text x="0" y="42" class="sans lbl">%s</text><text x="190" y="42" text-anchor="end" class="mono val">%d</text>
-    <text x="0" y="62" class="sans lbl">%s</text><text x="190" y="62" text-anchor="end" class="mono val">%d</text>
-    <text x="0" y="82" class="sans lbl">%s</text><text x="190" y="82" text-anchor="end" class="mono val">%s</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
+    <text x="0" y="22" class="sans lbl"%s>%s</text><text x="190" y="22" text-anchor="end" class="mono val" fill="#d97706"%s>★ %s</text>
+    <text x="0" y="42" class="sans lbl"%s>%s</text><text x="190" y="42" text-anchor="end" class="mono val"%s>%d</text>
+    <text x="0" y="62" class="sans lbl"%s>%s</text><text x="190" y="62" text-anchor="end" class="mono val"%s>%d</text>
+    <text x="0" y="82" class="sans lbl"%s>%s</text><text x="190" y="82" text-anchor="end" class="mono val"%s>%s</text>
   </g>
   <g transform="translate(232, 62)">
-    <text x="0" y="0" class="sans sec">%s</text>
-    <text x="0" y="22" class="sans lbl">%s</text><text x="196" y="22" text-anchor="end" class="mono val">%s</text>
-    <text x="0" y="42" class="sans lbl">%s</text><text x="196" y="42" text-anchor="end" class="mono val" fill="#059669">%s</text>
-    <text x="0" y="62" class="sans lbl">%s</text><text x="196" y="62" text-anchor="end" class="mono val">%s</text>
-    <text x="0" y="82" class="sans lbl">%s</text><text x="196" y="82" text-anchor="end" class="mono val">%d days</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
+    <text x="0" y="22" class="sans lbl"%s>%s</text><text x="196" y="22" text-anchor="end" class="mono val"%s>%s</text>
+    <text x="0" y="42" class="sans lbl"%s>%s</text><text x="196" y="42" text-anchor="end" class="mono val" fill="#059669"%s>%s</text>
+    <text x="0" y="62" class="sans lbl"%s>%s</text><text x="196" y="62" text-anchor="end" class="mono val"%s>%s</text>
+    <text x="0" y="82" class="sans lbl"%s>%s</text><text x="196" y="82" text-anchor="end" class="mono val"%s>%s</text>
   </g>
   <g transform="translate(12, 166)">
     <line x1="0" y1="18" x2="416" y2="18" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
     <polyline fill="none" stroke="#0284c7" stroke-width="2" points="%s"/>
     <circle cx="%d" cy="%d" r="3.5" fill="#059669"/>
-    <text x="0" y="50" class="serif callout">%s</text>
+    <text x="0" y="50" class="serif callout"%s>%s</text>
   </g>
 </svg>`,
-			esc(head), esc(lead),
-			esc(l.ImpactGitHubSec),
-			esc(l.ImpactStars), formatInt(im.TotalStars),
-			esc(l.ImpactRepos), im.PublicRepos,
-			esc(l.ImpactForks), im.TotalForks,
-			esc(l.ImpactViews), formatCompact(im.RepoViews14d),
-			esc(rightSecTitle),
-			esc(rRow1Lbl), esc(rRow1Val),
-			esc(rRow2Lbl), esc(rRow2Val),
-			esc(rRow3Lbl), esc(rRow3Val),
-			esc(l.ImpactStreak), im.ActiveStreakDays,
+			headAttr, esc(head), leadAttr, esc(lead),
+			lSecAttr, esc(l.ImpactGitHubSec),
+			lR1L, esc(l.ImpactStars), lR1R, formatInt(im.TotalStars),
+			lR2L, esc(l.ImpactRepos), lR2R, im.PublicRepos,
+			lR3L, esc(l.ImpactForks), lR3R, im.TotalForks,
+			lR4L, esc(l.ImpactViews), lR4R, formatCompact(im.RepoViews14d),
+			rSecAttr, esc(rightSecTitle),
+			rR1L, esc(rRow1Lbl), rR1R, esc(rRow1Val),
+			rR2L, esc(rRow2Lbl), rR2R, esc(rRow2Val),
+			rR3L, esc(rRow3Lbl), rR3R, esc(rRow3Val),
+			rR4L, esc(rRow4Lbl), rR4R, esc(rRow4Val),
 			pts, lastX, lastY,
-			esc(callout))
+			calloutAttr, esc(callout))
 
 	default: // SchoolHolmes
 		banner := fmt.Sprintf(l.ImpactHolmesBanner, l.ImpactTitle, formatInt(im.AnnualContributions))
+		bannerAttr := fitTextAttr(banner, 11.5, 8.0, 408, false, true, true, 0.5)
+		lSecAttr := fitTextAttr(l.ImpactGitHubSec, 9.5, 7.8, 194, false, true, true, 0.5)
+		rSecAttr := fitTextAttr(rightSecTitle, 9.5, 7.8, 196, false, true, true, 0.5)
+		lR1L, lR1R := fitPairTextAttrs("⭐ "+l.ImpactStars, 10.5, 8.0, false, true, false, 0, formatInt(im.TotalStars), 11.0, 8.2, true, true, false, 0, 174, 8)
+		lR2L, lR2R := fitPairTextAttrs("📦 "+l.ImpactRepos, 10.5, 8.0, false, true, false, 0, fmt.Sprintf("%d", im.PublicRepos), 11.0, 8.2, true, true, false, 0, 174, 8)
+		lR3L, lR3R := fitPairTextAttrs("🔀 "+l.ImpactForks, 10.5, 8.0, false, true, false, 0, fmt.Sprintf("%d", im.TotalForks), 11.0, 8.2, true, true, false, 0, 174, 8)
+		lR4L, lR4R := fitPairTextAttrs("👀 "+l.ImpactViews, 10.5, 8.0, false, true, false, 0, formatCompact(im.RepoViews14d), 11.0, 8.2, true, true, false, 0, 174, 8)
+		rR1L, rR1R := fitPairTextAttrs("🤗 "+rRow1Lbl, 10.5, 8.0, false, true, false, 0, rRow1Val, 11.0, 8.2, true, true, false, 0, 176, 8)
+		rR2L, rR2R := fitPairTextAttrs("📥 "+rRow2Lbl, 10.5, 8.0, false, true, false, 0, rRow2Val, 11.0, 8.2, true, true, false, 0, 176, 8)
+		rR3L, rR3R := fitPairTextAttrs("❤️ "+rRow3Lbl, 10.5, 8.0, false, true, false, 0, rRow3Val, 11.0, 8.2, true, true, false, 0, 176, 8)
+		rR4L, rR4R := fitPairTextAttrs("🔥 "+rRow4Lbl, 10.5, 8.0, false, true, false, 0, rRow4Val, 11.0, 8.2, true, true, false, 0, 176, 8)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 230" width="440" height="230">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -1721,49 +2077,49 @@ func renderImpact(school domain.School, d domain.PortfolioData, l labels) string
   </style>
   <rect x="3" y="3" width="434" height="224" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L 427,3 Q 437,3 437,13 L 437,32 L 3,32 Z" fill="#059669"/>
-  <text x="16" y="22" class="sans banner">%s</text>
+  <text x="16" y="22" class="sans banner"%s>%s</text>
   <g transform="translate(16, 48)">
-    <text x="0" y="0" class="sans sec">%s</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
     <rect x="0" y="10" width="194" height="34" rx="6" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="31" class="sans lbl">⭐ %s</text>
-    <text x="184" y="31" text-anchor="end" class="mono val" fill="#d97706">%s</text>
+    <text x="10" y="31" class="sans lbl"%s>⭐ %s</text>
+    <text x="184" y="31" text-anchor="end" class="mono val" fill="#d97706"%s>%s</text>
     <rect x="0" y="52" width="194" height="34" rx="6" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="73" class="sans lbl">📦 %s</text>
-    <text x="184" y="73" text-anchor="end" class="mono val">%d</text>
+    <text x="10" y="73" class="sans lbl"%s>📦 %s</text>
+    <text x="184" y="73" text-anchor="end" class="mono val"%s>%d</text>
     <rect x="0" y="94" width="194" height="34" rx="6" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="115" class="sans lbl">🔀 %s</text>
-    <text x="184" y="115" text-anchor="end" class="mono val" fill="#059669">%d</text>
+    <text x="10" y="115" class="sans lbl"%s>🔀 %s</text>
+    <text x="184" y="115" text-anchor="end" class="mono val" fill="#059669"%s>%d</text>
     <rect x="0" y="136" width="194" height="34" rx="6" fill="#7c3aed" fill-opacity="0.1" stroke="#7c3aed" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="157" class="sans lbl">👀 %s</text>
-    <text x="184" y="157" text-anchor="end" class="mono val" fill="#7c3aed">%s</text>
+    <text x="10" y="157" class="sans lbl"%s>👀 %s</text>
+    <text x="184" y="157" text-anchor="end" class="mono val" fill="#7c3aed"%s>%s</text>
   </g>
   <g transform="translate(228, 48)">
-    <text x="0" y="0" class="sans sec">%s</text>
+    <text x="0" y="0" class="sans sec"%s>%s</text>
     <rect x="0" y="10" width="196" height="34" rx="6" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="31" class="sans lbl">🤗 %s</text>
-    <text x="186" y="31" text-anchor="end" class="mono val">%s</text>
+    <text x="10" y="31" class="sans lbl"%s>🤗 %s</text>
+    <text x="186" y="31" text-anchor="end" class="mono val"%s>%s</text>
     <rect x="0" y="52" width="196" height="34" rx="6" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="73" class="sans lbl">📥 %s</text>
-    <text x="186" y="73" text-anchor="end" class="mono val" fill="#059669">%s</text>
+    <text x="10" y="73" class="sans lbl"%s>📥 %s</text>
+    <text x="186" y="73" text-anchor="end" class="mono val" fill="#059669"%s>%s</text>
     <rect x="0" y="94" width="196" height="34" rx="6" fill="#e11d48" fill-opacity="0.1" stroke="#e11d48" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="115" class="sans lbl">❤️ %s</text>
-    <text x="186" y="115" text-anchor="end" class="mono val" fill="#e11d48">%s</text>
+    <text x="10" y="115" class="sans lbl"%s>❤️ %s</text>
+    <text x="186" y="115" text-anchor="end" class="mono val" fill="#e11d48"%s>%s</text>
     <rect x="0" y="136" width="196" height="34" rx="6" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1.2"/>
-    <text x="10" y="157" class="sans lbl">🔥 %s</text>
-    <text x="186" y="157" text-anchor="end" class="mono val" fill="#d97706">%d days</text>
+    <text x="10" y="157" class="sans lbl"%s>🔥 %s</text>
+    <text x="186" y="157" text-anchor="end" class="mono val" fill="#d97706"%s>%s</text>
   </g>
 </svg>`,
-			esc(banner),
-			esc(l.ImpactGitHubSec),
-			esc(l.ImpactStars), formatInt(im.TotalStars),
-			esc(l.ImpactRepos), im.PublicRepos,
-			esc(l.ImpactForks), im.TotalForks,
-			esc(l.ImpactViews), formatCompact(im.RepoViews14d),
-			esc(rightSecTitle),
-			esc(rRow1Lbl), esc(rRow1Val),
-			esc(rRow2Lbl), esc(rRow2Val),
-			esc(rRow3Lbl), esc(rRow3Val),
-			esc(l.ImpactStreak), im.ActiveStreakDays)
+			bannerAttr, esc(banner),
+			lSecAttr, esc(l.ImpactGitHubSec),
+			lR1L, esc(l.ImpactStars), lR1R, formatInt(im.TotalStars),
+			lR2L, esc(l.ImpactRepos), lR2R, im.PublicRepos,
+			lR3L, esc(l.ImpactForks), lR3R, im.TotalForks,
+			lR4L, esc(l.ImpactViews), lR4R, formatCompact(im.RepoViews14d),
+			rSecAttr, esc(rightSecTitle),
+			rR1L, esc(rRow1Lbl), rR1R, esc(rRow1Val),
+			rR2L, esc(rRow2Lbl), rR2R, esc(rRow2Val),
+			rR3L, esc(rRow3Lbl), rR3R, esc(rRow3Val),
+			rR4L, esc(rRow4Lbl), rR4R, esc(rRow4Val))
 	}
 }
 
@@ -1780,13 +2136,43 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 	im := d.Impact
 	overallTierRank := formatKaggleOverallTierAndRank(k)
 	summaryTracksVal := fmt.Sprintf("%s / %s", formatKaggleSummaryTrack(cats[0], l.IsPtBR), formatKaggleSummaryTrack(cats[1], l.IsPtBR))
+	l0Short := shortLangName(langs[0].Name, 11)
+	l1Short := shortLangName(langs[1].Name, 11)
+	l2Short := shortLangName(langs[2].Name, 11)
 
 	switch school {
 	case domain.SchoolTufte:
 		pts, lastX, lastY := buildTrendPolyline(im.WeeklyTrend, 118, 46, 82, 12)
-		l0End := 58 + int(langs[0].Percentage*1.4)
-		l1End := 58 + int(langs[1].Percentage*1.4)
-		l2End := 58 + int(langs[2].Percentage*1.4)
+		l0End := 62 + clampInt(int(math.Round((langs[0].Percentage/100.0)*96.0)), 6, 96)
+		l1End := 62 + clampInt(int(math.Round((langs[1].Percentage/100.0)*96.0)), 6, 96)
+		l2End := 62 + clampInt(int(math.Round((langs[2].Percentage/100.0)*96.0)), 6, 96)
+		rightSub := fmt.Sprintf("%d Repos · ★ %s", d.Languages.TotalRepos, formatInt(im.TotalStars))
+		rightSubW := estimateTextWidth(rightSub, 10.0, false, false, false, 0)
+		dispRole, _ := fitHeaderNameRole(d.Subject.Name, d.Subject.Role, " — ", 437-rightSubW-14, 13.5, 9.0, false, true, false, 0)
+		leftTitle := fmt.Sprintf("%s — %s", d.Subject.Name, dispRole)
+		h1Attr, subAttr := fitPairTextAttrs(leftTitle, 13.5, 9.0, false, true, false, 0, rightSub, 10.0, 8.2, false, false, false, 0, 437, 12)
+		sec1Attr := fitTextAttr("1. "+l.LangSecTrueProp, 10.0, 8.0, 200, false, true, false, 0)
+		sec2Attr := fitTextAttr("2. "+l.StackTitle, 10.0, 8.0, 203, false, true, false, 0)
+		sec3Attr := fitTextAttr("3. "+l.KaggleTitle, 10.0, 8.0, 200, false, true, false, 0)
+		sec4Attr := fitTextAttr("4. "+l.ImpactTitle, 10.0, 8.0, 203, false, true, false, 0)
+		l0Attr := fitTextAttr(l0Short, 10.0, 7.8, 56, false, false, false, 0)
+		l1Attr := fitTextAttr(l1Short, 10.0, 7.8, 56, false, false, false, 0)
+		l2Attr := fitTextAttr(l2Short, 10.0, 7.8, 56, false, false, false, 0)
+		q1R4Val := fmt.Sprintf("%.0f%% Prod / %.0f%% EDA", d.Languages.ProductionPct, d.Languages.ExplorationPct)
+		q1R4L, q1R4R := fitPairTextAttrs("Prod vs. EDA", 10.0, 8.0, false, false, false, 0, q1R4Val, 10.0, 8.0, false, true, false, 0, 200, 8)
+		q2R1L, q2R1R := fitPairTextAttrs(dataCol[0].Name, 10.0, 8.0, false, false, false, 0, fmt.Sprintf("%d repos", dataCol[0].RepoCount), 10.0, 8.0, false, true, false, 0, 203, 8)
+		q2R2L, q2R2R := fitPairTextAttrs(mlCol[0].Name, 10.0, 8.0, false, false, false, 0, fmt.Sprintf("%d repos", mlCol[0].RepoCount), 10.0, 8.0, false, true, false, 0, 203, 8)
+		q2R3L, q2R3R := fitPairTextAttrs(mlCol[1].Name, 10.0, 8.0, false, false, false, 0, fmt.Sprintf("%d repos", mlCol[1].RepoCount), 10.0, 8.0, false, true, false, 0, 203, 8)
+		q2R4L, q2R4R := fitPairTextAttrs(l.LangLockfiles, 10.0, 8.0, false, false, false, 0, fmt.Sprintf("%d / %d", d.Languages.LockfileRepos, d.Languages.TotalRepos), 10.0, 8.0, false, true, false, 0, 203, 8)
+		q3R1L, q3R1R := fitPairTextAttrs(l.KaggleOverallTierLbl, 10.0, 8.0, false, false, false, 0, overallTierRank, 10.0, 8.0, false, true, false, 0, 200, 8)
+		q3R2Val := fmt.Sprintf("%d (%dG · %dS · %dB)", k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze)
+		q3R2L, q3R2R := fitPairTextAttrs(l.KaggleTotalMedalsLbl, 10.0, 8.0, false, false, false, 0, q3R2Val, 10.0, 8.0, false, true, false, 0, 200, 8)
+		q3R3L, q3R3R := fitPairTextAttrs("Code / Datasets", 10.0, 8.0, false, false, false, 0, summaryTracksVal, 10.0, 8.0, false, true, false, 0, 200, 8)
+		q4R1Val := fmt.Sprintf("%s (+%.0f%%)", formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		q4R1L, q4R1R := fitPairTextAttrs(l.ImpactContribs, 10.0, 8.0, false, false, false, 0, q4R1Val, 10.0, 8.0, false, true, false, 0, 203, 8)
+		q4R2Val := fmt.Sprintf("★ %s (%d forks)", formatInt(im.TotalStars), im.TotalForks)
+		q4R2L, q4R2R := fitPairTextAttrs(l.ImpactStars, 10.0, 8.0, false, false, false, 0, q4R2Val, 10.0, 8.0, false, true, false, 0, 203, 8)
+		q4R3L := fitTextAttr(l.ImpactDownloads, 10.0, 8.0, 112, false, false, false, 0)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
   <style>
     .serif { font-family: Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif; }
@@ -1797,54 +2183,54 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     .lbl { font-size: 10px; fill: #526071; }
     .val { font-size: 10px; font-weight: bold; fill: #526071; }
   </style>
-  <text x="14" y="22" class="serif h1">%s — %s</text>
-  <text x="451" y="22" text-anchor="end" class="num sub">%d Repos · ★ %s</text>
+  <text x="14" y="22" class="serif h1"%s>%s — %s</text>
+  <text x="451" y="22" text-anchor="end" class="num sub"%s>%d Repos · ★ %s</text>
   <line x1="14" y1="30" x2="451" y2="30" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 
   <!-- Q1: Languages (Dot-Dash Plot) -->
   <g transform="translate(14, 46)">
-    <text x="0" y="0" class="serif sec">1. %s</text>
-    <text x="0" y="18" class="serif lbl">%s</text>
-    <line x1="58" y1="14" x2="%d" y2="14" stroke="#64748b" stroke-width="1.1"/>
+    <text x="0" y="0" class="serif sec"%s>1. %s</text>
+    <text x="0" y="18" class="serif lbl"%s>%s</text>
+    <line x1="62" y1="14" x2="%d" y2="14" stroke="#64748b" stroke-width="1.1"/>
     <circle cx="%d" cy="14" r="2.5" fill="#0284c7"/>
     <text x="200" y="18" text-anchor="end" class="num val" fill="#0284c7">%.1f%%</text>
-    <text x="0" y="34" class="serif lbl">%s</text>
-    <line x1="58" y1="30" x2="%d" y2="30" stroke="#64748b" stroke-width="1.1"/>
+    <text x="0" y="34" class="serif lbl"%s>%s</text>
+    <line x1="62" y1="30" x2="%d" y2="30" stroke="#64748b" stroke-width="1.1"/>
     <circle cx="%d" cy="30" r="2.5" fill="#d97706"/>
     <text x="200" y="34" text-anchor="end" class="num val">%.1f%%</text>
-    <text x="0" y="50" class="serif lbl">%s</text>
-    <line x1="58" y1="46" x2="%d" y2="46" stroke="#64748b" stroke-width="1.1"/>
+    <text x="0" y="50" class="serif lbl"%s>%s</text>
+    <line x1="62" y1="46" x2="%d" y2="46" stroke="#64748b" stroke-width="1.1"/>
     <circle cx="%d" cy="46" r="2.5" fill="#00ADD8"/>
     <text x="200" y="50" text-anchor="end" class="num val">%.1f%%</text>
-    <text x="0" y="66" class="serif lbl">Prod vs. EDA</text>
-    <text x="200" y="66" text-anchor="end" class="num val" fill="#059669">%.0f%% Prod / %.0f%% EDA</text>
+    <text x="0" y="66" class="serif lbl"%s>Prod vs. EDA</text>
+    <text x="200" y="66" text-anchor="end" class="num val" fill="#059669"%s>%.0f%% Prod / %.0f%% EDA</text>
   </g>
 
   <!-- Q2: Stack (Supertable) -->
   <g transform="translate(248, 46)">
-    <text x="0" y="0" class="serif sec">2. %s</text>
-    <text x="0" y="18" class="serif lbl">%s</text><text x="203" y="18" text-anchor="end" class="num val">%d repos</text>
-    <text x="0" y="34" class="serif lbl">%s</text><text x="203" y="34" text-anchor="end" class="num val">%d repos</text>
-    <text x="0" y="50" class="serif lbl">%s</text><text x="203" y="50" text-anchor="end" class="num val">%d repos</text>
-    <text x="0" y="66" class="serif lbl">%s</text><text x="203" y="66" text-anchor="end" class="num val">%d / %d</text>
+    <text x="0" y="0" class="serif sec"%s>2. %s</text>
+    <text x="0" y="18" class="serif lbl"%s>%s</text><text x="203" y="18" text-anchor="end" class="num val"%s>%d repos</text>
+    <text x="0" y="34" class="serif lbl"%s>%s</text><text x="203" y="34" text-anchor="end" class="num val"%s>%d repos</text>
+    <text x="0" y="50" class="serif lbl"%s>%s</text><text x="203" y="50" text-anchor="end" class="num val"%s>%d repos</text>
+    <text x="0" y="66" class="serif lbl"%s>%s</text><text x="203" y="66" text-anchor="end" class="num val"%s>%d / %d</text>
   </g>
 
   <line x1="14" y1="132" x2="451" y2="132" stroke="#64748b" stroke-opacity="0.35" stroke-width="0.6"/>
 
   <!-- Q3: Kaggle (Supertable) -->
   <g transform="translate(14, 150)">
-    <text x="0" y="0" class="serif sec">3. %s</text>
-    <text x="0" y="18" class="serif lbl">%s</text><text x="200" y="18" text-anchor="end" class="num val" fill="#d97706">%s</text>
-    <text x="0" y="34" class="serif lbl">%s</text><text x="200" y="34" text-anchor="end" class="num val">%d (%dG · %dS · %dB)</text>
-    <text x="0" y="50" class="serif lbl">Code / Datasets</text><text x="200" y="50" text-anchor="end" class="num val">%s</text>
+    <text x="0" y="0" class="serif sec"%s>3. %s</text>
+    <text x="0" y="18" class="serif lbl"%s>%s</text><text x="200" y="18" text-anchor="end" class="num val" fill="#d97706"%s>%s</text>
+    <text x="0" y="34" class="serif lbl"%s>%s</text><text x="200" y="34" text-anchor="end" class="num val"%s>%d (%dG · %dS · %dB)</text>
+    <text x="0" y="50" class="serif lbl"%s>Code / Datasets</text><text x="200" y="50" text-anchor="end" class="num val"%s>%s</text>
   </g>
 
   <!-- Q4: Impact (Supertable + Inline Sparkline with Interquartile Band) -->
   <g transform="translate(248, 150)">
-    <text x="0" y="0" class="serif sec">4. %s</text>
-    <text x="0" y="18" class="serif lbl">%s</text><text x="203" y="18" text-anchor="end" class="num val" fill="#059669">%s (+%.0f%%)</text>
-    <text x="0" y="34" class="serif lbl">%s</text><text x="203" y="34" text-anchor="end" class="num val">★ %s (%d forks)</text>
-    <text x="0" y="54" class="serif lbl">%s</text>
+    <text x="0" y="0" class="serif sec"%s>4. %s</text>
+    <text x="0" y="18" class="serif lbl"%s>%s</text><text x="203" y="18" text-anchor="end" class="num val" fill="#059669"%s>%s (+%.0f%%)</text>
+    <text x="0" y="34" class="serif lbl"%s>%s</text><text x="203" y="34" text-anchor="end" class="num val"%s>★ %s (%d forks)</text>
+    <text x="0" y="54" class="serif lbl"%s>%s</text>
     <rect x="118" y="46" width="82" height="12" fill="#64748b" fill-opacity="0.12"/>
     <polyline fill="none" stroke="#0284c7" stroke-width="1.2" points="%s"/>
     <circle cx="%d" cy="%d" r="2.2" fill="#059669"/>
@@ -1852,31 +2238,68 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 
   <line x1="14" y1="242" x2="451" y2="242" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 </svg>`,
-			esc(d.Subject.Name), esc(d.Subject.Role),
-			d.Languages.TotalRepos, formatInt(im.TotalStars),
-			esc(l.LangSecTrueProp),
-			esc(langs[0].Name), l0End, l0End, langs[0].Percentage,
-			esc(langs[1].Name), l1End, l1End, langs[1].Percentage,
-			esc(langs[2].Name), l2End, l2End, langs[2].Percentage,
-			d.Languages.ProductionPct, d.Languages.ExplorationPct,
-			esc(l.StackTitle),
-			esc(dataCol[0].Name), dataCol[0].RepoCount,
-			esc(mlCol[0].Name), mlCol[0].RepoCount,
-			esc(mlCol[1].Name), mlCol[1].RepoCount,
-			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
-			esc(l.KaggleTitle),
-			esc(l.KaggleOverallTierLbl), esc(overallTierRank),
-			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
-			esc(summaryTracksVal),
-			esc(l.ImpactTitle),
-			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
-			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
-			esc(l.ImpactDownloads), pts, lastX, lastY)
+			h1Attr, esc(d.Subject.Name), esc(dispRole),
+			subAttr, d.Languages.TotalRepos, formatInt(im.TotalStars),
+			sec1Attr, esc(l.LangSecTrueProp),
+			l0Attr, esc(l0Short), l0End, l0End, langs[0].Percentage,
+			l1Attr, esc(l1Short), l1End, l1End, langs[1].Percentage,
+			l2Attr, esc(l2Short), l2End, l2End, langs[2].Percentage,
+			q1R4L, q1R4R, d.Languages.ProductionPct, d.Languages.ExplorationPct,
+			sec2Attr, esc(l.StackTitle),
+			q2R1L, esc(dataCol[0].Name), q2R1R, dataCol[0].RepoCount,
+			q2R2L, esc(mlCol[0].Name), q2R2R, mlCol[0].RepoCount,
+			q2R3L, esc(mlCol[1].Name), q2R3R, mlCol[1].RepoCount,
+			q2R4L, esc(l.LangLockfiles), q2R4R, d.Languages.LockfileRepos, d.Languages.TotalRepos,
+			sec3Attr, esc(l.KaggleTitle),
+			q3R1L, esc(l.KaggleOverallTierLbl), q3R1R, esc(overallTierRank),
+			q3R2L, esc(l.KaggleTotalMedalsLbl), q3R2R, k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
+			q3R3L, q3R3R, esc(summaryTracksVal),
+			sec4Attr, esc(l.ImpactTitle),
+			q4R1L, esc(l.ImpactContribs), q4R1R, formatInt(im.AnnualContributions), im.YoYGrowthPct,
+			q4R2L, esc(l.ImpactStars), q4R2R, formatInt(im.TotalStars), im.TotalForks,
+			q4R3L, esc(l.ImpactDownloads), pts, lastX, lastY)
 
 	case domain.SchoolFew:
-		l0Bar := int(langs[0].Percentage * 0.9)
-		prodBar := int(d.Languages.ProductionPct * 0.9)
-		kBar := int((cats[0].ProgressPct / 100.0) * 90.0)
+		l0Bar := clampInt(int(math.Round((langs[0].Percentage/100.0)*88.0)), 0, 88)
+		prodBar := clampInt(int(math.Round((d.Languages.ProductionPct/100.0)*88.0)), 0, 88)
+		kBar := clampInt(int(math.Round((cats[0].ProgressPct/100.0)*88.0)), 0, 88)
+		rightSub := fmt.Sprintf("%d Repos · ★ %s", d.Languages.TotalRepos, formatInt(im.TotalStars))
+		rightSubW := estimateTextWidth(rightSub, 10.0, true, true, false, 0)
+		dispRole, _ := fitHeaderNameRole(d.Subject.Name, d.Subject.Role, " — ", 437-rightSubW-14, 10.5, 8.0, false, true, true, 0.3)
+		leftTitle := fmt.Sprintf("%s — %s", d.Subject.Name, dispRole)
+		hdrAttr, subAttr := fitPairTextAttrs(leftTitle, 10.5, 8.0, false, true, true, 0.3, rightSub, 10.0, 8.0, true, true, false, 0, 437, 12)
+		kpi1Val := fmt.Sprintf("%s %.1f%%", langs[0].Name, langs[0].Percentage)
+		kpi1NumAttr := fitTextAttr(kpi1Val, 13.0, 8.2, 141, true, true, false, 0)
+		kpi1LblAttr := fitTextAttr(l.LangSecTrueProp, 8.0, 6.8, 141, false, true, true, 0)
+		kpi2NumAttr := fitTextAttr(overallTierRank, 13.0, 8.2, 144, true, true, false, 0)
+		kpi2LblAttr := fitTextAttr(l.KaggleTitle, 8.0, 6.8, 144, false, true, true, 0)
+		kpi3Val := fmt.Sprintf("%s (+%.0f%%)", formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		kpi3NumAttr := fitTextAttr(kpi3Val, 13.0, 8.2, 120, true, true, false, 0)
+		kpi3LblAttr := fitTextAttr(l.ImpactContribs, 8.0, 6.8, 120, false, true, true, 0)
+		sec1Attr := fitTextAttr("1. "+l.LangSecTrueProp, 9.0, 7.2, 200, false, true, true, 0.4)
+		sec2Attr := fitTextAttr("2. "+l.StackTitle, 9.0, 7.2, 203, false, true, true, 0.4)
+		sec3Attr := fitTextAttr("3. "+l.KaggleTitle, 9.0, 7.2, 200, false, true, true, 0.4)
+		sec4Attr := fitTextAttr("4. "+l.ImpactTitle, 9.0, 7.2, 203, false, true, true, 0.4)
+		l0Attr := fitTextAttr(l0Short, 10.0, 7.8, 58, false, false, false, 0)
+		prodLblAttr := fitTextAttr("Prod vs EDA", 10.0, 7.8, 58, false, false, false, 0)
+		q1R3Left := fmt.Sprintf("%s / %s", l1Short, l2Short)
+		q1R3Right := fmt.Sprintf("%.1f%% / %.1f%%", langs[1].Percentage, langs[2].Percentage)
+		q1R3L, q1R3R := fitPairTextAttrs(q1R3Left, 10.0, 7.8, false, false, false, 0, q1R3Right, 10.0, 7.8, true, true, false, 0, 200, 8)
+		q2R1L, q2R1R := fitPairTextAttrs(dataCol[0].Name, 10.0, 7.8, false, false, false, 0, fmt.Sprintf("%d repos", dataCol[0].RepoCount), 10.0, 7.8, true, true, false, 0, 203, 8)
+		q2R2L, q2R2R := fitPairTextAttrs(mlCol[0].Name, 10.0, 7.8, false, false, false, 0, fmt.Sprintf("%d repos", mlCol[0].RepoCount), 10.0, 7.8, true, true, false, 0, 203, 8)
+		q2R3L, q2R3R := fitPairTextAttrs(l.LangLockfiles, 10.0, 7.8, false, false, false, 0, fmt.Sprintf("%d / %d", d.Languages.LockfileRepos, d.Languages.TotalRepos), 10.0, 7.8, true, true, false, 0, 203, 8)
+		kCat0Attr := fitTextAttr(cats[0].Name, 10.0, 7.8, 58, false, false, false, 0)
+		kCat0Track := formatKaggleSummaryTrack(cats[0], l.IsPtBR)
+		kCat0TrackAttr := fitTextAttr(kCat0Track, 10.0, 7.5, 44, true, true, false, 0)
+		q3R2Val := fmt.Sprintf("%d (%dG · %dS · %dB)", k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze)
+		q3R2L, q3R2R := fitPairTextAttrs(l.KaggleTotalMedalsLbl, 10.0, 7.8, false, false, false, 0, q3R2Val, 10.0, 7.8, true, true, false, 0, 200, 8)
+		q3R3L, q3R3R := fitPairTextAttrs("Code / Datasets", 10.0, 7.8, false, false, false, 0, summaryTracksVal, 10.0, 7.8, true, true, false, 0, 200, 8)
+		q4R1Val := fmt.Sprintf("%s (+%.0f%%)", formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		q4R1L, q4R1R := fitPairTextAttrs(l.ImpactContribs, 10.0, 7.8, false, false, false, 0, q4R1Val, 10.0, 7.8, true, true, false, 0, 203, 8)
+		q4R2Val := fmt.Sprintf("★ %s (%d forks)", formatInt(im.TotalStars), im.TotalForks)
+		q4R2L, q4R2R := fitPairTextAttrs(l.ImpactStars, 10.0, 7.8, false, false, false, 0, q4R2Val, 10.0, 7.8, true, true, false, 0, 203, 8)
+		q4R3Val := fmt.Sprintf("%s (30d)", formatCompact(im.HFDownloads30d))
+		q4R3L, q4R3R := fitPairTextAttrs(l.ImpactDownloads, 10.0, 7.8, false, false, false, 0, q4R3Val, 10.0, 7.8, true, true, false, 0, 203, 8)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -1889,50 +2312,50 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     .kpi-lbl { font-size: 8px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
   <rect x="2" y="2" width="461" height="251" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
-  <text x="14" y="20" class="sans hdr">%s — %s</text>
-  <text x="451" y="20" text-anchor="end" class="mono val">%d Repos · ★ %s</text>
+  <text x="14" y="20" class="sans hdr"%s>%s — %s</text>
+  <text x="451" y="20" text-anchor="end" class="mono val"%s>%d Repos · ★ %s</text>
   <line x1="2" y1="27" x2="463" y2="27" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
 
   <!-- Top KPI Strip -->
   <g transform="translate(14, 33)">
-    <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s %.1f%%</text>
-    <text x="0" y="22" class="sans kpi-lbl">%s</text>
+    <text x="0" y="11" class="mono kpi-num" fill="#0284c7"%s>%s %.1f%%</text>
+    <text x="0" y="22" class="sans kpi-lbl"%s>%s</text>
     <line x1="145" y1="0" x2="145" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="157" y="11" class="mono kpi-num" fill="#d97706">%s</text>
-    <text x="157" y="22" class="sans kpi-lbl">%s</text>
+    <text x="157" y="11" class="mono kpi-num" fill="#d97706"%s>%s</text>
+    <text x="157" y="22" class="sans kpi-lbl"%s>%s</text>
     <line x1="305" y1="0" x2="305" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="317" y="11" class="mono kpi-num" fill="#059669">%s (+%.0f%%)</text>
-    <text x="317" y="22" class="sans kpi-lbl">%s</text>
+    <text x="317" y="11" class="mono kpi-num" fill="#059669"%s>%s (+%.0f%%)</text>
+    <text x="317" y="22" class="sans kpi-lbl"%s>%s</text>
   </g>
   <line x1="2" y1="63" x2="463" y2="63" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
 
   <!-- Q1: Languages (Bullet Graphs) -->
   <g transform="translate(14, 78)">
-    <text x="0" y="0" class="sans sec">1. %s</text>
-    <text x="0" y="18" class="sans lbl">%s</text>
-    <rect x="62" y="10" width="90" height="9" fill="#64748b" fill-opacity="0.14"/>
-    <rect x="62" y="10" width="64" height="9" fill="#64748b" fill-opacity="0.25"/>
-    <rect x="62" y="12" width="%d" height="5" fill="#0284c7"/>
+    <text x="0" y="0" class="sans sec"%s>1. %s</text>
+    <text x="0" y="18" class="sans lbl"%s>%s</text>
+    <rect x="64" y="10" width="88" height="9" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="64" y="10" width="62" height="9" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="64" y="12" width="%d" height="5" fill="#0284c7"/>
     <line x1="126" y1="8" x2="126" y2="21" stroke="#0284c7" stroke-width="2"/>
     <text x="200" y="18" text-anchor="end" class="mono val" fill="#0284c7">%.1f%%</text>
 
-    <text x="0" y="38" class="sans lbl">Prod vs EDA</text>
-    <rect x="62" y="30" width="90" height="9" fill="#64748b" fill-opacity="0.14"/>
-    <rect x="62" y="30" width="64" height="9" fill="#64748b" fill-opacity="0.25"/>
-    <rect x="62" y="32" width="%d" height="5" fill="#059669"/>
+    <text x="0" y="38" class="sans lbl"%s>Prod vs EDA</text>
+    <rect x="64" y="30" width="88" height="9" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="64" y="30" width="62" height="9" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="64" y="32" width="%d" height="5" fill="#059669"/>
     <line x1="120" y1="28" x2="120" y2="41" stroke="#0284c7" stroke-width="2"/>
     <text x="200" y="38" text-anchor="end" class="mono val">%.0f%%</text>
 
-    <text x="0" y="56" class="sans lbl">%s / %s</text>
-    <text x="200" y="56" text-anchor="end" class="mono val">%.1f%% / %.1f%%</text>
+    <text x="0" y="56" class="sans lbl"%s>%s / %s</text>
+    <text x="200" y="56" text-anchor="end" class="mono val"%s>%.1f%% / %.1f%%</text>
   </g>
 
   <!-- Q2: Stack -->
   <g transform="translate(248, 78)">
-    <text x="0" y="0" class="sans sec">2. %s</text>
-    <text x="0" y="18" class="sans lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#0284c7">%d repos</text>
-    <text x="0" y="38" class="sans lbl">%s</text><text x="203" y="38" text-anchor="end" class="mono val" fill="#7c3aed">%d repos</text>
-    <text x="0" y="56" class="sans lbl">%s</text><text x="203" y="56" text-anchor="end" class="mono val">%d / %d</text>
+    <text x="0" y="0" class="sans sec"%s>2. %s</text>
+    <text x="0" y="18" class="sans lbl"%s>%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#0284c7"%s>%d repos</text>
+    <text x="0" y="38" class="sans lbl"%s>%s</text><text x="203" y="38" text-anchor="end" class="mono val" fill="#7c3aed"%s>%d repos</text>
+    <text x="0" y="56" class="sans lbl"%s>%s</text><text x="203" y="56" text-anchor="end" class="mono val"%s>%d / %d</text>
   </g>
 
   <line x1="232" y1="63" x2="232" y2="253" stroke="#64748b" stroke-opacity="0.22" stroke-width="1"/>
@@ -1940,56 +2363,84 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
 
   <!-- Q3: Kaggle (Bullet Graph) -->
   <g transform="translate(14, 170)">
-    <text x="0" y="0" class="sans sec">3. %s</text>
-    <text x="0" y="18" class="sans lbl">%s</text>
-    <rect x="62" y="10" width="90" height="9" fill="#64748b" fill-opacity="0.14"/>
-    <rect x="62" y="10" width="64" height="9" fill="#64748b" fill-opacity="0.25"/>
-    <rect x="62" y="12" width="%d" height="5" fill="#d97706"/>
+    <text x="0" y="0" class="sans sec"%s>3. %s</text>
+    <text x="0" y="18" class="sans lbl"%s>%s</text>
+    <rect x="64" y="10" width="88" height="9" fill="#64748b" fill-opacity="0.14"/>
+    <rect x="64" y="10" width="62" height="9" fill="#64748b" fill-opacity="0.25"/>
+    <rect x="64" y="12" width="%d" height="5" fill="#d97706"/>
     <line x1="142" y1="8" x2="142" y2="21" stroke="#0284c7" stroke-width="2"/>
-    <text x="200" y="18" text-anchor="end" class="mono val" fill="#d97706">%s</text>
-    <text x="0" y="38" class="sans lbl">%s</text><text x="200" y="38" text-anchor="end" class="mono val">%d (%dG · %dS · %dB)</text>
-    <text x="0" y="56" class="sans lbl">Code / Datasets</text><text x="200" y="56" text-anchor="end" class="mono val">%s</text>
+    <text x="200" y="18" text-anchor="end" class="mono val" fill="#d97706"%s>%s</text>
+    <text x="0" y="38" class="sans lbl"%s>%s</text><text x="200" y="38" text-anchor="end" class="mono val"%s>%d (%dG · %dS · %dB)</text>
+    <text x="0" y="56" class="sans lbl"%s>Code / Datasets</text><text x="200" y="56" text-anchor="end" class="mono val"%s>%s</text>
   </g>
 
   <!-- Q4: Impact -->
   <g transform="translate(248, 170)">
-    <text x="0" y="0" class="sans sec">4. %s</text>
-    <text x="0" y="18" class="sans lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#059669">%s (+%.0f%%)</text>
-    <text x="0" y="38" class="sans lbl">%s</text><text x="203" y="38" text-anchor="end" class="mono val">★ %s (%d forks)</text>
-    <text x="0" y="56" class="sans lbl">%s</text><text x="203" y="56" text-anchor="end" class="mono val">%s (30d)</text>
+    <text x="0" y="0" class="sans sec"%s>4. %s</text>
+    <text x="0" y="18" class="sans lbl"%s>%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#059669"%s>%s (+%.0f%%)</text>
+    <text x="0" y="38" class="sans lbl"%s>%s</text><text x="203" y="38" text-anchor="end" class="mono val"%s>★ %s (%d forks)</text>
+    <text x="0" y="56" class="sans lbl"%s>%s</text><text x="203" y="56" text-anchor="end" class="mono val"%s>%s (30d)</text>
   </g>
 </svg>`,
-			esc(d.Subject.Name), esc(d.Subject.Role),
-			d.Languages.TotalRepos, formatInt(im.TotalStars),
-			esc(langs[0].Name), langs[0].Percentage, esc(l.LangSecTrueProp),
-			esc(overallTierRank), esc(l.KaggleTitle),
-			formatInt(im.AnnualContributions), im.YoYGrowthPct, esc(l.ImpactContribs),
-			esc(l.LangSecTrueProp),
-			esc(langs[0].Name), l0Bar, langs[0].Percentage,
-			prodBar, d.Languages.ProductionPct,
-			esc(langs[1].Name), esc(langs[2].Name), langs[1].Percentage, langs[2].Percentage,
-			esc(l.StackTitle),
-			esc(dataCol[0].Name), dataCol[0].RepoCount,
-			esc(mlCol[0].Name), mlCol[0].RepoCount,
-			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
-			esc(l.KaggleTitle),
-			esc(cats[0].Name), kBar, esc(formatKaggleSummaryTrack(cats[0], l.IsPtBR)),
-			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
-			esc(summaryTracksVal),
-			esc(l.ImpactTitle),
-			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
-			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
-			esc(l.ImpactDownloads), formatCompact(im.HFDownloads30d))
+			hdrAttr, esc(d.Subject.Name), esc(dispRole),
+			subAttr, d.Languages.TotalRepos, formatInt(im.TotalStars),
+			kpi1NumAttr, esc(langs[0].Name), langs[0].Percentage, kpi1LblAttr, esc(l.LangSecTrueProp),
+			kpi2NumAttr, esc(overallTierRank), kpi2LblAttr, esc(l.KaggleTitle),
+			kpi3NumAttr, formatInt(im.AnnualContributions), im.YoYGrowthPct, kpi3LblAttr, esc(l.ImpactContribs),
+			sec1Attr, esc(l.LangSecTrueProp),
+			l0Attr, esc(l0Short), l0Bar, langs[0].Percentage,
+			prodLblAttr, prodBar, d.Languages.ProductionPct,
+			q1R3L, esc(l1Short), esc(l2Short), q1R3R, langs[1].Percentage, langs[2].Percentage,
+			sec2Attr, esc(l.StackTitle),
+			q2R1L, esc(dataCol[0].Name), q2R1R, dataCol[0].RepoCount,
+			q2R2L, esc(mlCol[0].Name), q2R2R, mlCol[0].RepoCount,
+			q2R3L, esc(l.LangLockfiles), q2R3R, d.Languages.LockfileRepos, d.Languages.TotalRepos,
+			sec3Attr, esc(l.KaggleTitle),
+			kCat0Attr, esc(cats[0].Name), kBar, kCat0TrackAttr, esc(kCat0Track),
+			q3R2L, esc(l.KaggleTotalMedalsLbl), q3R2R, k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
+			q3R3L, q3R3R, esc(summaryTracksVal),
+			sec4Attr, esc(l.ImpactTitle),
+			q4R1L, esc(l.ImpactContribs), q4R1R, formatInt(im.AnnualContributions), im.YoYGrowthPct,
+			q4R2L, esc(l.ImpactStars), q4R2R, formatInt(im.TotalStars), im.TotalForks,
+			q4R3L, esc(l.ImpactDownloads), q4R3R, formatCompact(im.HFDownloads30d))
 
 	case domain.SchoolCairo:
-		l0End := 62 + int(langs[0].Percentage*1.5)
-		l1End := 62 + int(langs[1].Percentage*1.5)
+		l0End := 64 + clampInt(int(math.Round((langs[0].Percentage/100.0)*92.0)), 6, 92)
+		l1End := 64 + clampInt(int(math.Round((langs[1].Percentage/100.0)*92.0)), 6, 92)
 		sumLead := "Executive portfolio synthesis across source code, ecosystem stack, Kaggle standing, and community reach"
 		sumCallout := fmt.Sprintf("↳ Notebook-deflated source code (%.1f MB stripped) combined with verified multi-platform telemetry.", d.Languages.StrippedBase64MB)
 		if l.IsPtBR {
 			sumLead = "Síntese executiva do portfólio em código-fonte, ecossistema, Kaggle e alcance na comunidade"
 			sumCallout = fmt.Sprintf("↳ Código-fonte normalizado (%.1f MB removidos) combinado com telemetria multiplataforma verificada.", d.Languages.StrippedBase64MB)
 		}
+		suffix := fmt.Sprintf(" (%d Repos · ★ %s)", d.Languages.TotalRepos, formatInt(im.TotalStars))
+		suffixW := estimateTextWidth(suffix, 12.5, false, true, false, 0)
+		dispRole, _ := fitHeaderNameRole(d.Subject.Name, d.Subject.Role, " — ", 441-suffixW, 12.5, 8.5, false, true, false, 0)
+		headTxt := fmt.Sprintf("%s — %s%s", d.Subject.Name, dispRole, suffix)
+		headAttr := fitTextAttr(headTxt, 12.5, 8.5, 441, false, true, false, 0)
+		leadAttr := fitTextAttr(sumLead, 9.0, 7.5, 441, false, false, false, 0)
+		calloutAttr := fitTextAttr(sumCallout, 9.0, 7.5, 441, false, false, false, 0)
+		sec1Attr := fitTextAttr("1. "+l.LangSecTrueProp, 9.0, 7.2, 202, false, true, true, 0.4)
+		sec2Attr := fitTextAttr("2. "+l.StackTitle, 9.0, 7.2, 203, false, true, true, 0.4)
+		sec3Attr := fitTextAttr("3. "+l.KaggleTitle, 9.0, 7.2, 202, false, true, true, 0.4)
+		sec4Attr := fitTextAttr("4. "+l.ImpactTitle, 9.0, 7.2, 203, false, true, true, 0.4)
+		l0Attr := fitTextAttr(l0Short, 10.0, 7.8, 58, false, true, false, 0)
+		l1Attr := fitTextAttr(l1Short, 10.0, 7.8, 58, false, true, false, 0)
+		q1R3Val := fmt.Sprintf("%.0f%% Prod / %.0f%% EDA", d.Languages.ProductionPct, d.Languages.ExplorationPct)
+		q1R3L, q1R3R := fitPairTextAttrs("Prod vs. EDA", 10.0, 7.8, false, true, false, 0, q1R3Val, 10.0, 7.8, true, true, false, 0, 202, 8)
+		q2R1L, q2R1R := fitPairTextAttrs(dataCol[0].Name, 10.0, 7.8, false, true, false, 0, fmt.Sprintf("%d repos", dataCol[0].RepoCount), 10.0, 7.8, true, true, false, 0, 203, 8)
+		q2R2L, q2R2R := fitPairTextAttrs(mlCol[0].Name, 10.0, 7.8, false, true, false, 0, fmt.Sprintf("%d repos", mlCol[0].RepoCount), 10.0, 7.8, true, true, false, 0, 203, 8)
+		q2R3L, q2R3R := fitPairTextAttrs(l.LangLockfiles, 10.0, 7.8, false, true, false, 0, fmt.Sprintf("%d / %d", d.Languages.LockfileRepos, d.Languages.TotalRepos), 10.0, 7.8, true, true, false, 0, 203, 8)
+		q3R1L, q3R1R := fitPairTextAttrs(l.KaggleOverallTierLbl, 10.0, 7.8, false, true, false, 0, overallTierRank, 10.0, 7.8, true, true, false, 0, 202, 8)
+		q3R2Val := fmt.Sprintf("%d (%dG · %dS · %dB)", k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze)
+		q3R2L, q3R2R := fitPairTextAttrs(l.KaggleTotalMedalsLbl, 10.0, 7.8, false, true, false, 0, q3R2Val, 10.0, 7.8, true, true, false, 0, 202, 8)
+		q3R3L, q3R3R := fitPairTextAttrs("Code / Datasets", 10.0, 7.8, false, true, false, 0, summaryTracksVal, 10.0, 7.8, true, true, false, 0, 202, 8)
+		q4R1Val := fmt.Sprintf("%s (+%.0f%%)", formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		q4R1L, q4R1R := fitPairTextAttrs(l.ImpactContribs, 10.0, 7.8, false, true, false, 0, q4R1Val, 10.0, 7.8, true, true, false, 0, 203, 8)
+		q4R2Val := fmt.Sprintf("★ %s (%d forks)", formatInt(im.TotalStars), im.TotalForks)
+		q4R2L, q4R2R := fitPairTextAttrs(l.ImpactStars, 10.0, 7.8, false, true, false, 0, q4R2Val, 10.0, 7.8, true, true, false, 0, 203, 8)
+		q4R3Val := fmt.Sprintf("%s (30d)", formatCompact(im.HFDownloads30d))
+		q4R3L, q4R3R := fitPairTextAttrs(l.ImpactDownloads, 10.0, 7.8, false, true, false, 0, q4R3Val, 10.0, 7.8, true, true, false, 0, 203, 8)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -2003,82 +2454,105 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
     .callout { font-size: 9px; font-style: italic; fill: #0284c7; }
   </style>
   <rect x="12" y="6" width="441" height="3" fill="#e11d48"/>
-  <text x="12" y="24" class="serif headline">%s — %s (%d Repos · ★ %s)</text>
-  <text x="12" y="38" class="sans lead">%s</text>
+  <text x="12" y="24" class="serif headline"%s>%s — %s (%d Repos · ★ %s)</text>
+  <text x="12" y="38" class="sans lead"%s>%s</text>
   <line x1="12" y1="45" x2="453" y2="45" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
 
   <!-- Q1: Languages (Lollipop + Waffle) -->
   <g transform="translate(12, 60)">
-    <text x="0" y="0" class="sans sec">1. %s</text>
-    <text x="0" y="18" class="sans lbl">%s</text>
-    <line x1="62" y1="14" x2="%d" y2="14" stroke="#0284c7" stroke-width="2.2"/>
+    <text x="0" y="0" class="sans sec"%s>1. %s</text>
+    <text x="0" y="18" class="sans lbl"%s>%s</text>
+    <line x1="64" y1="14" x2="%d" y2="14" stroke="#0284c7" stroke-width="2.2"/>
     <circle cx="%d" cy="14" r="3.5" fill="#0284c7"/>
     <text x="202" y="18" text-anchor="end" class="mono val" fill="#0284c7">%.1f%%</text>
 
-    <text x="0" y="36" class="sans lbl">%s</text>
-    <line x1="62" y1="32" x2="%d" y2="32" stroke="#d97706" stroke-width="2.2"/>
+    <text x="0" y="36" class="sans lbl"%s>%s</text>
+    <line x1="64" y1="32" x2="%d" y2="32" stroke="#d97706" stroke-width="2.2"/>
     <circle cx="%d" cy="32" r="3.5" fill="#d97706"/>
     <text x="202" y="36" text-anchor="end" class="mono val">%.1f%%</text>
 
-    <text x="0" y="54" class="sans lbl">Prod vs. EDA</text>
-    <text x="202" y="54" text-anchor="end" class="mono val" fill="#059669">%.0f%% Prod / %.0f%% EDA</text>
+    <text x="0" y="54" class="sans lbl"%s>Prod vs. EDA</text>
+    <text x="202" y="54" text-anchor="end" class="mono val" fill="#059669"%s>%.0f%% Prod / %.0f%% EDA</text>
   </g>
 
   <!-- Q2: Stack (Lollipop + Dashed Benchmark) -->
   <g transform="translate(248, 60)">
-    <text x="0" y="0" class="sans sec">2. %s</text>
+    <text x="0" y="0" class="sans sec"%s>2. %s</text>
     <line x1="150" y1="8" x2="150" y2="58" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
-    <text x="0" y="18" class="sans lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val">%d repos</text>
-    <text x="0" y="36" class="sans lbl">%s</text><text x="203" y="36" text-anchor="end" class="mono val">%d repos</text>
-    <text x="0" y="54" class="sans lbl">%s</text><text x="203" y="54" text-anchor="end" class="mono val">%d / %d</text>
+    <text x="0" y="18" class="sans lbl"%s>%s</text><text x="203" y="18" text-anchor="end" class="mono val"%s>%d repos</text>
+    <text x="0" y="36" class="sans lbl"%s>%s</text><text x="203" y="36" text-anchor="end" class="mono val"%s>%d repos</text>
+    <text x="0" y="54" class="sans lbl"%s>%s</text><text x="203" y="54" text-anchor="end" class="mono val"%s>%d / %d</text>
   </g>
 
   <line x1="12" y1="132" x2="453" y2="132" stroke="#64748b" stroke-opacity="0.22" stroke-width="1"/>
 
   <!-- Q3: Kaggle -->
   <g transform="translate(12, 148)">
-    <text x="0" y="0" class="sans sec">3. %s</text>
-    <text x="0" y="18" class="sans lbl">%s</text><text x="202" y="18" text-anchor="end" class="mono val" fill="#d97706">%s</text>
-    <text x="0" y="36" class="sans lbl">%s</text><text x="202" y="36" text-anchor="end" class="mono val">%d (%dG · %dS · %dB)</text>
-    <text x="0" y="54" class="sans lbl">Code / Datasets</text><text x="202" y="54" text-anchor="end" class="mono val">%s</text>
+    <text x="0" y="0" class="sans sec"%s>3. %s</text>
+    <text x="0" y="18" class="sans lbl"%s>%s</text><text x="202" y="18" text-anchor="end" class="mono val" fill="#d97706"%s>%s</text>
+    <text x="0" y="36" class="sans lbl"%s>%s</text><text x="202" y="36" text-anchor="end" class="mono val"%s>%d (%dG · %dS · %dB)</text>
+    <text x="0" y="54" class="sans lbl"%s>Code / Datasets</text><text x="202" y="54" text-anchor="end" class="mono val"%s>%s</text>
   </g>
 
   <!-- Q4: Impact -->
   <g transform="translate(248, 148)">
-    <text x="0" y="0" class="sans sec">4. %s</text>
-    <text x="0" y="18" class="sans lbl">%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#059669">%s (+%.0f%%)</text>
-    <text x="0" y="36" class="sans lbl">%s</text><text x="203" y="36" text-anchor="end" class="mono val">★ %s (%d forks)</text>
-    <text x="0" y="54" class="sans lbl">%s</text><text x="203" y="54" text-anchor="end" class="mono val">%s (30d)</text>
+    <text x="0" y="0" class="sans sec"%s>4. %s</text>
+    <text x="0" y="18" class="sans lbl"%s>%s</text><text x="203" y="18" text-anchor="end" class="mono val" fill="#059669"%s>%s (+%.0f%%)</text>
+    <text x="0" y="36" class="sans lbl"%s>%s</text><text x="203" y="36" text-anchor="end" class="mono val"%s>★ %s (%d forks)</text>
+    <text x="0" y="54" class="sans lbl"%s>%s</text><text x="203" y="54" text-anchor="end" class="mono val"%s>%s (30d)</text>
   </g>
 
-  <text x="12" y="238" class="serif callout">%s</text>
+  <text x="12" y="238" class="serif callout"%s>%s</text>
 </svg>`,
-			esc(d.Subject.Name), esc(d.Subject.Role),
+			headAttr, esc(d.Subject.Name), esc(dispRole),
 			d.Languages.TotalRepos, formatInt(im.TotalStars),
-			esc(sumLead),
-			esc(l.LangSecTrueProp),
-			esc(langs[0].Name), l0End, l0End, langs[0].Percentage,
-			esc(langs[1].Name), l1End, l1End, langs[1].Percentage,
-			d.Languages.ProductionPct, d.Languages.ExplorationPct,
-			esc(l.StackTitle),
-			esc(dataCol[0].Name), dataCol[0].RepoCount,
-			esc(mlCol[0].Name), mlCol[0].RepoCount,
-			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
-			esc(l.KaggleTitle),
-			esc(l.KaggleOverallTierLbl), esc(overallTierRank),
-			esc(l.KaggleTotalMedalsLbl), k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
-			esc(summaryTracksVal),
-			esc(l.ImpactTitle),
-			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
-			esc(l.ImpactStars), formatInt(im.TotalStars), im.TotalForks,
-			esc(l.ImpactDownloads), formatCompact(im.HFDownloads30d),
-			esc(sumCallout))
+			leadAttr, esc(sumLead),
+			sec1Attr, esc(l.LangSecTrueProp),
+			l0Attr, esc(l0Short), l0End, l0End, langs[0].Percentage,
+			l1Attr, esc(l1Short), l1End, l1End, langs[1].Percentage,
+			q1R3L, q1R3R, d.Languages.ProductionPct, d.Languages.ExplorationPct,
+			sec2Attr, esc(l.StackTitle),
+			q2R1L, esc(dataCol[0].Name), q2R1R, dataCol[0].RepoCount,
+			q2R2L, esc(mlCol[0].Name), q2R2R, mlCol[0].RepoCount,
+			q2R3L, esc(l.LangLockfiles), q2R3R, d.Languages.LockfileRepos, d.Languages.TotalRepos,
+			sec3Attr, esc(l.KaggleTitle),
+			q3R1L, esc(l.KaggleOverallTierLbl), q3R1R, esc(overallTierRank),
+			q3R2L, esc(l.KaggleTotalMedalsLbl), q3R2R, k.TotalMedals(), k.TotalGold, k.TotalSilver, k.TotalBronze,
+			q3R3L, q3R3R, esc(summaryTracksVal),
+			sec4Attr, esc(l.ImpactTitle),
+			q4R1L, esc(l.ImpactContribs), q4R1R, formatInt(im.AnnualContributions), im.YoYGrowthPct,
+			q4R2L, esc(l.ImpactStars), q4R2R, formatInt(im.TotalStars), im.TotalForks,
+			q4R3L, esc(l.ImpactDownloads), q4R3R, formatCompact(im.HFDownloads30d),
+			calloutAttr, esc(sumCallout))
 
 	default: // SchoolHolmes
 		holmesKaggleMid := fmt.Sprintf("%d %s", k.TotalMedals(), l.KaggleMedalsWord)
 		if k.PeakRank > 0 {
 			holmesKaggleMid = fmt.Sprintf("#%s · %d %s", formatInt(k.PeakRank), k.TotalMedals(), l.KaggleMedalsWord)
 		}
+		suffix := fmt.Sprintf(" (%d REPOS)", d.Languages.TotalRepos)
+		suffixW := estimateTextWidth(suffix, 10.5, false, true, true, 0.3)
+		dispRole, _ := fitHeaderNameRole("⚡ "+d.Subject.Name, d.Subject.Role, " — ", 433-suffixW, 10.5, 8.0, false, true, true, 0.3)
+		bannerRaw := fmt.Sprintf("⚡ %s — %s%s", d.Subject.Name, dispRole, suffix)
+		bannerAttr := fitTextAttr(bannerRaw, 10.5, 8.0, 433, false, true, true, 0.3)
+		sec1Attr := fitTextAttr("1. "+l.LangSecTrueProp, 9.5, 7.5, 200, false, true, true, 0.4)
+		sec2Attr := fitTextAttr("2. "+l.StackTitle, 9.5, 7.5, 204, false, true, true, 0.4)
+		sec3Attr := fitTextAttr("3. "+l.KaggleTitle, 9.5, 7.5, 200, false, true, true, 0.4)
+		sec4Attr := fitTextAttr("4. "+l.ImpactTitle, 9.5, 7.5, 204, false, true, true, 0.4)
+		l0Attr := fitTextAttr(l0Short, 9.5, 7.5, 56, false, true, false, 0)
+		q1R2Left := fmt.Sprintf("%s / %s", l1Short, l2Short)
+		q1R2Right := fmt.Sprintf("%.1f%% / %.1f%%", langs[1].Percentage, langs[2].Percentage)
+		q1R2L, q1R2R := fitPairTextAttrs(q1R2Left, 9.5, 7.5, false, true, false, 0, q1R2Right, 10.0, 7.8, true, true, false, 0, 200, 8)
+		q2R1L, q2R1R := fitPairTextAttrs("🧰 "+dataCol[0].Name, 9.5, 7.5, false, true, false, 0, fmt.Sprintf("%d repos", dataCol[0].RepoCount), 10.0, 7.8, true, true, false, 0, 188, 8)
+		q2R2L, q2R2R := fitPairTextAttrs("🤖 "+mlCol[0].Name, 9.5, 7.5, false, true, false, 0, fmt.Sprintf("%d repos", mlCol[0].RepoCount), 10.0, 7.8, true, true, false, 0, 188, 8)
+		q2R3L, q2R3R := fitPairTextAttrs("🔒 "+l.LangLockfiles, 9.5, 7.5, false, true, false, 0, fmt.Sprintf("%d/%d", d.Languages.LockfileRepos, d.Languages.TotalRepos), 10.0, 7.8, true, true, false, 0, 188, 8)
+		kTierAttr := fitTextAttr("Tier: "+k.OverallTier, 9.5, 7.5, 108, false, true, false, 0)
+		kMidAttr := fitTextAttr(holmesKaggleMid, 10.0, 7.5, 108, true, true, false, 0)
+		kMedalsAttr := fitTextAttr(fmt.Sprintf("%dG · %dS · %dB", k.TotalGold, k.TotalSilver, k.TotalBronze), 10.0, 7.5, 108, true, true, false, 0)
+		q4R1Val := fmt.Sprintf("%s (+%.0f%%)", formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		q4R1L, q4R1R := fitPairTextAttrs("🚀 "+l.ImpactContribs, 9.5, 7.5, false, true, false, 0, q4R1Val, 10.0, 7.8, true, true, false, 0, 188, 8)
+		q4R2L, q4R2R := fitPairTextAttrs("⭐ "+l.ImpactStars, 9.5, 7.5, false, true, false, 0, "★ "+formatInt(im.TotalStars), 10.0, 7.8, true, true, false, 0, 188, 8)
+		q4R3L, q4R3R := fitPairTextAttrs("📥 "+l.ImpactDownloads, 9.5, 7.5, false, true, false, 0, formatCompact(im.HFDownloads30d)+" (30d)", 10.0, 7.8, true, true, false, 0, 188, 8)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 255" width="465" height="255">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2090,73 +2564,73 @@ func renderSummary(school domain.School, d domain.PortfolioData, l labels) strin
   </style>
   <rect x="3" y="3" width="459" height="249" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L 452,3 Q 462,3 462,13 L 462,32 L 3,32 Z" fill="#0284c7"/>
-  <text x="16" y="22" class="sans banner">⚡ %s — %s (%d REPOS)</text>
+  <text x="16" y="22" class="sans banner"%s>⚡ %s — %s (%d REPOS)</text>
 
   <!-- Q1: Languages (Pictorial Unit Blocks) -->
   <g transform="translate(16, 48)">
-    <text x="0" y="0" class="sans sec">1. %s</text>
-    <text x="0" y="20" class="sans lbl">%s</text>
-    <g transform="translate(54, 10)" fill="#0284c7">
+    <text x="0" y="0" class="sans sec"%s>1. %s</text>
+    <text x="0" y="20" class="sans lbl"%s>%s</text>
+    <g transform="translate(60, 10)" fill="#0284c7">
       <rect x="0" y="0" width="12" height="10" rx="2"/><rect x="15" y="0" width="12" height="10" rx="2"/><rect x="30" y="0" width="12" height="10" rx="2"/><rect x="45" y="0" width="12" height="10" rx="2"/><rect x="60" y="0" width="12" height="10" rx="2"/>
     </g>
     <text x="200" y="20" text-anchor="end" class="mono val">%.1f%%</text>
-    <text x="0" y="38" class="sans lbl">%s / %s</text>
-    <text x="200" y="38" text-anchor="end" class="mono val" fill="#d97706">%.1f%% / %.1f%%</text>
+    <text x="0" y="38" class="sans lbl"%s>%s / %s</text>
+    <text x="200" y="38" text-anchor="end" class="mono val" fill="#d97706"%s>%.1f%% / %.1f%%</text>
     <rect x="0" y="46" width="200" height="22" rx="5" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1"/>
     <text x="8" y="61" class="sans lbl" fill="#059669">✓ %.0f%% Prod · %.0f%% EDA</text>
   </g>
 
   <!-- Q2: Stack (Visual Engineering Badges) -->
   <g transform="translate(244, 48)">
-    <text x="0" y="0" class="sans sec">2. %s</text>
+    <text x="0" y="0" class="sans sec"%s>2. %s</text>
     <rect x="0" y="8" width="204" height="20" rx="5" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1"/>
-    <text x="8" y="22" class="sans lbl">🧰 %s</text><text x="196" y="22" text-anchor="end" class="mono val">%d repos</text>
+    <text x="8" y="22" class="sans lbl"%s>🧰 %s</text><text x="196" y="22" text-anchor="end" class="mono val"%s>%d repos</text>
     <rect x="0" y="32" width="204" height="20" rx="5" fill="#7c3aed" fill-opacity="0.1" stroke="#7c3aed" stroke-opacity="0.4" stroke-width="1"/>
-    <text x="8" y="46" class="sans lbl">🤖 %s</text><text x="196" y="46" text-anchor="end" class="mono val" fill="#7c3aed">%d repos</text>
+    <text x="8" y="46" class="sans lbl"%s>🤖 %s</text><text x="196" y="46" text-anchor="end" class="mono val" fill="#7c3aed"%s>%d repos</text>
     <rect x="0" y="56" width="204" height="20" rx="5" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1"/>
-    <text x="8" y="70" class="sans lbl">🔒 %s</text><text x="196" y="70" text-anchor="end" class="mono val" fill="#059669">%d/%d</text>
+    <text x="8" y="70" class="sans lbl"%s>🔒 %s</text><text x="196" y="70" text-anchor="end" class="mono val" fill="#059669"%s>%d/%d</text>
   </g>
 
   <!-- Q3: Kaggle (Stepped Podium + Trophy) -->
   <g transform="translate(16, 146)">
-    <text x="0" y="0" class="sans sec">3. %s</text>
+    <text x="0" y="0" class="sans sec"%s>3. %s</text>
     <rect x="0" y="44" width="18" height="16" rx="2" fill="#64748b" fill-opacity="0.25"/>
     <rect x="21" y="34" width="18" height="26" rx="2" fill="#059669" fill-opacity="0.4"/>
-    <rect x="42" y="22" width="18" height="38" rx="2" fill="#0284c7" fill-opacity="0.65"/>
-    <rect x="63" y="10" width="18" height="50" rx="2" fill="#d97706"/>
-    <text x="72" y="8" text-anchor="middle" font-size="10">🏆</text>
-    <text x="92" y="26" class="sans lbl">Tier: %s</text>
-    <text x="92" y="42" class="mono val" fill="#d97706">%s</text>
-    <text x="92" y="58" class="mono val">%dG · %dS · %dB</text>
+    <rect x="42" y="24" width="18" height="36" rx="2" fill="#0284c7" fill-opacity="0.65"/>
+    <rect x="63" y="18" width="18" height="42" rx="2" fill="#d97706"/>
+    <text x="72" y="15" text-anchor="middle" font-size="10">🏆</text>
+    <text x="92" y="26" class="sans lbl"%s>Tier: %s</text>
+    <text x="92" y="42" class="mono val" fill="#d97706"%s>%s</text>
+    <text x="92" y="58" class="mono val"%s>%dG · %dS · %dB</text>
   </g>
 
   <!-- Q4: Impact (Visual Badges) -->
   <g transform="translate(244, 146)">
-    <text x="0" y="0" class="sans sec">4. %s</text>
+    <text x="0" y="0" class="sans sec"%s>4. %s</text>
     <rect x="0" y="8" width="204" height="24" rx="5" fill="#059669" fill-opacity="0.1" stroke="#059669" stroke-opacity="0.4" stroke-width="1"/>
-    <text x="8" y="24" class="sans lbl">🚀 %s</text><text x="196" y="24" text-anchor="end" class="mono val" fill="#059669">%s (+%.0f%%)</text>
+    <text x="8" y="24" class="sans lbl"%s>🚀 %s</text><text x="196" y="24" text-anchor="end" class="mono val" fill="#059669"%s>%s (+%.0f%%)</text>
     <rect x="0" y="36" width="204" height="24" rx="5" fill="#d97706" fill-opacity="0.1" stroke="#d97706" stroke-opacity="0.4" stroke-width="1"/>
-    <text x="8" y="52" class="sans lbl">⭐ %s</text><text x="196" y="52" text-anchor="end" class="mono val" fill="#d97706">★ %s</text>
+    <text x="8" y="52" class="sans lbl"%s>⭐ %s</text><text x="196" y="52" text-anchor="end" class="mono val" fill="#d97706"%s>★ %s</text>
     <rect x="0" y="64" width="204" height="24" rx="5" fill="#0284c7" fill-opacity="0.1" stroke="#0284c7" stroke-opacity="0.4" stroke-width="1"/>
-    <text x="8" y="80" class="sans lbl">📥 %s</text><text x="196" y="80" text-anchor="end" class="mono val">%s (30d)</text>
+    <text x="8" y="80" class="sans lbl"%s>📥 %s</text><text x="196" y="80" text-anchor="end" class="mono val"%s>%s (30d)</text>
   </g>
 </svg>`,
-			esc(d.Subject.Name), esc(d.Subject.Role), d.Languages.TotalRepos,
-			esc(l.LangSecTrueProp),
-			esc(langs[0].Name), langs[0].Percentage,
-			esc(langs[1].Name), esc(langs[2].Name), langs[1].Percentage, langs[2].Percentage,
+			bannerAttr, esc(d.Subject.Name), esc(dispRole), d.Languages.TotalRepos,
+			sec1Attr, esc(l.LangSecTrueProp),
+			l0Attr, esc(l0Short), langs[0].Percentage,
+			q1R2L, esc(l1Short), esc(l2Short), q1R2R, langs[1].Percentage, langs[2].Percentage,
 			d.Languages.ProductionPct, d.Languages.ExplorationPct,
-			esc(l.StackTitle),
-			esc(dataCol[0].Name), dataCol[0].RepoCount,
-			esc(mlCol[0].Name), mlCol[0].RepoCount,
-			esc(l.LangLockfiles), d.Languages.LockfileRepos, d.Languages.TotalRepos,
-			esc(l.KaggleTitle),
-			esc(k.OverallTier), esc(holmesKaggleMid),
-			k.TotalGold, k.TotalSilver, k.TotalBronze,
-			esc(l.ImpactTitle),
-			esc(l.ImpactContribs), formatInt(im.AnnualContributions), im.YoYGrowthPct,
-			esc(l.ImpactStars), formatInt(im.TotalStars),
-			esc(l.ImpactDownloads), formatCompact(im.HFDownloads30d))
+			sec2Attr, esc(l.StackTitle),
+			q2R1L, esc(dataCol[0].Name), q2R1R, dataCol[0].RepoCount,
+			q2R2L, esc(mlCol[0].Name), q2R2R, mlCol[0].RepoCount,
+			q2R3L, esc(l.LangLockfiles), q2R3R, d.Languages.LockfileRepos, d.Languages.TotalRepos,
+			sec3Attr, esc(l.KaggleTitle),
+			kTierAttr, esc(k.OverallTier), kMidAttr, esc(holmesKaggleMid),
+			kMedalsAttr, k.TotalGold, k.TotalSilver, k.TotalBronze,
+			sec4Attr, esc(l.ImpactTitle),
+			q4R1L, esc(l.ImpactContribs), q4R1R, formatInt(im.AnnualContributions), im.YoYGrowthPct,
+			q4R2L, esc(l.ImpactStars), q4R2R, formatInt(im.TotalStars),
+			q4R3L, esc(l.ImpactDownloads), q4R3R, formatCompact(im.HFDownloads30d))
 	}
 }
 
@@ -2263,8 +2737,12 @@ func headlineFontSize(msg string, baseSize float64, x, maxW int) float64 {
 		return baseSize
 	}
 	scaled := availW / (runes * 0.56)
-	if scaled < 13.5 {
-		return 13.5
+	minFloor := 13.5
+	if runes > 75 {
+		minFloor = 10.5
+	}
+	if scaled < minFloor {
+		return minFloor
 	}
 	return math.Round(scaled*10) / 10
 }
@@ -2330,7 +2808,14 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
 		pathD, lastX, lastY := buildTrendPathD(im.WeeklyTrend, 596, 36, 280, 46)
 		animText := buildAnimatedHeadlinesSVG(headlines, idPrefix, 14, 78, 555, "serif", "#526071", 21.0)
 		rightSub := fmt.Sprintf("%d Repos · ★ %s · Kaggle %s", d.Languages.TotalRepos, formatInt(im.TotalStars), k.OverallTier)
-		inner := fmt.Sprintf(`  <text x="14" y="24" class="serif h1">%s — <tspan class="sub">%s</tspan></text>
+		rightSubW := estimateTextWidth(rightSub, 11.0, false, false, false, 0)
+		namePrefixW := estimateTextWidth(name+" — ", 13.5, false, true, false, 0.2)
+		availRoleW := 872.0 - rightSubW - namePrefixW - 14.0
+		dispRole, roleFont := fitHeaderNameRole("", role, "", availRoleW, 11.0, 8.8, false, false, false, 0)
+		roleAttr := fontSizeAttr(roleFont, 11.0)
+		trendRight := fmt.Sprintf("%s · %s (+%.0f%% YoY)", l.HeaderTrendLbl, formatInt(im.AnnualContributions), im.YoYGrowthPct)
+		trendAttr := fitTextAttr(trendRight, 9.5, 7.8, 286, false, false, false, 0)
+		inner := fmt.Sprintf(`  <text x="14" y="24" class="serif h1">%s — <tspan class="sub"%s>%s</tspan></text>
   <text x="886" y="24" text-anchor="end" class="num sub">%s</text>
   <line x1="14" y1="31" x2="886" y2="31" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 %s  <rect x="596" y="42" width="280" height="32" fill="#64748b" fill-opacity="0.12"/>
@@ -2339,11 +2824,11 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
     <animate attributeName="stroke-dasharray" values="0 100%%; 10%% 100%%; 100%% 10%%; 10%% 100%%" keyTimes="0; 0.5; 0.9; 1" dur="4s" begin="0s" repeatCount="indefinite"/>
   </path>
   <circle cx="%d" cy="%d" r="3.2" fill="#059669"/>
-  <text x="886" y="96" text-anchor="end" class="num micro">%s · %s (+%.0f%% YoY)</text>
+  <text x="886" y="96" text-anchor="end" class="num micro"%s>%s · %s (+%.0f%% YoY)</text>
   <line x1="14" y1="106" x2="886" y2="106" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>`,
-			esc(name), esc(role), esc(rightSub),
+			esc(name), roleAttr, esc(dispRole), esc(rightSub),
 			animText, pathD, pathD, lastX, lastY,
-			esc(l.HeaderTrendLbl), formatInt(im.AnnualContributions), im.YoYGrowthPct)
+			trendAttr, esc(l.HeaderTrendLbl), formatInt(im.AnnualContributions), im.YoYGrowthPct)
 		if !standalone {
 			return inner
 		}
@@ -2362,18 +2847,33 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
 		pathD, lastX, lastY := buildTrendPathD(im.WeeklyTrend, 600, 44, 276, 38)
 		animText := buildAnimatedHeadlinesSVG(headlines, idPrefix, 16, 86, 555, "sans", "#526071", 20.0)
 		bulletW := clampInt(int(math.Round((d.Languages.ProductionPct/100.0)*120.0)), 18, 120)
-		inner := fmt.Sprintf(`  <text x="16" y="21" class="sans hdr">%s — %s</text>
-  <text x="884" y="21" text-anchor="end" class="mono tag">+%.0f%% YoY · %d REPOS</text>
+		rightTag := fmt.Sprintf("+%.0f%% YoY · %d REPOS", im.YoYGrowthPct, d.Languages.TotalRepos)
+		rightTagW := estimateTextWidth(rightTag, 9.5, true, true, false, 0)
+		dispRole, _ := fitHeaderNameRole(name, role, " — ", 868-rightTagW-16, 12.0, 8.8, false, true, true, 0.5)
+		leftHdr := fmt.Sprintf("%s — %s", name, dispRole)
+		hdrAttr, tagAttr := fitPairTextAttrs(leftHdr, 12.0, 8.8, false, true, true, 0.5, rightTag, 9.5, 8.0, true, true, false, 0, 868, 16)
+		kpi1Val := fmt.Sprintf("%s %.1f%%", langs[0].Name, langs[0].Percentage)
+		kpi2Val := formatKaggleOverallTierAndRank(k)
+		kpi3Val := formatInt(im.AnnualContributions)
+		kpi1NumAttr := fitTextAttr(kpi1Val, 12.0, 8.5, 146, true, true, false, 0)
+		kpi1LblAttr := fitTextAttr(l.LangFewPrimary, 8.0, 6.8, 146, false, true, true, 0)
+		kpi2NumAttr := fitTextAttr(kpi2Val, 12.0, 8.5, 164, true, true, false, 0)
+		kpi2LblAttr := fitTextAttr(l.KaggleOverallTierLbl, 8.0, 6.8, 164, false, true, true, 0)
+		kpi3NumAttr := fitTextAttr(kpi3Val, 12.0, 8.5, 218, true, true, false, 0)
+		kpi3LblAttr := fitTextAttr(l.ImpactContribs, 8.0, 6.8, 218, false, true, true, 0)
+		trendLblAttr := fitTextAttr(l.HeaderTrendLbl, 8.0, 6.8, 148, true, true, true, 0)
+		inner := fmt.Sprintf(`  <text x="16" y="21" class="sans hdr"%s>%s — %s</text>
+  <text x="884" y="21" text-anchor="end" class="mono tag"%s>+%.0f%% YoY · %d REPOS</text>
   <line x1="2" y1="29" x2="898" y2="29" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(16, 34)">
-    <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s %.1f%%</text>
-    <text x="0" y="21" class="sans kpi-lbl">%s</text>
+    <text x="0" y="11" class="mono kpi-num" fill="#0284c7"%s>%s %.1f%%</text>
+    <text x="0" y="21" class="sans kpi-lbl"%s>%s</text>
     <line x1="150" y1="0" x2="150" y2="23" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="162" y="11" class="mono kpi-num" fill="#d97706">%s</text>
-    <text x="162" y="21" class="sans kpi-lbl">%s</text>
+    <text x="162" y="11" class="mono kpi-num" fill="#d97706"%s>%s</text>
+    <text x="162" y="21" class="sans kpi-lbl"%s>%s</text>
     <line x1="330" y1="0" x2="330" y2="23" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="342" y="11" class="mono kpi-num" fill="#059669">%s</text>
-    <text x="342" y="21" class="sans kpi-lbl">%s</text>
+    <text x="342" y="11" class="mono kpi-num" fill="#059669"%s>%s</text>
+    <text x="342" y="21" class="sans kpi-lbl"%s>%s</text>
   </g>
 %s  <line x1="584" y1="29" x2="584" y2="113" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <path d="%s" fill="none" stroke="#64748b" stroke-dasharray="3,2" stroke-width="1.1"/>
@@ -2386,13 +2886,13 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
     <rect x="0" y="1" width="84" height="8" rx="1.5" fill="#64748b" fill-opacity="0.25"/>
     <rect x="0" y="3" width="%d" height="4" rx="1" fill="#0284c7"/>
     <line x1="96" y1="-1" x2="96" y2="11" stroke="#0284c7" stroke-width="2"/>
-    <text x="276" y="8" text-anchor="end" class="mono kpi-lbl">%s</text>
+    <text x="276" y="8" text-anchor="end" class="mono kpi-lbl"%s>%s</text>
   </g>`,
-			esc(name), esc(role), im.YoYGrowthPct, d.Languages.TotalRepos,
-			esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary),
-			esc(formatKaggleOverallTierAndRank(k)), esc(l.KaggleOverallTierLbl),
-			formatInt(im.AnnualContributions), esc(l.ImpactContribs),
-			animText, pathD, pathD, lastX, lastY, bulletW, esc(l.HeaderTrendLbl))
+			hdrAttr, esc(name), esc(dispRole), tagAttr, im.YoYGrowthPct, d.Languages.TotalRepos,
+			kpi1NumAttr, esc(langs[0].Name), langs[0].Percentage, kpi1LblAttr, esc(l.LangFewPrimary),
+			kpi2NumAttr, esc(kpi2Val), kpi2LblAttr, esc(l.KaggleOverallTierLbl),
+			kpi3NumAttr, kpi3Val, kpi3LblAttr, esc(l.ImpactContribs),
+			animText, pathD, pathD, lastX, lastY, bulletW, trendLblAttr, esc(l.HeaderTrendLbl))
 		if !standalone {
 			return inner + "\n  <line x1=\"2\" y1=\"113\" x2=\"898\" y2=\"113\" stroke=\"#64748b\" stroke-opacity=\"0.25\" stroke-width=\"1\"/>"
 		}
@@ -2413,14 +2913,17 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
 		pathD, lastX, lastY := buildTrendPathD(im.WeeklyTrend, 602, 26, 272, 56)
 		animText := buildAnimatedHeadlinesSVG(headlines, idPrefix, 14, 84, 555, "serif", "#526071", 21.0)
 		callout := fmt.Sprintf(l.HeaderCairoCalloutFmt, formatInt(im.AnnualContributions), im.YoYGrowthPct, k.OverallTier)
+		nameAttr := fitTextAttr(name, 13.5, 10.0, 558, false, true, false, 0)
+		roleAttr := fitTextAttr(role, 10.5, 8.2, 558, false, false, false, 0)
+		calloutAttr := fitTextAttr(callout, 9.2, 7.5, 286, false, false, false, 0)
 		inner := fmt.Sprintf(`  <defs>
     <marker id="%sarrow" overflow="visible" markerHeight="4" markerWidth="6" orient="auto-start-reverse" viewBox="0 0 8.75 5">
       <path transform="scale(-.5)" d="m0 0 5-5-17.5 5 17.5 5z" fill="#64748b" fill-rule="evenodd"/>
     </marker>
   </defs>
   <rect x="12" y="6" width="876" height="3" fill="#e11d48"/>
-  <text x="14" y="26" class="serif headline">%s</text>
-  <text x="14" y="41" class="sans lead">%s</text>
+  <text x="14" y="26" class="serif headline"%s>%s</text>
+  <text x="14" y="41" class="sans lead"%s>%s</text>
   <line x1="14" y1="48" x2="572" y2="48" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
 %s  <path d="M 598,20 V 86 H 880" fill="none" marker-start="url(#%sarrow)" marker-end="url(#%sarrow)" stroke="#64748b" stroke-width="1.2"/>
   <line x1="598" y1="52" x2="880" y2="52" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
@@ -2429,8 +2932,8 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
     <animate attributeName="stroke-dasharray" values="0 100%%; 10%% 100%%; 100%% 10%%; 10%% 100%%" keyTimes="0; 0.5; 0.9; 1" dur="4s" begin="0s" repeatCount="indefinite"/>
   </path>
   <circle cx="%d" cy="%d" r="3.5" fill="#e11d48"/>
-  <text x="598" y="102" class="serif callout">%s</text>`,
-			idPrefix, esc(name), esc(role), animText, idPrefix, idPrefix, pathD, pathD, lastX, lastY, esc(callout))
+  <text x="598" y="102" class="serif callout"%s>%s</text>`,
+			idPrefix, nameAttr, esc(name), roleAttr, esc(role), animText, idPrefix, idPrefix, pathD, pathD, lastX, lastY, calloutAttr, esc(callout))
 		if !standalone {
 			return inner + "\n  <line x1=\"12\" y1=\"112\" x2=\"888\" y2=\"112\" stroke=\"#64748b\" stroke-opacity=\"0.25\" stroke-width=\"1\"/>"
 		}
@@ -2448,9 +2951,14 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
 	default: // SchoolHolmes
 		pathD, lastX, lastY := buildTrendPathD(im.WeeklyTrend, 606, 44, 268, 42)
 		animText := buildAnimatedHeadlinesSVG(headlines, idPrefix, 18, 82, 555, "sans", "#526071", 21.0)
+		rightBanner := fmt.Sprintf("🏆 %s · ★ %s", strings.ToUpper(k.OverallTier), formatInt(im.TotalStars))
+		rightBannerW := estimateTextWidth(rightBanner, 11.5, false, true, true, 0.5)
+		dispRole, _ := fitHeaderNameRole("⚡ "+name, role, " — ", 868-rightBannerW-16, 11.5, 8.5, false, true, true, 0.5)
+		leftBanner := fmt.Sprintf("⚡ %s — %s", name, dispRole)
+		lBanAttr, rBanAttr := fitPairTextAttrs(leftBanner, 11.5, 8.5, false, true, true, 0.5, rightBanner, 11.5, 8.5, false, true, true, 0.5, 868, 16)
 		inner := fmt.Sprintf(`  <path d="M 3,13 Q 3,3 13,3 L 887,3 Q 897,3 897,13 L 897,32 L 3,32 Z" fill="#0284c7"/>
-  <text x="16" y="22" class="sans banner">⚡ %s — %s</text>
-  <text x="884" y="22" text-anchor="end" class="sans banner">🏆 %s · ★ %s</text>
+  <text x="16" y="22" class="sans banner"%s>⚡ %s — %s</text>
+  <text x="884" y="22" text-anchor="end" class="sans banner"%s>🏆 %s · ★ %s</text>
 %s  <g transform="translate(602, 42)">
     <rect x="0" y="34" width="24" height="16" rx="2" fill="#64748b" fill-opacity="0.22"/>
     <rect x="28" y="24" width="24" height="26" rx="2" fill="#059669" fill-opacity="0.32"/>
@@ -2463,7 +2971,7 @@ func renderHeaderSection(school domain.School, d domain.PortfolioData, l labels,
   </path>
   <circle cx="%d" cy="%d" r="3.8" fill="#059669"/>
   <text x="880" y="103" text-anchor="end" class="mono val">🚀 %s (+%.0f%% YoY)</text>`,
-			esc(name), esc(role), strings.ToUpper(esc(k.OverallTier)), formatInt(im.TotalStars),
+			lBanAttr, esc(name), esc(dispRole), rBanAttr, strings.ToUpper(esc(k.OverallTier)), formatInt(im.TotalStars),
 			animText, pathD, pathD, lastX, lastY, formatInt(im.AnnualContributions), im.YoYGrowthPct)
 		if !standalone {
 			return inner + "\n  <line x1=\"16\" y1=\"112\" x2=\"884\" y2=\"112\" stroke=\"#64748b\" stroke-opacity=\"0.28\" stroke-width=\"1.2\"/>"
@@ -2630,10 +3138,12 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 			if !fullWidth {
 				displayRole = truncateRunes(role, 58)
 			}
-			roleSubRow = fmt.Sprintf("  <text x=\"14\" y=\"37\" class=\"serif sub\">%s</text>\n", esc(displayRole))
+			roleSubAttr := fitTextAttr(displayRole, subSize, 8.5, float64(width-28), false, false, false, 0)
+			roleSubRow = fmt.Sprintf("  <text x=\"14\" y=\"37\" class=\"serif sub\"%s>%s</text>\n", roleSubAttr, esc(displayRole))
 			ruleY = 44
 			startY = 66
 		}
+		h1Attr, subAttr := fitPairTextAttrs(headerTitle, h1Size, 10.0, false, true, false, 0.2, subRight, subSize, 8.5, false, false, false, 0, float64(width-28), 12)
 		totalHeight := startY + bodyHeight + 16
 		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "serif body")
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
@@ -2644,11 +3154,11 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
     .sub { font-size: %.1fpx; font-style: italic; fill: #64748b; }
     .body { font-size: %.1fpx; fill: #526071; }
   </style>
-  <text x="14" y="21" class="serif h1">%s</text>
-  <text x="%d" y="21" text-anchor="end" class="num sub">%s</text>
+  <text x="14" y="21" class="serif h1"%s>%s</text>
+  <text x="%d" y="21" text-anchor="end" class="num sub"%s>%s</text>
 %s  <line x1="14" y1="%d" x2="%d" y2="%d" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
 %s  <line x1="14" y1="%d" x2="%d" y2="%d" stroke="#64748b" stroke-opacity="0.7" stroke-width="0.8"/>
-</svg>`, width, totalHeight, width, totalHeight, h1Size, subSize, bodySize, esc(headerTitle), width-14, esc(subRight), roleSubRow, ruleY, width-14, ruleY, linesSVG, totalHeight-8, width-14, totalHeight-8)
+</svg>`, width, totalHeight, width, totalHeight, h1Size, subSize, bodySize, h1Attr, esc(headerTitle), width-14, subAttr, esc(subRight), roleSubRow, ruleY, width-14, ruleY, linesSVG, totalHeight-8, width-14, totalHeight-8)
 
 	case domain.SchoolFew:
 		hdrSize := 12.0
@@ -2663,12 +3173,19 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 		totalHeight := startY + bodyHeight + 14
 		linesSVG := renderBioLinesSVG(wrapped, 14, startY, lineHeight, paraGap, "sans body")
 		prodBar := clampInt(int(math.Round((d.Languages.ProductionPct/100.0)*84.0)), 14, 84)
-		tierKPI := esc(nonEmptyStr(k.OverallTier, domain.KaggleTierContributor))
+		tierRaw := nonEmptyStr(k.OverallTier, domain.KaggleTierContributor)
 		if k.PeakRank > 0 {
-			tierKPI = fmt.Sprintf("%s (#%s)", tierKPI, formatInt(k.PeakRank))
+			tierRaw = fmt.Sprintf("%s (#%s)", tierRaw, formatInt(k.PeakRank))
 		} else if k.TotalMedals() > 0 {
-			tierKPI = fmt.Sprintf("%s (%dM)", tierKPI, k.TotalMedals())
+			tierRaw = fmt.Sprintf("%s (%dM)", tierRaw, k.TotalMedals())
 		}
+		hdrAttr, tagAttr := fitPairTextAttrs(name, hdrSize, 9.0, false, true, true, 0.5, l.BioTitle, tagSize, 8.0, true, true, false, 0, float64(width-28), 12)
+		kpi1Val := fmt.Sprintf("%s (%.1f%%)", langs[0].Name, langs[0].Percentage)
+		kpi1NumAttr := fitTextAttr(kpi1Val, 12.5, 8.5, 134, true, true, false, 0)
+		kpi1LblAttr := fitTextAttr(l.LangFewPrimary, 8.0, 6.8, 134, false, true, true, 0)
+		kpi2NumAttr := fitTextAttr(tierRaw, 12.5, 8.5, 138, true, true, false, 0)
+		kpi2LblAttr := fitTextAttr(l.KaggleOverallTierLbl, 8.0, 6.8, 138, false, true, true, 0)
+		kpi3LblAttr := fitTextAttr(l.LangFewProdEDA, 8.0, 6.8, float64(width-18-304), false, true, true, 0)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
     .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -2680,31 +3197,31 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
     .kpi-lbl { font-size: 8px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
   </style>
   <rect x="2" y="2" width="%d" height="%d" rx="6" fill="none" stroke="#64748b" stroke-opacity="0.28" stroke-width="1"/>
-  <text x="14" y="20" class="sans hdr">%s</text>
-  <text x="%d" y="20" text-anchor="end" class="mono tag">%s</text>
+  <text x="14" y="20" class="sans hdr"%s>%s</text>
+  <text x="%d" y="20" text-anchor="end" class="mono tag"%s>%s</text>
   <line x1="2" y1="28" x2="%d" y2="28" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
   <g transform="translate(14, 33)">
-    <text x="0" y="11" class="mono kpi-num" fill="#0284c7">%s (%.1f%%)</text>
-    <text x="0" y="22" class="sans kpi-lbl">%s</text>
+    <text x="0" y="11" class="mono kpi-num" fill="#0284c7"%s>%s (%.1f%%)</text>
+    <text x="0" y="22" class="sans kpi-lbl"%s>%s</text>
     <line x1="138" y1="0" x2="138" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
-    <text x="150" y="11" class="mono kpi-num" fill="#d97706">%s</text>
-    <text x="150" y="22" class="sans kpi-lbl">%s</text>
+    <text x="150" y="11" class="mono kpi-num" fill="#d97706"%s>%s</text>
+    <text x="150" y="22" class="sans kpi-lbl"%s>%s</text>
     <line x1="292" y1="0" x2="292" y2="25" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
     <rect x="304" y="3" width="84" height="8" rx="1.5" fill="#64748b" fill-opacity="0.14"/>
     <rect x="304" y="3" width="60" height="8" rx="1.5" fill="#64748b" fill-opacity="0.25"/>
     <rect x="304" y="5" width="%d" height="4" rx="1" fill="#059669"/>
     <line x1="370" y1="1" x2="370" y2="13" stroke="#0284c7" stroke-width="2"/>
-    <text x="304" y="22" class="sans kpi-lbl">%s</text>
+    <text x="304" y="22" class="sans kpi-lbl"%s>%s</text>
   </g>
   <line x1="2" y1="63" x2="%d" y2="63" stroke="#64748b" stroke-opacity="0.25" stroke-width="1"/>
 %s</svg>`,
 			width, totalHeight, width, totalHeight,
 			hdrSize, tagSize, bodySize,
 			width-4, totalHeight-4,
-			esc(name), width-14, esc(l.BioTitle), width-2,
-			esc(langs[0].Name), langs[0].Percentage, esc(l.LangFewPrimary),
-			tierKPI, esc(l.KaggleOverallTierLbl),
-			prodBar, esc(l.LangFewProdEDA), width-2, linesSVG)
+			hdrAttr, esc(name), width-14, tagAttr, esc(l.BioTitle), width-2,
+			kpi1NumAttr, esc(langs[0].Name), langs[0].Percentage, kpi1LblAttr, esc(l.LangFewPrimary),
+			kpi2NumAttr, esc(tierRaw), kpi2LblAttr, esc(l.KaggleOverallTierLbl),
+			prodBar, kpi3LblAttr, esc(l.LangFewProdEDA), width-2, linesSVG)
 
 	case domain.SchoolCairo:
 		headlineSize := 13.5
@@ -2723,6 +3240,11 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 		totalHeight := startY + bodyHeight + 28
 		linesSVG := renderBioLinesSVG(wrapped, 20, startY, lineHeight, paraGap, "serif body")
 		callout := fmt.Sprintf(l.BioCairoCalloutFmt, d.Languages.TotalRepos, d.Languages.StrippedBase64MB)
+		headTxt := fmt.Sprintf("%s — %s", name, l.BioTitle)
+		leadTxt := fmt.Sprintf("%s · %s", displayRole, subRight)
+		headAttr := fitTextAttr(headTxt, headlineSize, 9.5, float64(width-24), false, true, false, 0)
+		leadAttr := fitTextAttr(leadTxt, leadSize, 8.2, float64(width-24), false, false, false, 0)
+		calloutAttr := fitTextAttr(callout, calloutSize, 7.6, float64(width-24), false, false, false, 0)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
     .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -2733,16 +3255,16 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
     .callout { font-size: %.1fpx; font-style: italic; fill: #0284c7; }
   </style>
   <rect x="12" y="6" width="%d" height="3" fill="#e11d48"/>
-  <text x="12" y="25" class="serif headline">%s — %s</text>
-  <text x="12" y="40" class="sans lead">%s · %s</text>
+  <text x="12" y="25" class="serif headline"%s>%s — %s</text>
+  <text x="12" y="40" class="sans lead"%s>%s · %s</text>
   <line x1="12" y1="47" x2="%d" y2="47" stroke="#e11d48" stroke-dasharray="3,3" stroke-width="1"/>
   <line x1="12" y1="54" x2="12" y2="%d" stroke="#0284c7" stroke-width="2.2"/>
-%s  <text x="12" y="%d" class="serif callout">%s</text>
+%s  <text x="12" y="%d" class="serif callout"%s>%s</text>
 </svg>`,
 			width, totalHeight, width, totalHeight,
 			headlineSize, leadSize, bodySize, calloutSize,
-			width-24, esc(name), esc(l.BioTitle), esc(displayRole), esc(subRight),
-			width-12, startY+bodyHeight-10, linesSVG, totalHeight-10, esc(callout))
+			width-24, headAttr, esc(name), esc(l.BioTitle), leadAttr, esc(displayRole), esc(subRight),
+			width-12, startY+bodyHeight-10, linesSVG, totalHeight-10, calloutAttr, esc(callout))
 
 	default: // SchoolHolmes
 		bannerSize := 11.5
@@ -2754,6 +3276,9 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
 		startY := 56
 		totalHeight := startY + bodyHeight + 16
 		linesSVG := renderBioLinesSVG(wrapped, 16, startY, lineHeight, paraGap, "sans body")
+		dispBioTitle, _ := fitHeaderNameRole("⚡ "+name, l.BioTitle, " — ", float64(width-32), bannerSize, 7.2, false, true, true, 0.5)
+		bannerTxt := fmt.Sprintf("⚡ %s — %s", name, dispBioTitle)
+		bannerAttr := fitTextAttr(bannerTxt, bannerSize, 7.2, float64(width-32), false, true, true, 0.5)
 		return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">
   <style>
     .sans { font-family: "Trebuchet MS", Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -2762,13 +3287,13 @@ func renderBio(school domain.School, d domain.PortfolioData, l labels, fullWidth
   </style>
   <rect x="3" y="3" width="%d" height="%d" rx="10" fill="none" stroke="#64748b" stroke-opacity="0.35" stroke-width="2"/>
   <path d="M 3,13 Q 3,3 13,3 L %d,3 Q %d,3 %d,13 L %d,32 L 3,32 Z" fill="#0284c7"/>
-  <text x="16" y="22" class="sans banner">⚡ %s — %s</text>
+  <text x="16" y="22" class="sans banner"%s>⚡ %s — %s</text>
 %s</svg>`,
 			width, totalHeight, width, totalHeight,
 			bannerSize, bodySize,
 			width-6, totalHeight-6,
 			width-13, width-3, width-3, width-3,
-			esc(name), esc(l.BioTitle), linesSVG)
+			bannerAttr, esc(name), esc(dispBioTitle), linesSVG)
 	}
 }
 
@@ -2843,10 +3368,11 @@ func renderFull(school domain.School, d domain.PortfolioData, l labels) string {
 	p3 := extractInnerPanelBody(renderKaggle(school, d, l), panelStyleOverrides{tagColor: "#d97706", calloutColor: "#d97706"})
 	p4 := extractInnerPanelBody(renderImpact(school, d, l), panelStyleOverrides{tagColor: "#059669", calloutColor: "#059669", secColor: "#059669"})
 
-	quadrants := fmt.Sprintf(`  <g transform="translate(8, %d)">%s  </g>
-  <g transform="translate(452, %d)">%s  </g>
-  <g transform="translate(8, %d)">%s  </g>
-  <g transform="translate(452, %d)">%s  </g>`, gridY, p1, gridY, p2, row2Y, p3, row2Y, p4)
+	quadrants := fmt.Sprintf(`  <defs><clipPath id="full-panel-clip"><rect x="0" y="0" width="440" height="230"/></clipPath></defs>
+  <g transform="translate(8, %d)"><g clip-path="url(#full-panel-clip)">%s  </g></g>
+  <g transform="translate(452, %d)"><g clip-path="url(#full-panel-clip)">%s  </g></g>
+  <g transform="translate(8, %d)"><g clip-path="url(#full-panel-clip)">%s  </g></g>
+  <g transform="translate(452, %d)"><g clip-path="url(#full-panel-clip)">%s  </g></g>`, gridY, p1, gridY, p2, row2Y, p3, row2Y, p4)
 
 	switch school {
 	case domain.SchoolTufte:

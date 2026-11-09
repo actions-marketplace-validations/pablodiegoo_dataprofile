@@ -2,6 +2,13 @@ package render
 
 import (
 	"encoding/xml"
+	"fmt"
+	"io"
+	"math"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1344,6 +1351,542 @@ func TestKagglePanelZeroRankAndEmptyPercentileCleanRendering(t *testing.T) {
 		}
 	}
 }
+
+type cssStyleProps struct {
+	fontSize      float64
+	mono          bool
+	bold          bool
+	upper         bool
+	letterSpacing float64
+}
+
+type svgTextBox struct {
+	text       string
+	x1, x2     float64
+	y1, y2     float64
+	quadrantX1 float64
+	quadrantX2 float64
+	inQuadrant bool
+	isPath     bool
+	pathWidth  float64
+}
+
+type svgVertDivider struct {
+	x      float64
+	y1, y2 float64
+}
+
+var (
+	reCSSRule       = regexp.MustCompile(`\.([a-zA-Z0-9_-]+)\s*\{([^}]+)\}`)
+	reTranslatePair = regexp.MustCompile(`translate\(\s*([-0-9.]+)\s*,\s*([-0-9.]+)\s*\)`)
+	reStyleFontSize = regexp.MustCompile(`font-size:\s*([-0-9.]+)px`)
+)
+
+func parseCSSStylesFromSVG(svg string) map[string]cssStyleProps {
+	styles := make(map[string]cssStyleProps)
+	matches := reCSSRule.FindAllStringSubmatch(svg, -1)
+	for _, m := range matches {
+		cls := m[1]
+		body := m[2]
+		p := styles[cls]
+		for _, decl := range strings.Split(body, ";") {
+			parts := strings.SplitN(strings.TrimSpace(decl), ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			k := strings.TrimSpace(parts[0])
+			v := strings.TrimSpace(parts[1])
+			switch k {
+			case "font-size":
+				v = strings.TrimSuffix(v, "px")
+				if f, err := strconv.ParseFloat(v, 64); err == nil {
+					p.fontSize = f
+				}
+			case "font-family":
+				vl := strings.ToLower(v)
+				if strings.Contains(vl, "mono") || strings.Contains(vl, "consolas") || strings.Contains(vl, "courier") {
+					p.mono = true
+				}
+			case "font-weight":
+				if v == "bold" || v == "700" || v == "800" || v == "600" {
+					p.bold = true
+				}
+			case "text-transform":
+				if v == "uppercase" {
+					p.upper = true
+				}
+			case "letter-spacing":
+				v = strings.TrimSuffix(v, "px")
+				if f, err := strconv.ParseFloat(v, 64); err == nil {
+					p.letterSpacing = f
+				}
+			}
+		}
+		styles[cls] = p
+	}
+	return styles
+}
+
+func auditSVGTextGeometry(svg string) (svgW, svgH float64, boxes []svgTextBox, dividers []svgVertDivider, err error) {
+	cssMap := parseCSSStylesFromSVG(svg)
+	dec := xml.NewDecoder(strings.NewReader(svg))
+
+	type groupState struct {
+		tx, ty     float64
+		inQuadrant bool
+		quadX1     float64
+		quadX2     float64
+	}
+	stack := []groupState{{tx: 0, ty: 0}}
+
+	attrMap := func(attrs []xml.Attr) map[string]string {
+		m := make(map[string]string, len(attrs))
+		for _, a := range attrs {
+			m[a.Name.Local] = a.Value
+		}
+		return m
+	}
+
+	resolveProps := func(attrs map[string]string) cssStyleProps {
+		var p cssStyleProps
+		p.fontSize = 10.0
+		for _, cls := range strings.Fields(attrs["class"]) {
+			if cp, ok := cssMap[cls]; ok {
+				if cp.fontSize > 0 {
+					p.fontSize = cp.fontSize
+				}
+				if cp.mono {
+					p.mono = true
+				}
+				if cp.bold {
+					p.bold = true
+				}
+				if cp.upper {
+					p.upper = true
+				}
+				if cp.letterSpacing != 0 {
+					p.letterSpacing = cp.letterSpacing
+				}
+			}
+		}
+		if fs, ok := attrs["font-size"]; ok {
+			fs = strings.TrimSuffix(strings.TrimSpace(fs), "px")
+			if f, err := strconv.ParseFloat(fs, 64); err == nil && f > 0 {
+				p.fontSize = f
+			}
+		}
+		if st, ok := attrs["style"]; ok {
+			if m := reStyleFontSize.FindStringSubmatch(st); len(m) == 2 {
+				if f, err := strconv.ParseFloat(m[1], 64); err == nil && f > 0 {
+					p.fontSize = f
+				}
+			}
+			if strings.Contains(st, "font-weight:700") || strings.Contains(st, "font-weight: 700") || strings.Contains(st, "font-weight:800") {
+				p.bold = true
+			}
+		}
+		if fw, ok := attrs["font-weight"]; ok {
+			if fw == "bold" || fw == "700" || fw == "800" || fw == "600" {
+				p.bold = true
+			}
+		}
+		if ls, ok := attrs["letter-spacing"]; ok {
+			ls = strings.TrimSuffix(strings.TrimSpace(ls), "px")
+			if f, err := strconv.ParseFloat(ls, 64); err == nil {
+				p.letterSpacing = f
+			}
+		}
+		return p
+	}
+
+	for {
+		tok, decErr := dec.Token()
+		if decErr == io.EOF {
+			break
+		}
+		if decErr != nil {
+			return 0, 0, nil, nil, decErr
+		}
+		switch se := tok.(type) {
+		case xml.StartElement:
+			attrs := attrMap(se.Attr)
+			cur := stack[len(stack)-1]
+			switch se.Name.Local {
+			case "svg":
+				svgW, _ = strconv.ParseFloat(attrs["width"], 64)
+				svgH, _ = strconv.ParseFloat(attrs["height"], 64)
+			case "g":
+				next := cur
+				if tr, ok := attrs["transform"]; ok {
+					if m := reTranslatePair.FindStringSubmatch(tr); len(m) == 3 {
+						dx, _ := strconv.ParseFloat(m[1], 64)
+						dy, _ := strconv.ParseFloat(m[2], 64)
+						next.tx += dx
+						next.ty += dy
+					}
+				}
+				if attrs["clip-path"] == "url(#full-panel-clip)" {
+					next.inQuadrant = true
+					next.quadX1 = next.tx
+					next.quadX2 = next.tx + 440.0
+				}
+				stack = append(stack, next)
+			case "line":
+				x1, _ := strconv.ParseFloat(attrs["x1"], 64)
+				x2, _ := strconv.ParseFloat(attrs["x2"], 64)
+				y1, _ := strconv.ParseFloat(attrs["y1"], 64)
+				y2, _ := strconv.ParseFloat(attrs["y2"], 64)
+				if math.Abs(x1-x2) < 0.01 && attrs["stroke-dasharray"] == "" && math.Abs(y2-y1) >= 18.0 {
+					minY := math.Min(y1, y2) + cur.ty
+					maxY := math.Max(y1, y2) + cur.ty
+					dividers = append(dividers, svgVertDivider{
+						x:  x1 + cur.tx,
+						y1: minY,
+						y2: maxY,
+					})
+				}
+			case "text":
+				parentProps := resolveProps(attrs)
+				anchor := attrs["text-anchor"]
+				relX, _ := strconv.ParseFloat(attrs["x"], 64)
+				relY, _ := strconv.ParseFloat(attrs["y"], 64)
+				absX := cur.tx + relX
+				absY := cur.ty + relY
+
+				type spanRun struct {
+					text  string
+					props cssStyleProps
+				}
+				var runs []spanRun
+				hasTextPath := false
+				var pathText string
+				var pathProps cssStyleProps
+
+				depth := 1
+				var activeSpan *cssStyleProps
+				for depth > 0 {
+					innerTok, iErr := dec.Token()
+					if iErr != nil {
+						return 0, 0, nil, nil, iErr
+					}
+					switch it := innerTok.(type) {
+					case xml.StartElement:
+						depth++
+						iAttrs := attrMap(it.Attr)
+						sp := resolveProps(iAttrs)
+						if _, hasClass := iAttrs["class"]; !hasClass {
+							if _, hasFS := iAttrs["font-size"]; !hasFS && !strings.Contains(iAttrs["style"], "font-size") {
+								sp.fontSize = parentProps.fontSize
+							}
+							sp.mono = parentProps.mono
+						}
+						if it.Name.Local == "textPath" {
+							hasTextPath = true
+							pathProps = sp
+						}
+						activeSpan = &sp
+					case xml.EndElement:
+						depth--
+						if depth == 1 {
+							activeSpan = nil
+						}
+					case xml.CharData:
+						raw := string(it)
+						if hasTextPath {
+							pathText += raw
+						} else {
+							p := parentProps
+							if activeSpan != nil {
+								p = *activeSpan
+							}
+							runs = append(runs, spanRun{text: raw, props: p})
+						}
+					}
+				}
+
+				if hasTextPath {
+					clean := strings.TrimSpace(pathText)
+					if clean != "" {
+						w := estimateTextWidth(clean, pathProps.fontSize, pathProps.mono, pathProps.bold, pathProps.upper, pathProps.letterSpacing)
+						boxes = append(boxes, svgTextBox{
+							text:      clean,
+							isPath:    true,
+							pathWidth: w,
+						})
+					}
+					continue
+				}
+
+				var fullText strings.Builder
+				totalW := 0.0
+				maxFS := parentProps.fontSize
+				for _, r := range runs {
+					if r.text == "" {
+						continue
+					}
+					fullText.WriteString(r.text)
+					totalW += estimateTextWidth(r.text, r.props.fontSize, r.props.mono, r.props.bold, r.props.upper, r.props.letterSpacing)
+					if r.props.fontSize > maxFS {
+						maxFS = r.props.fontSize
+					}
+				}
+				label := strings.TrimSpace(fullText.String())
+				if label == "" {
+					continue
+				}
+				// Re-estimate with trimmed outer whitespace so formatting indentation isn't counted
+				if len(runs) == 1 {
+					r := runs[0]
+					totalW = estimateTextWidth(strings.TrimSpace(r.text), r.props.fontSize, r.props.mono, r.props.bold, r.props.upper, r.props.letterSpacing)
+				}
+
+				var x1, x2 float64
+				switch anchor {
+				case "end":
+					x1 = absX - totalW
+					x2 = absX
+				case "middle":
+					x1 = absX - totalW/2.0
+					x2 = absX + totalW/2.0
+				default:
+					x1 = absX
+					x2 = absX + totalW
+				}
+				y1 := absY - maxFS*0.76
+				y2 := absY + maxFS*0.18
+				boxes = append(boxes, svgTextBox{
+					text:       label,
+					x1:         x1,
+					x2:         x2,
+					y1:         y1,
+					y2:         y2,
+					inQuadrant: cur.inQuadrant,
+					quadrantX1: cur.quadX1,
+					quadrantX2: cur.quadX2,
+				})
+			}
+		case xml.EndElement:
+			if se.Name.Local == "g" && len(stack) > 1 {
+				stack = stack[:len(stack)-1]
+			}
+		}
+	}
+	return svgW, svgH, boxes, dividers, nil
+}
+
+func TestZeroTextOverflowsAndCollisionsAcrossAllPanelsAndSchools(t *testing.T) {
+	// 1. Default demo profile
+	defaultData := DefaultPortfolioData(config.DefaultManifest())
+
+	// 2. Real Kaggler / long-role profile (Pablo Diego Pereira)
+	pabloData := DefaultPortfolioData(config.DefaultManifest())
+	pabloData.Subject.Name = "Pablo Diego Pereira"
+	pabloData.Subject.Role = "Economist & Investment Advisor (ANCORD) | Data Science & Operations Research"
+	pabloData.Subject.Headlines = []string{
+		"Economist (UFRJ) & M.Sc. Candidate in Operations Research (UFF/MESC)",
+		"MBA in Data Science & Analytics (USP/ESALQ) | ANCORD Advisor",
+		"Quantitative Finance, Combinatorial Optimization & Analytics Engineering",
+	}
+	pabloData.Subject.Bio = []string{
+		"Economist graduated from the Federal University of Rio de Janeiro (UFRJ) and Wealth & Investment Advisor accredited by ANCORD under CVM Resolution 178. As a partner at Meta Investimentos, he works on asset allocation, quantitative risk modeling, and regulatory compliance, serving clients nationwide with a regional presence in Região dos Lagos/RJ (Araruama and Rio das Ostras).",
+		"He holds an MBA in Data Science and Analytics from USP/ESALQ and is a Master's candidate in Production Engineering and Computational Systems at Fluminense Federal University (UFF/MESC), where he researches Operations Research and Combinatorial Optimization applied to statistical arbitrage and portfolio selection on B3.",
+		"His prior background spans qualitative and quantitative market research, public opinion analysis, and analytics engineering, including the technical design of the FieldCopilot platform.",
+	}
+	pabloData.Languages = domain.LanguagesPanel{
+		TotalRepos: 7,
+		Languages: []domain.LanguageStat{
+			{Name: "JavaScript", Percentage: 76.3, Color: "#7c3aed"},
+			{Name: "Go", Percentage: 20.0, Color: "#00ADD8"},
+			{Name: "templ", Percentage: 1.9, Color: "#059669"},
+			{Name: "Python", Percentage: 1.6, Color: "#0284c7"},
+			{Name: "Shell", Percentage: 0.2, Color: "#d97706"},
+		},
+		ProductionPct:      100.0,
+		ProductionFiles:    2450,
+		ExplorationPct:     0.0,
+		ExplorationFiles:   2,
+		StrippedBase64MB:   0.0,
+		LockfileRepos:      3,
+		CICDRepos:          4,
+		TestSuiteRepos:     4,
+		ContainerizedRepos: 2,
+	}
+	pabloData.Stack = domain.StackPanel{
+		TotalSources: 7,
+		DataAnalytics: []domain.StackItem{
+			{Name: "Pandas / Polars", RepoCount: 2, WeightPct: 100, IsLeader: true},
+			{Name: "SQL / DuckDB", RepoCount: 2, WeightPct: 100},
+			{Name: "NumPy / SciPy", RepoCount: 1, WeightPct: 50},
+			{Name: "Apache Spark", RepoCount: 0, WeightPct: 0},
+		},
+		MLAndAI: []domain.StackItem{
+			{Name: "Hugging Face", RepoCount: 2, WeightPct: 100, IsLeader: true},
+			{Name: "Scikit-Learn", RepoCount: 1, WeightPct: 50},
+			{Name: "Statsmodels / GLM", RepoCount: 1, WeightPct: 50},
+			{Name: "Clustering & PCA", RepoCount: 1, WeightPct: 50},
+		},
+		VizAndApps: []domain.StackItem{
+			{Name: "ggplot2 / Tidyverse", RepoCount: 1, WeightPct: 100, IsLeader: true},
+			{Name: "Geospatial Maps", RepoCount: 1, WeightPct: 100},
+			{Name: "Plotly / Dash", RepoCount: 0, WeightPct: 0},
+			{Name: "Streamlit", RepoCount: 0, WeightPct: 0},
+		},
+	}
+	pabloData.Impact = domain.ImpactMetrics{
+		AnnualContributions: 160,
+		YoYGrowthPct:        18.0,
+		ActiveStreakDays:    21,
+		TotalStars:          17,
+		PublicRepos:         7,
+		TotalForks:          3,
+		RepoViews14d:        109,
+		LinesAdded:          605200,
+		LinesDeleted:        151300,
+		WeeklyTrend:         []int{18, 22, 19, 25, 28, 24, 31, 35, 29, 38, 42, 46},
+	}
+	pabloData.Kaggle = domain.KaggleStanding{
+		Available:   true,
+		Username:    "pablodiegoo",
+		OverallTier: domain.KaggleTierKaggler,
+		PeakRank:    0,
+		TotalGold:   0,
+		TotalSilver: 0,
+		TotalBronze: 3,
+		Categories: []domain.KaggleCategory{
+			{Name: "Code", Tier: domain.KaggleTierKaggler, Rank: 0, TopPct: "3/5 Expert", Bronze: 3, ArtifactCount: 23, ProgressPct: 60, TargetPct: 74},
+			{Name: "Datasets", Tier: domain.KaggleTierKaggler, Rank: 0, TopPct: "", Bronze: 0, ArtifactCount: 5, ProgressPct: 15, TargetPct: 50},
+			{Name: "Competitions", Tier: domain.KaggleTierKaggler, Rank: 0, TopPct: "", Bronze: 0, ArtifactCount: 14, ProgressPct: 15, TargetPct: 50},
+		},
+	}
+
+	// 3. Stress profile with long language names, large deltas, Grandmaster 5-digit ranks, and Hugging Face enabled
+	stressData := DefaultPortfolioData(config.DefaultManifest())
+	stressData.Subject.Name = "Alexandros Papadopoulos-Silva"
+	stressData.Subject.Role = "Principal Machine Learning Scientist · Econometrician · Distributed Systems Architect"
+	stressData.Subject.Headlines = []string{
+		"Causal inference, deep learning & high-throughput feature engineering in production.",
+		"Building distributed feature stores and statistical modeling pipelines at petabyte scale.",
+	}
+	stressData.Subject.Bio = []string{
+		"Building distributed feature stores, causal inference engines, and deep learning training pipelines at petabyte scale across multi-cloud environments.",
+		"Leading statistical modeling, econometrics, and production ML infrastructure across high-impact open-source repositories.",
+	}
+	stressData.Impact.HFModels = 24
+	stressData.Impact.HFDatasets = 12
+	stressData.Impact.HFSpaces = 8
+	stressData.Impact.HFDownloads30d = 1450000
+	stressData.Impact.HFLikes = 3420
+	stressData.Impact.LinesAdded = 1420000
+	stressData.Impact.LinesDeleted = 820000
+	stressData.Impact.AnnualContributions = 12450
+	stressData.Languages.Languages = []domain.LanguageStat{
+		{Name: "Jupyter Notebook", Percentage: 54.2, Color: "#DA5B0B"},
+		{Name: "Objective-C++", Percentage: 21.8, Color: "#6866fb"},
+		{Name: "TypeScript", Percentage: 12.5, Color: "#3178c6"},
+		{Name: "PostgreSQL", Percentage: 7.5, Color: "#336791"},
+		{Name: "Shell", Percentage: 4.0, Color: "#059669"},
+	}
+	stressData.Kaggle = domain.KaggleStanding{
+		Available:   true,
+		Username:    "alexandrosp",
+		OverallTier: domain.KaggleTierGrandmaster,
+		PeakRank:    128,
+		TotalGold:   12,
+		TotalSilver: 34,
+		TotalBronze: 56,
+		Categories: []domain.KaggleCategory{
+			{Name: "Competitions", Tier: domain.KaggleTierGrandmaster, Rank: 128, TopPct: "Top 0.1%", Gold: 6, Silver: 14, Bronze: 18, ArtifactCount: 64, ProgressPct: 100},
+			{Name: "Datasets", Tier: domain.KaggleTierMaster, Rank: 1234, TopPct: "Top 1%", Gold: 4, Silver: 12, Bronze: 20, ArtifactCount: 38, ProgressPct: 85},
+			{Name: "Code", Tier: domain.KaggleTierExpert, Rank: 12345, TopPct: "Top 2%", Gold: 2, Silver: 8, Bronze: 18, ArtifactCount: 142, ProgressPct: 68},
+		},
+	}
+
+	profiles := []struct {
+		name string
+		data domain.PortfolioData
+	}{
+		{"default", defaultData},
+		{"pablo", pabloData},
+		{"stress", stressData},
+	}
+
+	for _, prof := range profiles {
+		for _, locale := range []string{"en", "pt-BR"} {
+			d := prof.data
+			d.Subject.Locale = locale
+			for _, school := range domain.AllSchools() {
+				for _, panel := range domain.AllPanels() {
+					svg, err := Render(school, panel, d)
+					if err != nil {
+						t.Fatalf("[%s/%s/%s/%s] Render failed: %v", prof.name, locale, school, panel, err)
+					}
+					if prof.name == "pablo" && locale == "en" {
+						genDir := filepath.Join("..", "..", "generated", string(school))
+						if st, statErr := os.Stat(genDir); statErr == nil && st.IsDir() {
+							_ = os.WriteFile(filepath.Join(genDir, string(panel)+".svg"), []byte(svg), 0o644)
+						}
+					}
+					if err := ValidateSVG(svg); err != nil {
+						t.Errorf("[%s/%s/%s/%s] ValidateSVG failed: %v", prof.name, locale, school, panel, err)
+					}
+					svgW, svgH, boxes, dividers, err := auditSVGTextGeometry(svg)
+					if err != nil {
+						t.Fatalf("[%s/%s/%s/%s] auditSVGTextGeometry failed: %v", prof.name, locale, school, panel, err)
+					}
+
+					for i, b := range boxes {
+						if b.isPath {
+							if b.pathWidth > 558.0 {
+								t.Errorf("[%s/%s/%s/%s] textPath %q width %.1fpx exceeds path budget 558px",
+									prof.name, locale, school, panel, b.text, b.pathWidth)
+							}
+							continue
+						}
+						if b.x1 < 1.5 || b.x2 > svgW-1.5 {
+							t.Errorf("[%s/%s/%s/%s] text %q horizontal bounds [%.1f, %.1f] overflow canvas [0, %.0f]",
+								prof.name, locale, school, panel, b.text, b.x1, b.x2, svgW)
+						}
+						if b.inQuadrant && (b.x1 < b.quadrantX1+1.5 || b.x2 > b.quadrantX2-1.5) {
+							t.Errorf("[%s/%s/%s/%s] text %q horizontal bounds [%.1f, %.1f] overflow quadrant [%.0f, %.0f]",
+								prof.name, locale, school, panel, b.text, b.x1, b.x2, b.quadrantX1, b.quadrantX2)
+						}
+						if b.y1 < 1.0 || b.y2 > svgH-1.0 {
+							t.Errorf("[%s/%s/%s/%s] text %q vertical bounds [%.1f, %.1f] overflow canvas [0, %.0f]",
+								prof.name, locale, school, panel, b.text, b.y1, b.y2, svgH)
+						}
+
+						// Check against vertical dividers
+						for _, div := range dividers {
+							overlapY := math.Min(b.y2, div.y2) - math.Max(b.y1, div.y1)
+							if overlapY > 1.0 && b.x1 < div.x-1.5 && b.x2 > div.x+1.5 {
+								t.Errorf("[%s/%s/%s/%s] text %q [x=%.1f..%.1f, y=%.1f..%.1f] crosses vertical divider at x=%.1f [y=%.1f..%.1f]",
+									prof.name, locale, school, panel, b.text, b.x1, b.x2, b.y1, b.y2, div.x, div.y1, div.y2)
+							}
+						}
+
+						// Pairwise 2D text overlap check
+						for j := i + 1; j < len(boxes); j++ {
+							o := boxes[j]
+							if o.isPath {
+								continue
+							}
+							overlapX := math.Min(b.x2, o.x2) - math.Max(b.x1, o.x1)
+							overlapY := math.Min(b.y2, o.y2) - math.Max(b.y1, o.y1)
+							if overlapX > 2.0 && overlapY > 2.0 {
+								t.Errorf("[%s/%s/%s/%s] text overlap (%.1fpx × %.1fpx) between %q [x=%.1f..%.1f, y=%.1f..%.1f] and %q [x=%.1f..%.1f, y=%.1f..%.1f]",
+									prof.name, locale, school, panel, overlapX, overlapY,
+									b.text, b.x1, b.x2, b.y1, b.y2,
+									o.text, o.x1, o.x2, o.y1, o.y2)
+							}
+						}
+					}
+					_ = fmt.Sprintf
+				}
+			}
+		}
+	}
+}
+
 
 
 
